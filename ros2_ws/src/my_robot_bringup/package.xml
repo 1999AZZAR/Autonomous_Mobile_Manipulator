@@ -56,8 +56,6 @@
   <depend>robot_localization</depend>
 
   <!-- Utilities -->
-  <depend>teleop_twist_keyboard</depend>
-  <depend>joy</depend>
   <depend>foxglove_bridge</depend>
 
   <exec_depend>joy</exec_depend>
