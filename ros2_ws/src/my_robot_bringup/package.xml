@@ -3,8 +3,8 @@
 <package format="3">
   <name>my_robot_bringup</name>
   <version>0.0.1</version>
-  <description>Bringup package for LKS 2025 autonomous mobile manipulator</description>
-  <maintainer email="robotics@company.com">LKS Robotics Team</maintainer>
+  <description>Bringup package for autonomous mobile manipulator</description>
+  <maintainer email="1999azzar@gmail.com">1999AZZAR</maintainer>
   <license>MIT</license>
 
   <!-- Dependencies -->

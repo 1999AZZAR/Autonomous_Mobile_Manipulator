@@ -1,4 +1,4 @@
-# Teleop Twist Joy configuration for LKS 2025 robot
+# Teleop Twist Joy configuration for autonomous mobile manipulator robot
 # Maps joystick inputs to robot movement commands
 
 teleop_twist_joy:

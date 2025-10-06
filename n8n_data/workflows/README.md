@@ -1,6 +1,6 @@
 # n8n Robot Control Workflows
 
-This directory contains ready-to-import n8n workflow files for controlling your LKS 2025 autonomous mobile manipulator robot. These workflows demonstrate various automation patterns for 3-wheeled omnidirectional robot control.
+This directory contains ready-to-import n8n workflow files for controlling your autonomous mobile manipulator robot. These workflows demonstrate various automation patterns for 3-wheeled omnidirectional robot control.
 
 ## Quick Start
 
@@ -353,4 +353,4 @@ Edit the velocity values in each workflow:
 
 **Happy Robot Automation! 🤖**
 
-*These workflows are specifically designed for your 3-wheeled omnidirectional robot and leverage its unique movement capabilities for optimal performance in the LKS 2025 competition.*
+*These workflows are specifically designed for your 3-wheeled omnidirectional robot and leverage its unique movement capabilities for optimal performance in robotics applications.*
