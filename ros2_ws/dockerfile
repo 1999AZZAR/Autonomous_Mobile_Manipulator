@@ -1,0 +1,32 @@
+# Use an official ROS 2 Iron image that includes Gazebo and RViz
+FROM osrf/ros:iron-desktop-full
+
+# Set the shell to bash
+SHELL ["/bin/bash", "-c"]
+
+# --- System Dependencies ---
+# Install essential tools and libraries
+RUN apt-get update && apt-get install -y \
+    terminator \
+    git \
+    python3-pip \
+    python3-colcon-common-extensions \
+    ros-iron-navigation2 \
+    ros-iron-nav2-bringup \
+    ros-iron-moveit \
+    # Add any other specific libraries your robot needs here
+    && rm -rf /var/lib/apt/lists/*
+
+# --- Python Dependencies ---
+# Install Python libraries for your custom nodes
+RUN pip3 install flask
+
+# --- ROS 2 Workspace Setup ---
+# Create and build the workspace
+WORKDIR /root/ros2_ws
+COPY . .
+RUN . /opt/ros/iron/setup.bash && colcon build
+
+# --- Entrypoint ---
+# Source the ROS 2 environment every time the container starts
+CMD ["/bin/bash"]

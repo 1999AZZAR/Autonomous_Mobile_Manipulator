@@ -1,0 +1,661 @@
+# =================================================================================
+# LKS 2025 Autonomous Mobile Manipulator Project - .gitignore
+# =================================================================================
+# This file contains comprehensive ignore patterns for ROS 2, Docker, n8n, and
+# general development artifacts specific to this robotics competition project.
+
+# =================================================================================
+# ROS 2 Specific Ignores
+# =================================================================================
+
+# Build directories and artifacts
+build/
+install/
+log/
+
+# Colcon build outputs
+**/build/
+**/install/
+**/log/
+
+# ROS 2 workspace artifacts
+*.bag
+*.bag.active
+
+# ROS 2 package build directories (in case they exist in src)
+**/CMakeCache.txt
+**/CMakeFiles/
+**/cmake_install.cmake
+**/compile_commands.json
+**/CTestTestfile.cmake
+**/deps/
+**/Makefile
+**/CATKIN_IGNORE
+**/COLCON_IGNORE
+
+# ROS 2 generated files
+**/*.so
+**/*.so.*
+**/bin/
+**/lib/
+**/share/
+
+# =================================================================================
+# Docker Specific Ignores
+# =================================================================================
+
+# Docker volumes and containers (runtime data)
+/n8n_data/
+/var/lib/docker/
+/tmp/.X11-unix/
+
+# Docker Compose override files for development
+docker-compose.override.yml
+docker-compose.*.yml
+
+# Docker build context artifacts
+.dockerignore
+
+# Docker image layers and metadata
+**/Dockerfile.tmp
+
+# =================================================================================
+# n8n Workflow Data (Keep source workflows, ignore runtime data)
+# =================================================================================
+
+# n8n runtime database and logs
+n8n_data/database.sqlite
+n8n_data/*.log
+n8n_data/crash.journal
+n8n_data/n8nEventLog.log
+
+# n8n temporary files
+n8n_data/.n8n/
+n8n_data/temp/
+
+# Keep workflow source files but ignore generated content
+# n8n_data/workflows/*.json (uncomment if you want to ignore workflow exports)
+
+# =================================================================================
+# Python Specific Ignores
+# =================================================================================
+
+# Virtual environments
+venv/
+env/
+ENV/
+.venv/
+.env/
+
+# Python bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# celery beat schedule file
+celerybeat-schedule
+
+# SageMath parsed files
+*.sage.py
+
+# Virtual environments
+.venv
+pipenv
+    [Rr]equirements*.txt
+    [Rr]equirements*.pip
+    [Rr]equirements*.conda
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# =================================================================================
+# C++ Specific Ignores (for ROS 2 C++ nodes)
+# =================================================================================
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+# CMake generated files
+CMakeCache.txt
+CMakeFiles/
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+CTestTestfile.cmake
+_deps
+cmake-build-*/
+
+# Qt specific
+*.pro.user
+*.pro.user.*
+*.qbs.user
+*.qbs.user.*
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+Makefile*
+*build-*
+
+# KDevelop
+*.kdev4
+.kdev4
+
+# KDE specific
+*.kate-swp
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# SublimeText
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+
+# VSCode
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# CLion
+.idea/
+cmake-build-*/
+cmake-build-debug/
+cmake-build-release/
+
+# =================================================================================
+# Simulation and Robot Specific Ignores
+# =================================================================================
+
+# Gazebo simulation files
+*.world
+*.sdf
+/gazebo/
+**/.gazebo/
+
+# Robot description files (URDF, XACRO) - keep source, ignore generated
+**/*.urdf.tmp
+**/*.xacro.tmp
+
+# Robot calibration data (keep source, ignore generated)
+**/calibration/
+**/calibration_data/
+
+# Robot log files
+**/*.log
+**/logs/
+**/rosout.log
+**/rosout_gui.log
+
+# Robot bag files (ROS bag recordings)
+**/*.bag
+**/*.bag.active
+**/bags/
+
+# Robot configuration backups
+**/*.bak
+**/*.backup
+**/backup/
+
+# =================================================================================
+# Development and IDE Specific Ignores
+# =================================================================================
+
+# Visual Studio Code
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# Sublime Text
+*.tmlanguage.cache
+*.tmPreferences.cache
+*.stTheme.cache
+*.sublime-workspace
+*.sublime-project
+
+# Vim
+*.swp
+*.swo
+*~
+Session.vim
+.netrwhist
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# Atom
+.atom/
+
+# Brackets
+.brackets
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# PyCharm
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Eclipse
+.metadata
+bin/
+tmp/
+*.tmp
+*.bak
+*.swp
+*~.nib
+local.properties
+.loadpath
+.recommenders
+.externalToolBuilders/
+*.launch
+.pydevproject
+.cproject
+.autotools
+.factorypath
+.buildpath
+.target
+.texlipse
+.settings/
+.loadpath
+.recommenders
+
+# NetBeans
+/nbproject/private/
+nbbuild/
+dist/
+nbdist/
+.nb-gradle/
+build/
+!output/
+
+# =================================================================================
+# OS Specific Ignores
+# =================================================================================
+
+# macOS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+Desktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# =================================================================================
+# Documentation and Build Artifacts
+# =================================================================================
+
+# Sphinx documentation
+docs/_build/
+docs/build/
+target/
+
+# Doxygen
+html/
+latex/
+docs/html/
+docs/latex/
+
+# PDF documentation
+*.pdf
+!README.pdf
+
+# Markdown generated files
+*.md.html
+*.markdown.html
+
+# =================================================================================
+# Temporary and Cache Files
+# =================================================================================
+
+# Temporary files
+*.tmp
+*.temp
+.tmp/
+.temp/
+
+# Cache directories
+.cache/
+**/.cache/
+**/cache/
+
+# Node.js (if using for tooling)
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.npm
+.eslintcache
+
+# Bower dependency directory
+bower_components
+
+# Logs
+logs
+*.log
+
+# Runtime data
+pids
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# Dependency directories
+jspm_packages/
+
+# Optional npm cache directory
+.npm
+
+# Optional eslint cache
+.eslintcache
+
+# Optional REPL history
+.node_repl_history
+
+# Output of 'npm pack'
+*.tgz
+
+# Yarn Integrity file
+.yarn-integrity
+
+# dotenv environment variables file
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# parcel-bundler cache (https://parceljs.org/)
+.parcel-cache
+
+# next.js build output
+.next
+
+# nuxt.js build output
+.nuxt
+
+# vuepress build output
+.vuepress/dist
+
+# Serverless directories
+.serverless
+
+# FuseBox cache
+.fusebox/
+
+# DynamoDB Local files
+.dynamodb/
+
+# TernJS port file
+.tern-port
+
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
+# yarn v2
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
+# =================================================================================
+# Project Specific Ignores
+# =================================================================================
+
+# Robot competition specific
+competition_logs/
+mission_data/
+telemetry/
+**/recordings/
+
+# Hardware interface logs
+**/can_logs/
+**/serial_logs/
+
+# Simulation recordings
+**/videos/
+**/*.mp4
+**/*.avi
+**/*.mov
+
+# Model files (keep source, ignore generated)
+**/*.stl.processed
+**/*.dae.tmp
+
+# Calibration data (keep source configs, ignore generated data)
+**/calibration_results/
+**/calibration_cache/
+
+# =================================================================================
+# Security and Sensitive Files (NEVER COMMIT)
+# =================================================================================
+
+# SSH keys
+*.pem
+*.key
+*.crt
+*.cer
+*.p12
+*.pfx
+
+# Environment files with secrets
+.env.local
+.env.production
+.env.staging
+.secrets
+config/secrets.yml
+
+# API keys and tokens
+*.token
+api_keys.yml
+secrets.yml
+
+# Database files (except schema)
+*.db
+*.sqlite3
+!schema.sql
+
+# Backup files
+*.backup
+*.bak
+**/*.backup
+
+# =================================================================================
+# File Size and Performance Ignores
+# =================================================================================
+
+# Large media files (comment out if you need to track these)
+**/*.zip
+**/*.tar.gz
+**/*.rar
+**/*.7z
+**/videos/
+**/images/large/
+**/datasets/
+
+# =================================================================================
+# Custom Project Rules
+# =================================================================================
+
+# If you need to track specific files that are normally ignored,
+# add them below this line with ! prefix
+#
+# Examples:
+# !logs/debug.log
+# !.vscode/settings.json

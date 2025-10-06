@@ -1,0 +1,33 @@
+services:
+  # The ROS 2 and Gazebo Simulation Service
+  ros2-sim:
+    build:
+      context: ./ros2_ws  # Tells Docker Compose to use the Dockerfile in the ./ros2_ws folder
+    container_name: ros2_sim_container
+    # This command keeps the container running
+    command: tail -f /dev/null
+    # Share the source code folder so you can edit code on your PC and it updates inside the container
+    volumes:
+      - ./ros2_ws/src:/root/ros2_ws/src
+    # Network settings to allow Gazebo GUI to display on your PC
+    environment:
+      - DISPLAY=${DISPLAY}
+      - QT_X11_NO_MITSHM=1
+    # Allows the container to access your host machine's graphics hardware
+    privileged: true
+    network_mode: "host" # Simplifies GUI forwarding for Gazebo/RViz
+
+  # The n8n Workflow Automation Service
+  n8n:
+    image: docker.io/n8nio/n8n:latest # Uses the official n8n image from Docker Hub
+    container_name: n8n_container
+    restart: always
+    ports:
+      - "5678:5678" # Maps your PC's port 5678 to the container's port 5678
+    environment:
+      - GENERIC_TIMEZONE=Asia/Jakarta # Set your local timezone
+    volumes:
+      - ./n8n_data:/home/node/.n8n # Persists your n8n workflows and data on your PC
+
+volumes:
+  n8n_data:
