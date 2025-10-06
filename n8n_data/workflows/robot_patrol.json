@@ -1,0 +1,203 @@
+{
+  "name": "Autonomous Square Patrol",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "0,30 * * * * *"
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [20, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "patrol_step",
+              "value": "={{ ($node[\"Patrol Counter\"].json.patrol_step || 0) + 1 }}"
+            }
+          ]
+        }
+      },
+      "id": "patrol-counter",
+      "name": "Patrol Counter",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [240, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $node[\"Patrol Counter\"].json.patrol_step }}",
+              "operation": "modulo",
+              "value2": 2
+            }
+          ]
+        }
+      },
+      "id": "movement-decision",
+      "name": "Movement Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "object": {
+            "linear_x": 0.5,
+            "linear_y": 0,
+            "angular_z": 0
+          }
+        }
+      },
+      "id": "move-forward",
+      "name": "Move Forward",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 80]
+    },
+    {
+      "parameters": {
+        "values": {
+          "object": {
+            "linear_x": 0,
+            "linear_y": 0,
+            "angular_z": 1.57
+          }
+        }
+      },
+      "id": "rotate-90",
+      "name": "Rotate 90°",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 320]
+    },
+    {
+      "parameters": {
+        "topic": "/cmd_vel",
+        "messageType": "geometry_msgs/Twist",
+        "linearX": "={{ $json.linear_x || 0 }}",
+        "linearY": "={{ $json.linear_y || 0 }}",
+        "angularZ": "={{ $json.angular_z || 0 }}"
+      },
+      "id": "ros2-publisher",
+      "name": "ROS 2 Publisher",
+      "type": "custom.ros2Publisher",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "delay": 4000
+      },
+      "id": "delay-forward",
+      "name": "Delay Forward",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1120, 80]
+    },
+    {
+      "parameters": {
+        "delay": 2000
+      },
+      "id": "delay-rotate",
+      "name": "Delay Rotate",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1120, 320]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Patrol Counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patrol Counter": {
+      "main": [
+        [
+          {
+            "node": "Movement Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Movement Decision": {
+      "main": [
+        [
+          {
+            "node": "Move Forward",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rotate 90°",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Forward": {
+      "main": [
+        [
+          {
+            "node": "ROS 2 Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotate 90°": {
+      "main": [
+        [
+          {
+            "node": "ROS 2 Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "ROS 2 Publisher": {
+      "main": [
+        [
+          {
+            "node": "Delay Forward",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delay Rotate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all"
+  }
+}

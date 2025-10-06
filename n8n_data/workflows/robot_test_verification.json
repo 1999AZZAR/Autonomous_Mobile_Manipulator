@@ -1,0 +1,183 @@
+{
+  "name": "Robot Control Test & Verification",
+  "nodes": [
+    {
+      "parameters": {
+        "notice": "Test robot control systems"
+      },
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "test_type",
+              "value": "={{ $json.body.test_type || 'basic_movement' }}"
+            }
+          ]
+        }
+      },
+      "id": "test-parameters",
+      "name": "Test Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $node[\"Test Parameters\"].json.test_type }}",
+              "operation": "equals",
+              "value2": "basic_movement"
+            }
+          ]
+        }
+      },
+      "id": "test-type-check",
+      "name": "Test Type Check",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "object": {
+            "linear_x": 0.2,
+            "linear_y": 0,
+            "angular_z": 0,
+            "test_command": "forward_test"
+          }
+        }
+      },
+      "id": "forward-test",
+      "name": "Forward Test",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "object": {
+            "linear_x": 0,
+            "linear_y": 0,
+            "angular_z": 0,
+            "test_command": "stop_test"
+          }
+        }
+      },
+      "id": "stop-test",
+      "name": "Stop Test",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "topic": "/cmd_vel",
+        "messageType": "geometry_msgs/Twist",
+        "linearX": "={{ $json.linear_x || 0 }}",
+        "linearY": "={{ $json.linear_y || 0 }}",
+        "angularZ": "={{ $json.angular_z || 0 }}"
+      },
+      "id": "test-publisher",
+      "name": "Test Publisher",
+      "type": "custom.ros2Publisher",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "topic": "/test_status",
+        "messageType": "std_msgs/String",
+        "data": "={{ $json.test_command + ' completed at ' + $now.format('HH:mm:ss') }}"
+      },
+      "id": "status-publisher",
+      "name": "Status Publisher",
+      "type": "custom.ros2Publisher",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Test Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Parameters": {
+      "main": [
+        [
+          {
+            "node": "Test Type Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Type Check": {
+      "main": [
+        [
+          {
+            "node": "Forward Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Forward Test": {
+      "main": [
+        [
+          {
+            "node": "Test Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Test Publisher": {
+      "main": [
+        [
+          {
+            "node": "Stop Test",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop Test": {
+      "main": [
+        [
+          {
+            "node": "Status Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all"
+  }
+}

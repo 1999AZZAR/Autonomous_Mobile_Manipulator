@@ -1,0 +1,304 @@
+{
+  "name": "Emergency Stop Monitor",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "emergency-stop",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "emergency-button",
+      "name": "Emergency Button",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [20, 100],
+      "webhookId": "emergency-stop"
+    },
+    {
+      "parameters": {
+        "topic": "/imu",
+        "messageType": "sensor_msgs/Imu",
+        "queueSize": 10
+      },
+      "id": "imu-monitor",
+      "name": "IMU Monitor",
+      "type": "custom.ros2Subscriber",
+      "typeVersion": 1,
+      "position": [20, 250]
+    },
+    {
+      "parameters": {
+        "functionCode": "const imu = $input.item.json;\nconst angular_velocity = imu.angular_velocity;\nconst linear_acceleration = imu.linear_acceleration;\n\n// Check for excessive movement\nif (Math.abs(angular_velocity.z) > 2.0 || Math.abs(linear_acceleration.x) > 5.0) {\n  return { emergency: true, reason: 'excessive_movement', data: imu };\n}\n\nreturn { emergency: false };"
+      },
+      "id": "check-movement",
+      "name": "Check Movement",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [240, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $node[\"Emergency Button\"].json.body.emergency || $node[\"Check Movement\"].json.emergency || false }}",
+              "operation": "equals",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "emergency-trigger",
+      "name": "Emergency Trigger",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "object": {
+            "linear_x": 0,
+            "linear_y": 0,
+            "angular_z": 0
+          }
+        }
+      },
+      "id": "stop-robot",
+      "name": "Stop Robot",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 80]
+    },
+    {
+      "parameters": {
+        "values": {
+          "object": {
+            "joint_positions": [0, 0, 0, 0, 0, 0],
+            "velocity": 0.1
+          }
+        }
+      },
+      "id": "retract-arm",
+      "name": "Retract Arm",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "Emergency stop activated"
+            },
+            {
+              "name": "priority",
+              "value": "high"
+            }
+          ]
+        }
+      },
+      "id": "notification-data",
+      "name": "Notification Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 320]
+    },
+    {
+      "parameters": {
+        "topic": "/cmd_vel",
+        "messageType": "geometry_msgs/Twist",
+        "linearX": "={{ $json.linear_x || 0 }}",
+        "linearY": "={{ $json.linear_y || 0 }}",
+        "angularZ": "={{ $json.angular_z || 0 }}"
+      },
+      "id": "emergency-stop-publisher",
+      "name": "Emergency Stop Publisher",
+      "type": "custom.ros2Publisher",
+      "typeVersion": 1,
+      "position": [900, 80]
+    },
+    {
+      "parameters": {
+        "topic": "/arm_controller/command",
+        "messageType": "std_msgs/String",
+        "data": "={{ $json.joint_positions ? JSON.stringify($json) : '' }}"
+      },
+      "id": "arm-retract-publisher",
+      "name": "Arm Retract Publisher",
+      "type": "custom.ros2Publisher",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "toEmail": "robotics-team@company.com",
+        "subject": "EMERGENCY: Robot Stopped",
+        "text": "={{ 'Emergency stop activated at ' + $now.format('YYYY-MM-DD HH:mm:ss') + '\\nReason: ' + ($node[\"Notification Data\"].json.message || 'Unknown') }}"
+      },
+      "id": "email-notification",
+      "name": "Email Notification",
+      "type": "n8n-nodes-base.emailSend",
+      "typeVersion": 1,
+      "position": [900, 320]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "log_entry",
+              "value": "={{ 'EMERGENCY_STOP: ' + $now.format('YYYY-MM-DD HH:mm:ss') + ' - ' + ($node[\"Notification Data\"].json.message || 'Unknown reason') }}"
+            }
+          ]
+        }
+      },
+      "id": "log-emergency",
+      "name": "Log Emergency",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "fileName": "={{ 'emergency_log_' + $now.format('YYYY-MM-DD') + '.txt' }}",
+        "data": "={{ $json.log_entry }}",
+        "options": {
+          "append": true
+        }
+      },
+      "id": "file-writer",
+      "name": "File Writer",
+      "type": "n8n-nodes-base.writeBinaryFile",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    }
+  ],
+  "connections": {
+    "Emergency Button": {
+      "main": [
+        [
+          {
+            "node": "Emergency Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "IMU Monitor": {
+      "main": [
+        [
+          {
+            "node": "Check Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Movement": {
+      "main": [
+        [
+          {
+            "node": "Emergency Trigger",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emergency Trigger": {
+      "main": [
+        [
+          {
+            "node": "Stop Robot",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Retract Arm",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Notification Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop Robot": {
+      "main": [
+        [
+          {
+            "node": "Emergency Stop Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Retract Arm": {
+      "main": [
+        [
+          {
+            "node": "Arm Retract Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notification Data": {
+      "main": [
+        [
+          {
+            "node": "Email Notification",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Emergency",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Emergency": {
+      "main": [
+        [
+          {
+            "node": "File Writer",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {
+    "Emergency Thresholds": {
+      "max_angular_velocity": 2.0,
+      "max_linear_acceleration": 5.0,
+      "notification_email": "robotics-team@company.com",
+      "log_file_prefix": "emergency_log_"
+    }
+  }
+}

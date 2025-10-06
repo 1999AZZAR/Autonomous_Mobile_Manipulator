@@ -45,7 +45,6 @@ log/
 # =================================================================================
 
 # Docker volumes and containers (runtime data)
-/n8n_data/
 /var/lib/docker/
 /tmp/.X11-unix/
 
@@ -60,21 +59,30 @@ docker-compose.*.yml
 **/Dockerfile.tmp
 
 # =================================================================================
-# n8n Workflow Data (Keep source workflows, ignore runtime data)
+# n8n Workflow Data (Track source workflows, ignore runtime data)
 # =================================================================================
 
 # n8n runtime database and logs
 n8n_data/database.sqlite
-n8n_data/*.log
-n8n_data/crash.journal
 n8n_data/n8nEventLog.log
+n8n_data/crash.journal
 
-# n8n temporary files
+# n8n binary data and caches
+n8n_data/binaryData/
 n8n_data/.n8n/
 n8n_data/temp/
 
-# Keep workflow source files but ignore generated content
-# n8n_data/workflows/*.json (uncomment if you want to ignore workflow exports)
+# n8n SSH keys and authentication
+n8n_data/ssh/
+n8n_data/git/
+
+# n8n configuration files (keep source, ignore generated)
+n8n_data/config
+
+# TRACK THESE: Keep workflow source files and documentation
+# n8n_data/workflows/*.json (tracked - these are source code)
+# n8n_data/workflows/README.md (tracked - documentation)
+# n8n_data/nodes/package.json (tracked - dependencies)
 
 # =================================================================================
 # Python Specific Ignores
@@ -650,6 +658,154 @@ secrets.yml
 **/datasets/
 
 # =================================================================================
+# Robot Competition Specific Ignores
+# =================================================================================
+
+# Robot competition data (ignore generated, keep configs)
+competition_configs/backup/
+**/competition_runs/
+**/test_runs/
+**/benchmark_results/
+
+# Robot hardware calibration data (ignore generated)
+**/calibration_runs/
+**/calibration_backups/
+**/hardware_tests/
+
+# Robot log aggregation and analysis
+**/log_analysis/
+**/performance_metrics/
+**/debug_sessions/
+
+# Temporary robot data during competition
+**/temp_robot_data/
+**/session_data/
+
+# =================================================================================
+# Development Tool Specific Ignores
+# =================================================================================
+
+# PlatformIO (for Arduino/ESP32 development if used)
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# Arduino IDE
+*.ino.hex
+*.ino.elf
+*.ino.eep
+
+# STM32CubeIDE
+*.project
+*.cproject
+*.mxproject
+*.ioc
+Debug/
+Release/
+
+# Keil MDK-ARM
+*.uvprojx
+*.uvoptx
+*.uvguix
+*.scvd
+JLinkLog.txt
+JLinkSettings.ini
+
+# IAR Embedded Workbench
+*.ewp
+*.eww
+*.ewd
+*.ewt
+settings/
+Debug/
+Release/
+
+# =================================================================================
+# 3D Model and CAD Specific Ignores
+# =================================================================================
+
+# CAD software files (SolidWorks, AutoCAD, etc.)
+*.SLDPRT
+*.SLDASM
+*.SLDDRW
+*.prt
+*.asm
+*.drw
+*.dwg
+*.dxf
+
+# 3D printing files
+*.stl.tmp
+*.gcode
+*.gco
+**/slices/
+
+# Mesh processing artifacts
+*.ply.processed
+*.obj.tmp
+**/mesh_cache/
+
+# =================================================================================
+# Simulation Specific Ignores
+# =================================================================================
+
+# Gazebo model cache and logs
+.gazeboclient/
+.gazeboserver/
+**/gazebo_logs/
+**/.gazebo_models/
+
+# Webots simulation files
+*.wbt.bak
+**/controllers/*/build/
+**/libraries/*/build/
+
+# V-REP/CoppeliaSim files
+*.ttt.bak
+**/remoteApiConnections.txt
+
+# Unity simulation (if used)
+**/Assets/Scenes/*_backup.unity
+**/Library/
+**/Logs/
+**/obj/
+**/Temp/
+
+# =================================================================================
+# Network and Communication Specific Ignores
+# =================================================================================
+
+# Network configuration backups
+**/network_configs/
+**/wifi_configs/
+
+# Robot communication logs
+**/communication_logs/
+**/protocol_buffers/
+
+# MQTT broker data (if using local broker)
+**/mosquitto_data/
+**/mqtt_logs/
+
+# =================================================================================
+# Testing and CI/CD Specific Ignores
+# =================================================================================
+
+# Test artifacts and reports
+**/test_results/
+**/coverage_reports/
+**/benchmark_outputs/
+**/profiling_data/
+
+# CI/CD pipeline artifacts
+.cicd/
+.github/workflows/cache/
+**/build_artifacts/
+
+# Docker layer cache (if using buildkit)
+**/docker_layer_cache/
+
+# =================================================================================
 # Custom Project Rules
 # =================================================================================
 
@@ -659,3 +815,9 @@ secrets.yml
 # Examples:
 # !logs/debug.log
 # !.vscode/settings.json
+
+# Track n8n workflow source files and documentation
+!n8n_data/workflows/
+!n8n_data/workflows/*.json
+!n8n_data/workflows/*.md
+!n8n_data/nodes/package.json

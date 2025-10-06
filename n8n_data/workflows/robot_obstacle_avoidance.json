@@ -1,0 +1,79 @@
+{
+  "name": "Reactive Obstacle Avoidance",
+  "nodes": [
+    {
+      "parameters": {
+        "topic": "/scan",
+        "messageType": "sensor_msgs/LaserScan",
+        "queueSize": 10
+      },
+      "id": "laser-subscriber",
+      "name": "Laser Scan Subscriber",
+      "type": "custom.ros2Subscriber",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const ranges = $input.item.json.ranges || [];\nconst minDistance = Math.min(...ranges.filter(r => r > 0));\n\nif (minDistance < 0.5) {\n  // Obstacle detected - strafe right\n  return { linear_x: 0, linear_y: 0.3, angular_z: 0, behavior: 'strafe_right' };\n} else if (minDistance < 1.0) {\n  // Slow down\n  return { linear_x: 0.2, linear_y: 0, angular_z: 0, behavior: 'slow_down' };\n} else {\n  // Normal speed\n  return { linear_x: 0.5, linear_y: 0, angular_z: 0, behavior: 'normal_speed' };\n}"
+      },
+      "id": "process-laser-data",
+      "name": "Process Laser Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "topic": "/cmd_vel",
+        "messageType": "geometry_msgs/Twist",
+        "linearX": "={{ $json.linear_x || 0 }}",
+        "linearY": "={{ $json.linear_y || 0 }}",
+        "angularZ": "={{ $json.angular_z || 0 }}"
+      },
+      "id": "velocity-publisher",
+      "name": "Velocity Publisher",
+      "type": "custom.ros2Publisher",
+      "typeVersion": 1,
+      "position": [460, 300]
+    }
+  ],
+  "connections": {
+    "Laser Scan Subscriber": {
+      "main": [
+        [
+          {
+            "node": "Process Laser Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Laser Data": {
+      "main": [
+        [
+          {
+            "node": "Velocity Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {
+    "Obstacle Avoidance Settings": {
+      "min_obstacle_distance": 0.5,
+      "slow_down_distance": 1.0,
+      "strafe_speed": 0.3,
+      "slow_speed": 0.2,
+      "normal_speed": 0.5
+    }
+  }
+}

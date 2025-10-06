@@ -1,0 +1,90 @@
+{
+  "name": "Robot Basic Movement Control",
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "command",
+              "value": "={{ $json.body.command || 'stop' }}"
+            }
+          ]
+        }
+      },
+      "id": "movement-mapper",
+      "name": "Movement Mapper",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "robot-control",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [20, 300],
+      "webhookId": "robot-basic-control"
+    },
+    {
+      "parameters": {
+        "topic": "/cmd_vel",
+        "messageType": "geometry_msgs/Twist",
+        "linearX": "={{ $node[\"Movement Mapper\"].json.linear_x || 0 }}",
+        "linearY": "={{ $node[\"Movement Mapper\"].json.linear_y || 0 }}",
+        "angularZ": "={{ $node[\"Movement Mapper\"].json.angular_z || 0 }}"
+      },
+      "id": "ros2-publisher",
+      "name": "ROS 2 Publisher",
+      "type": "custom.ros2Publisher",
+      "typeVersion": 1,
+      "position": [480, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Movement Mapper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Movement Mapper": {
+      "main": [
+        [
+          {
+            "node": "ROS 2 Publisher",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all"
+  },
+  "staticData": {
+    " Movement Commands": {
+      "forward": { "linear_x": 0.5, "linear_y": 0, "angular_z": 0 },
+      "backward": { "linear_x": -0.5, "linear_y": 0, "angular_z": 0 },
+      "left": { "linear_x": 0, "linear_y": 0.5, "angular_z": 0 },
+      "right": { "linear_x": 0, "linear_y": -0.5, "angular_z": 0 },
+      "rotate_cw": { "linear_x": 0, "linear_y": 0, "angular_z": 0.5 },
+      "rotate_ccw": { "linear_x": 0, "linear_y": 0, "angular_z": -0.5 },
+      "stop": { "linear_x": 0, "linear_y": 0, "angular_z": 0 }
+    }
+  }
+}
