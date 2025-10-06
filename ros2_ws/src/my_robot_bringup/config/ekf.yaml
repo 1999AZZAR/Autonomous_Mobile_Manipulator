@@ -1,0 +1,91 @@
+# Extended Kalman Filter configuration for robot localization
+# Combines wheel odometry, IMU, and laser scan matching data
+
+ekf_filter_node:
+  ros__parameters:
+    # Frame configuration
+    base_link_frame: base_link
+    odom_frame: odom
+    world_frame: map
+
+    # Sensor configuration
+    frequency: 50.0
+    sensor_timeout: 0.1
+    two_d_mode: true
+
+    # Transform configuration
+    transform_time_offset: 0.0
+    transform_timeout: 0.0
+
+    # Initial pose and covariance
+    initial_estimate_covariance: [
+      1e-9, 0, 0, 0, 0, 0,
+      0, 1e-9, 0, 0, 0, 0,
+      0, 0, 1e-9, 0, 0, 0,
+      0, 0, 0, 1e-9, 0, 0,
+      0, 0, 0, 0, 1e-9, 0,
+      0, 0, 0, 0, 0, 1e-9
+    ]
+
+# Wheel odometry (from diff_drive_controller)
+odom0: /diff_drive_controller/odom
+odom0_config: [
+  true,  true,  false,
+  false, false, true,
+  true,  true,  false,
+  false, false, true,
+  false, false, false
+]
+odom0_queue_size: 10
+odom0_nodelay: true
+odom0_differential: false
+odom0_relative: false
+
+# IMU sensor data
+imu0: /imu/data
+imu0_config: [
+  false, false, false,
+  true,  true,  true,
+  false, false, false,
+  true,  true,  true,
+  true,  true,  true
+]
+imu0_queue_size: 10
+imu0_nodelay: true
+imu0_differential: false
+imu0_relative: false
+imu0_remove_gravitational_acceleration: true
+
+# Laser scan matcher odometry (from laser_scan_matcher)
+odom1: /odom
+odom1_config: [
+  true,  true,  false,
+  false, false, true,
+  false, false, false,
+  false, false, false,
+  false, false, false
+]
+odom1_queue_size: 10
+odom1_nodelay: true
+odom1_differential: false
+odom1_relative: false
+
+# Process noise covariance
+process_noise_covariance: [
+  0.05, 0,    0,    0,    0,    0,
+  0,    0.05, 0,    0,    0,    0,
+  0,    0,    0.06, 0,    0,    0,
+  0,    0,    0,    0.03, 0,    0,
+  0,    0,    0,    0,    0.03, 0,
+  0,    0,    0,    0,    0,    0.06
+]
+
+# Initial estimate covariance (higher uncertainty for initial pose)
+initial_estimate_covariance: [
+  1.0,  0,    0,    0,    0,    0,
+  0,    1.0,  0,    0,    0,    0,
+  0,    0,    1e6,  0,    0,    0,
+  0,    0,    0,    1e6,  0,    0,
+  0,    0,    0,    0,    1e6,  0,
+  0,    0,    0,    0,    0,    0.2
+]

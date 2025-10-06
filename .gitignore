@@ -821,3 +821,17 @@ Release/
 !n8n_data/workflows/*.json
 !n8n_data/workflows/*.md
 !n8n_data/nodes/package.json
+
+# Track ROS 2 workspace source files
+!ros2_ws/src/
+!ros2_ws/src/**/*.xml
+!ros2_ws/src/**/*.launch.py
+!ros2_ws/src/**/*.yaml
+!ros2_ws/src/**/*.xacro
+!ros2_ws/src/**/*.urdf
+!ros2_ws/src/**/*.rviz
+
+# Track configuration files that are part of the source
+!**/config/*.yaml
+!**/launch/*.py
+!**/worlds/*.world

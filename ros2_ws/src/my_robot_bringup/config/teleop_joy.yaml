@@ -1,0 +1,50 @@
+# Teleop Twist Joy configuration for LKS 2025 robot
+# Maps joystick inputs to robot movement commands
+
+teleop_twist_joy:
+  ros__parameters:
+    # Axis mappings (adjust based on your joystick)
+    axis_linear:
+      x: 1  # Left stick vertical (forward/backward)
+      y: 0  # Left stick horizontal (left/right strafing)
+
+    axis_angular:
+      yaw: 3  # Right stick horizontal (rotation)
+
+    # Scale factors for movement
+    scale_linear:
+      x: 0.8   # Forward/backward speed scale
+      y: 0.6   # Lateral strafing speed scale
+
+    scale_angular:
+      yaw: 1.2  # Rotation speed scale
+
+    # Button mappings for special functions
+    enable_button: 4    # RB button to enable control
+    enable_turbo_button: 5  # RT button for turbo speed
+
+    # Turbo mode multipliers
+    scale_linear_turbo:
+      x: 1.5
+      y: 1.2
+
+    scale_angular_turbo:
+      yaw: 2.0
+
+    # Deadzone for analog sticks
+    joy_deadzone: 0.05
+
+    # Command timeout (seconds)
+    cmd_vel_timeout: 0.5
+
+    # Output topic
+    cmd_vel_topic: "/diff_drive_controller/cmd_vel_unstamped"
+
+    # Frame configuration
+    base_frame: "base_link"
+    cmd_vel_frame: "base_link"
+
+    # Safety features
+    require_enable_button: true
+    auto_stop: true
+    auto_stop_timeout: 2.0

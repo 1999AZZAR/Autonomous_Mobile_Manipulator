@@ -1,0 +1,143 @@
+controller_manager:
+  ros__parameters:
+    update_rate: 100  # Hz
+
+    joint_state_broadcaster:
+      type: joint_state_broadcaster/JointStateBroadcaster
+
+    diff_drive_controller:
+      type: diff_drive_controller/DiffDriveController
+
+    arm_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
+
+    gripper_controller:
+      type: position_controllers/GripperActionController
+
+    imu_sensor_broadcaster:
+      type: imu_sensor_broadcaster/IMUSensorBroadcaster
+
+diff_drive_controller:
+  ros__parameters:
+    # Robot physical parameters
+    wheel_separation: 0.52  # Distance between wheels (3-wheeled omni config)
+    wheel_radius: 0.075
+
+    # Wheel names for 3-wheeled omnidirectional robot
+    left_wheel_names: ["wheel_1_joint", "wheel_2_joint"]
+    right_wheel_names: ["wheel_3_joint"]
+
+    # Wheel separation for each pair (120 degrees apart)
+    wheel_separation_multiplier: 1.0
+
+    # Command and odometry parameters
+    cmd_vel_timeout: 0.5
+    publish_limited_velocity: true
+    velocity_rolling_window_size: 10
+
+    # Velocity limits
+    linear:
+      x:
+        has_velocity_limits: true
+        max_velocity: 1.0
+        min_velocity: -1.0
+        has_acceleration_limits: true
+        max_acceleration: 2.0
+        min_acceleration: -2.0
+
+    angular:
+      z:
+        has_velocity_limits: true
+        max_velocity: 2.0
+        min_velocity: -2.0
+        has_acceleration_limits: true
+        max_acceleration: 4.0
+        min_acceleration: -4.0
+
+    # Odometry parameters
+    odom_frame_id: odom
+    base_frame_id: base_link
+    pose_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+    twist_covariance_diagonal: [0.001, 0.001, 0.001, 0.001, 0.001, 0.01]
+
+    # Wheel feedforward and feedback gains
+    wheels_per_side: 2  # For 3-wheeled robot
+    use_stamped_vel: false
+
+arm_controller:
+  ros__parameters:
+    type: joint_trajectory_controller/JointTrajectoryController
+    joints:
+      - shoulder_joint
+      - elbow_joint
+      - wrist_joint
+      - wrist_rotation_joint
+
+    command_interfaces:
+      - position
+
+    state_interfaces:
+      - position
+      - velocity
+
+    # Trajectory planning parameters
+    allow_partial_joints_goal: false
+    open_loop_control: false
+    constraints:
+      stopped_velocity_tolerance: 0.01
+      goal_time: 0.0
+
+    # PID gains for each joint
+    gains:
+      shoulder_joint:
+        p: 100.0
+        i: 0.01
+        d: 10.0
+        i_clamp: 1.0
+        antiwindup: true
+      elbow_joint:
+        p: 100.0
+        i: 0.01
+        d: 10.0
+        i_clamp: 1.0
+        antiwindup: true
+      wrist_joint:
+        p: 50.0
+        i: 0.01
+        d: 5.0
+        i_clamp: 1.0
+        antiwindup: true
+      wrist_rotation_joint:
+        p: 20.0
+        i: 0.01
+        d: 2.0
+        i_clamp: 1.0
+        antiwindup: true
+
+gripper_controller:
+  ros__parameters:
+    joint: gripper_joint
+    command_interfaces:
+      - position
+    state_interfaces:
+      - position
+      - velocity
+
+    # Gripper parameters
+    max_opening: 0.04  # Maximum gripper opening (m)
+    min_opening: 0.0   # Minimum gripper opening (m)
+    action_name: gripper_action
+
+    # PID gains for gripper
+    gains:
+      gripper_joint:
+        p: 50.0
+        i: 0.0
+        d: 5.0
+        i_clamp: 0.0
+        antiwindup: false
+
+imu_sensor_broadcaster:
+  ros__parameters:
+    sensor_name: imu_sensor
+    frame_id: imu_link

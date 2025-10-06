@@ -1,0 +1,41 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>my_robot_description</name>
+  <version>0.0.1</version>
+  <description>Robot description package for LKS 2025 autonomous mobile manipulator</description>
+  <maintainer email="robotics@company.com">LKS Robotics Team</maintainer>
+  <license>MIT</license>
+
+  <!-- Dependencies -->
+  <depend>robot_state_publisher</depend>
+  <depend>joint_state_publisher</depend>
+  <depend>joint_state_publisher_gui</depend>
+  <depend>gazebo_ros</depend>
+  <depend>gazebo_ros_pkgs</depend>
+  <depend>xacro</depend>
+  <depend>controller_manager</depend>
+  <depend>ros2_control</depend>
+  <depend>ros2_controllers</depend>
+  <depend>hardware_interface</depend>
+  <depend>pluginlib</depend>
+  <depend>rclcpp</depend>
+  <depend>rclcpp_lifecycle</depend>
+
+  <!-- Hardware interface -->
+  <depend>libserial-dev</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+    <gazebo_ros plugin_path="${prefix}/lib/libgazebo_ros_diff_drive.so"/>
+  </export>
+</package>
