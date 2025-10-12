@@ -1,0 +1,12 @@
+# Automation configuration
+automation:
+  ros__parameters:
+    robot_name: "autonomous_mobile_manipulator"
+    default_mode: "MANUAL"
+    emergency_stop_timeout: 5.0
+    task_timeout: 300.0
+    safety_check_interval: 0.5
+    max_linear_velocity: 1.0
+    max_angular_velocity: 2.0
+    battery_warning_threshold: 20.0
+    battery_critical_threshold: 10.0

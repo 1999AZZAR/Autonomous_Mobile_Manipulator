@@ -385,12 +385,8 @@ class RobotAutomationServer(Node):
         status.memory_usage = self.memory_usage
         status.active_tasks = self.active_tasks
         
-        # Create diagnostics
-        diag = DiagnosticStatus()
-        diag.name = "Robot System"
-        diag.level = 0  # OK
-        diag.message = "System operational"
-        status.diagnostics = diag
+        # System operational status
+        # Note: diagnostics field removed from RobotStatus message
         
         return status
         

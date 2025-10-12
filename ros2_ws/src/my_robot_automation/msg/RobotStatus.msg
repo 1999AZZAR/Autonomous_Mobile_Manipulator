@@ -11,4 +11,3 @@ float32 battery_level
 float32 cpu_usage
 float32 memory_usage
 string[] active_tasks
-diagnostic_msgs/DiagnosticStatus diagnostics

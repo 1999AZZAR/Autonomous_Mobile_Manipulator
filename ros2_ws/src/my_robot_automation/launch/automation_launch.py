@@ -7,6 +7,7 @@ from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
+from launch.conditions import IfCondition
 
 def generate_launch_description():
     # Get package directories
@@ -49,7 +50,7 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time
         }],
-        condition=launch.conditions.IfCondition(enable_rest_api)
+        condition=IfCondition(enable_rest_api)
     )
     
     # WebSocket server
@@ -61,7 +62,7 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time
         }],
-        condition=launch.conditions.IfCondition(enable_websocket)
+        condition=IfCondition(enable_websocket)
     )
     
     # n8n-ROS2 bridge
@@ -73,7 +74,7 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time
         }],
-        condition=launch.conditions.IfCondition(enable_n8n_bridge)
+        condition=IfCondition(enable_n8n_bridge)
     )
     
     return LaunchDescription([

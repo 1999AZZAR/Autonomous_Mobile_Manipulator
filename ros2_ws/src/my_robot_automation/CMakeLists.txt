@@ -17,16 +17,10 @@ find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
 find_package(control_msgs REQUIRED)
-find_package(moveit_msgs REQUIRED)
-find_package(moveit_ros_planning_interface REQUIRED)
-find_package(moveit_ros_move_group REQUIRED)
 find_package(nav2_msgs REQUIRED)
 find_package(nav2_util REQUIRED)
-find_package(nav2_simple_commander REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
-find_package(actionlib_msgs REQUIRED)
-find_package(diagnostic_msgs REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 # Generate custom interfaces
@@ -50,9 +44,6 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   ${srv_files}
   DEPENDENCIES std_msgs geometry_msgs sensor_msgs nav_msgs
 )
-
-# Install Python modules
-ament_python_install_package(${PROJECT_NAME})
 
 # Install Python executables
 install(PROGRAMS
@@ -79,12 +70,6 @@ install(DIRECTORY
 install(DIRECTORY
   config
   DESTINATION share/${PROJECT_NAME}/
-)
-
-# Install Python package
-install(DIRECTORY
-  ${PROJECT_NAME}
-  DESTINATION lib/python3.10/site-packages/
 )
 
 ament_package()

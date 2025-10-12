@@ -17,20 +17,10 @@
   <depend>nav_msgs</depend>
   <depend>trajectory_msgs</depend>
   <depend>control_msgs</depend>
-  <depend>moveit_msgs</depend>
-  <depend>moveit_ros_planning_interface</depend>
-  <depend>moveit_ros_move_group</depend>
   <depend>nav2_msgs</depend>
   <depend>nav2_util</depend>
-  <depend>nav2_simple_commander</depend>
   <depend>tf2_ros</depend>
   <depend>tf2_geometry_msgs</depend>
-  <depend>actionlib_msgs</depend>
-  <depend>diagnostic_msgs</depend>
-  <depend>rosidl_default_generators</depend>
-  <depend>rosidl_default_runtime</depend>
-
-  <!-- Build dependencies -->
   <buildtool_depend>ament_cmake</buildtool_depend>
   <buildtool_depend>ament_cmake_python</buildtool_depend>
   <buildtool_depend>rosidl_default_generators</buildtool_depend>
