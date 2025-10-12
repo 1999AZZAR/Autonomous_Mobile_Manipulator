@@ -1,0 +1,48 @@
+<?xml version="1.0"?>
+<?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
+<package format="3">
+  <name>my_robot_navigation</name>
+  <version>0.0.1</version>
+  <description>Navigation package for autonomous mobile manipulator using Nav2</description>
+  <maintainer email="1999azzar@gmail.com">1999AZZAR</maintainer>
+  <license>MIT</license>
+
+  <!-- Dependencies -->
+  <depend>rclpy</depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>sensor_msgs</depend>
+  <depend>nav_msgs</depend>
+  <depend>nav2_msgs</depend>
+  <depend>nav2_util</depend>
+  <depend>nav2_simple_commander</depend>
+  <depend>nav2_bringup</depend>
+  <depend>nav2_map_server</depend>
+  <depend>nav2_amcl</depend>
+  <depend>nav2_bt_navigator</depend>
+  <depend>nav2_mission_executor</depend>
+  <depend>nav2_lifecycle_manager</depend>
+  <depend>nav2_planner</depend>
+  <depend>nav2_controller</depend>
+  <depend>nav2_recoveries</depend>
+  <depend>nav2_costmap_2d</depend>
+  <depend>nav2_core</depend>
+  <depend>slam_toolbox</depend>
+  <depend>tf2_ros</depend>
+  <depend>tf2_geometry_msgs</depend>
+
+  <!-- Build dependencies -->
+  <buildtool_depend>ament_cmake</buildtool_depend>
+  <buildtool_depend>ament_cmake_python</buildtool_depend>
+
+  <!-- Python dependencies -->
+  <depend>python3-numpy</depend>
+
+  <exec_depend>joint_state_publisher_gui</exec_depend>
+  <exec_depend>rviz2</exec_depend>
+
+  <export>
+    <build_type>ament_cmake</build_type>
+  </export>
+</package>

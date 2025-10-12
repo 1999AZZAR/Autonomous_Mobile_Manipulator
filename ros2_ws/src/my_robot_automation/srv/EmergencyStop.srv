@@ -1,0 +1,11 @@
+# Emergency stop service request
+bool activate
+string reason
+bool force_stop
+---
+# Emergency stop service response
+bool success
+string message
+bool emergency_stop_active
+string stop_reason
+geometry_msgs/PoseStamped stop_location

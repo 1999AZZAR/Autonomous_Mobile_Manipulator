@@ -1,0 +1,10 @@
+# Set robot mode service request
+string mode                    # "AUTONOMOUS", "MANUAL", "EMERGENCY", "MAINTENANCE"
+string reason
+bool force_mode_change
+---
+# Set robot mode service response
+bool success
+string message
+string previous_mode
+string current_mode

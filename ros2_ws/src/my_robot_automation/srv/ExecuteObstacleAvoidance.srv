@@ -1,0 +1,14 @@
+# Obstacle avoidance service request
+geometry_msgs/PoseStamped target_location
+float32 avoidance_distance
+float32 max_speed
+bool enable_dynamic_avoidance
+float32 timeout_seconds
+---
+# Obstacle avoidance service response
+bool success
+string message
+float32 execution_time
+geometry_msgs/PoseStamped final_pose
+int32 obstacles_avoided
+string task_id

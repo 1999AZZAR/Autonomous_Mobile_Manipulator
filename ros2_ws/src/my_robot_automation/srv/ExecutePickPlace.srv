@@ -1,0 +1,14 @@
+# Pick and place service request
+geometry_msgs/PoseStamped pickup_location
+geometry_msgs/PoseStamped place_location
+string object_type
+float32 object_height
+float32 gripper_force
+float32 timeout_seconds
+---
+# Pick and place service response
+bool success
+string message
+float32 execution_time
+geometry_msgs/PoseStamped final_pose
+string task_id

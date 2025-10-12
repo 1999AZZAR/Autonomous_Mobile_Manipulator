@@ -1,5 +1,6 @@
 {
   "name": "Pick and Place Task Automation",
+  "active": false,
   "nodes": [
     {
       "parameters": {

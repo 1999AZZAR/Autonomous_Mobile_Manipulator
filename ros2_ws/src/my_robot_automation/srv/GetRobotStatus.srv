@@ -1,0 +1,9 @@
+# Get robot status service request
+bool include_diagnostics
+bool include_safety_status
+---
+# Get robot status service response
+my_robot_automation/RobotStatus robot_status
+my_robot_automation/SafetyStatus safety_status
+bool success
+string message

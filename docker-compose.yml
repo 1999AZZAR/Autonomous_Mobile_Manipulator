@@ -4,8 +4,15 @@ services:
     build:
       context: ./ros2_ws  # Tells Docker Compose to use the Dockerfile in the ./ros2_ws folder
     container_name: ros2_sim_container
-    # This command keeps the container running
-    command: tail -f /dev/null
+    # Launch the complete automation system
+    command: >
+      bash -c "
+      source /opt/ros/iron/setup.bash &&
+      cd /root/ros2_ws &&
+      colcon build --packages-select my_robot_automation my_robot_manipulation my_robot_navigation &&
+      source install/setup.bash &&
+      ros2 launch my_robot_automation automation_launch.py use_sim_time:=true
+      "
     # Share the source code folder so you can edit code on your PC and it updates inside the container
     volumes:
       - ./ros2_ws/src:/root/ros2_ws/src
@@ -13,21 +20,28 @@ services:
     environment:
       - DISPLAY=${DISPLAY}
       - QT_X11_NO_MITSHM=1
+      - PYTHONPATH=/root/ros2_ws/install/my_robot_automation/lib/python3.10/site-packages:$PYTHONPATH
     # Allows the container to access your host machine's graphics hardware
     privileged: true
     network_mode: "host" # Simplifies GUI forwarding for Gazebo/RViz
+    ports:
+      - "5678:5678" # REST API server port
+      - "8765:8765" # WebSocket server port
 
   # The n8n Workflow Automation Service
   n8n:
-    image: docker.io/n8nio/n8n:latest # Uses the official n8n image from Docker Hub
+    image: docker.io/n8nio/n8n:1.115.2 # Latest stable version
     container_name: n8n_container
     restart: always
     ports:
-      - "5678:5678" # Maps your PC's port 5678 to the container's port 5678
+      - "5679:5678" # Maps to different port to avoid conflict with ROS2 automation
     environment:
       - GENERIC_TIMEZONE=Asia/Jakarta # Set your local timezone
     volumes:
       - ./n8n_data:/home/node/.n8n # Persists your n8n workflows and data on your PC
+      - ./n8n_data/custom_nodes:/home/node/.n8n/custom_nodes # Mount custom nodes
+    depends_on:
+      - ros2-sim
 
 volumes:
   n8n_data:

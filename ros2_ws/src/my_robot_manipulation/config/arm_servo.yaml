@@ -1,0 +1,48 @@
+arm_servo:
+  ros__parameters:
+    # Servo parameters
+    use_gazebo: false
+    status_topic: /servo_node/status
+    cartesian_command_in_topic: /servo_node/delta_twist_cmds
+    joint_command_out_topic: /servo_node/joint_trajectory
+    move_group_name: arm
+    planning_frame: base_link
+    ee_frame_name: gripper_link
+    publish_joint_positions: true
+    publish_joint_velocities: false
+    publish_joint_accelerations: false
+    low_latency_mode: true
+    joint_topic: /joint_states
+    
+    # Collision checking
+    check_collisions: true
+    collision_check_rate: 10.0
+    scene_update_rate: 20.0
+    
+    # Incoming command timeout (ms)
+    incoming_command_timeout: 1000
+    
+    # Lower and upper thresholds for which servoing is enabled
+    lower_singularity_threshold: 10.0
+    upper_singularity_threshold: 40.0
+    
+    # Properties of outgoing joint_trajectory messages
+    publish_period: 0.01  # 100Hz
+    
+    # Scale parameters for robot motion
+    linear_scale: 1.0
+    angular_scale: 1.0
+    joint_scale: 1.0
+    
+    # Stopping behavior
+    halt_all_joints_in_joint_mode: false
+    halt_all_joints_in_cartesian_mode: false
+    
+    # Parameters for collision checking
+    collision_check_rate: 10.0
+    min_allowable_collision_score: 0.01
+    
+    # Joint limits parameters
+    override_velocity_scaling_factor: 1.0
+    max_expected_joint_acceleration: 10.0
+    max_jerk: 100.0

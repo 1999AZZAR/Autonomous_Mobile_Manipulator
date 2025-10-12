@@ -1,0 +1,33 @@
+{
+  "name": "@lks-robot/ros2-nodes",
+  "version": "1.0.0",
+  "description": "Custom n8n nodes for ROS 2 integration",
+  "main": "index.js",
+  "scripts": {
+    "build": "echo 'No build step required'",
+    "dev": "echo 'Development mode'"
+  },
+  "dependencies": {
+    "@lks-robot/ros2-nodes": "file:lks-robot-ros2-nodes-1.0.0.tgz",
+    "rosnodejs": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "keywords": [
+    "n8n",
+    "ros",
+    "ros2",
+    "robotics",
+    "automation"
+  ],
+  "author": "LKS Robot Project",
+  "license": "MIT",
+  "n8n": {
+    "n8nNodesApiVersion": 1,
+    "nodes": [
+      "ros2-publisher.js",
+      "ros2-subscriber.js"
+    ]
+  }
+}

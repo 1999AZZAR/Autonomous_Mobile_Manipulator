@@ -94,6 +94,7 @@ env/
 ENV/
 .venv/
 .env/
+.cursor/
 
 # Python bytecode
 __pycache__/
