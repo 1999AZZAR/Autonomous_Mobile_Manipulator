@@ -49,47 +49,54 @@
     },
     {
       "parameters": {
-        "values": {
-          "object": {
-            "linear_x": 0.5,
-            "linear_y": 0,
-            "angular_z": 0
-          }
+        "url": "http://10.0.3.1:5000/api/robot/move",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}",
+        "headers": {
+          "Content-Type": "application/json"
         }
       },
       "id": "move-forward",
       "name": "Move Forward",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [680, 80]
     },
     {
       "parameters": {
-        "values": {
-          "object": {
-            "linear_x": 0,
-            "linear_y": 0,
-            "angular_z": 1.57
-          }
+        "url": "http://10.0.3.1:5000/api/robot/turn",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"left\",\n  \"speed\": 0.5\n}",
+        "headers": {
+          "Content-Type": "application/json"
         }
       },
       "id": "rotate-90",
       "name": "Rotate 90°",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [680, 320]
     },
     {
       "parameters": {
-        "topic": "/cmd_vel",
-        "messageType": "geometry_msgs/Twist",
-        "linearX": "={{ $json.linear_x || 0 }}",
-        "linearY": "={{ $json.linear_y || 0 }}",
-        "angularZ": "={{ $json.angular_z || 0 }}"
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Patrol step {{ $node[\"Patrol Counter\"].json.patrol_step }} completed"
+            }
+          ]
+        }
       },
-      "id": "ros2-publisher",
-      "name": "ROS 2 Publisher",
-      "type": "custom.ros2Publisher",
+      "id": "log-patrol",
+      "name": "Log Patrol",
+      "type": "n8n-nodes-base.set",
       "typeVersion": 1,
       "position": [900, 200]
     },
@@ -159,7 +166,7 @@
       "main": [
         [
           {
-            "node": "ROS 2 Publisher",
+            "node": "Log Patrol",
             "type": "main",
             "index": 0
           }
@@ -170,14 +177,14 @@
       "main": [
         [
           {
-            "node": "ROS 2 Publisher",
+            "node": "Log Patrol",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "ROS 2 Publisher": {
+    "Log Patrol": {
       "main": [
         [
           {
@@ -199,6 +206,15 @@
   "settings": {
     "saveExecutionProgress": true,
     "saveManualExecutions": true,
-    "saveDataErrorExecution": "all"
-  }
+    "saveDataErrorExecution": "all",
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    }
+  ]
 }

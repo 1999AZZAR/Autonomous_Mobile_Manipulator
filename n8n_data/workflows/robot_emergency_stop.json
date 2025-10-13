@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/status",
+        "url": "http://10.0.3.1:5000/api/robot/status",
         "options": {}
       },
       "id": "check-robot-status",
@@ -37,7 +37,7 @@
           "boolean": [
             {
               "value1": "={{ $json.emergency }}",
-              "operation": "equals",
+              "operation": "equal",
               "value2": true
             }
           ]
@@ -51,7 +51,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/emergency",
+        "url": "http://10.0.3.1:5000/api/robot/emergency",
         "options": {
           "bodyContentType": "json"
         },
@@ -65,7 +65,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/stop",
+        "url": "http://10.0.3.1:5000/api/robot/stop",
         "options": {
           "bodyContentType": "json"
         },
@@ -104,7 +104,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/status",
+        "url": "http://10.0.3.1:5000/api/robot/status",
         "options": {}
       },
       "id": "verify-stop",
@@ -116,10 +116,10 @@
     {
       "parameters": {
         "conditions": {
-          "string": [
+          "boolean": [
             {
               "value1": "={{ $json.emergency }}",
-              "operation": "equals",
+              "operation": "equal",
               "value2": false
             }
           ]

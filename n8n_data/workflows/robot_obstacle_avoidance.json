@@ -3,20 +3,27 @@
   "active": false,
   "nodes": [
     {
-      "parameters": {
-        "topic": "/scan",
-        "messageType": "sensor_msgs/LaserScan",
-        "queueSize": 10
-      },
-      "id": "laser-subscriber",
-      "name": "Laser Scan Subscriber",
-      "type": "custom.ros2Subscriber",
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
       "position": [20, 300]
     },
     {
       "parameters": {
-        "functionCode": "const ranges = $input.item.json.ranges || [];\nconst minDistance = Math.min(...ranges.filter(r => r > 0));\n\nif (minDistance < 0.5) {\n  // Obstacle detected - strafe right\n  return { linear_x: 0, linear_y: 0.3, angular_z: 0, behavior: 'strafe_right' };\n} else if (minDistance < 1.0) {\n  // Slow down\n  return { linear_x: 0.2, linear_y: 0, angular_z: 0, behavior: 'slow_down' };\n} else {\n  // Normal speed\n  return { linear_x: 0.5, linear_y: 0, angular_z: 0, behavior: 'normal_speed' };\n}"
+        "url": "http://10.0.3.1:5000/api/robot/status",
+        "options": {}
+      },
+      "id": "get-robot-status",
+      "name": "Get Robot Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "const status = $input.item.json;\nconst ultrasonicFront = status.ultrasonic_front || 10.0;\n\n// Use ultrasonic sensor for obstacle detection\nif (ultrasonicFront < 0.5) {\n  // Obstacle detected - strafe right\n  return { direction: 'strafe_right', speed: 0.3, behavior: 'strafe_right' };\n} else if (ultrasonicFront < 1.0) {\n  // Slow down\n  return { direction: 'forward', speed: 0.2, behavior: 'slow_down' };\n} else {\n  // Normal speed\n  return { direction: 'forward', speed: 0.5, behavior: 'normal_speed' };\n}"
       },
       "id": "process-laser-data",
       "name": "Process Laser Data",
@@ -26,21 +33,75 @@
     },
     {
       "parameters": {
-        "topic": "/cmd_vel",
-        "messageType": "geometry_msgs/Twist",
-        "linearX": "={{ $json.linear_x || 0 }}",
-        "linearY": "={{ $json.linear_y || 0 }}",
-        "angularZ": "={{ $json.angular_z || 0 }}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.behavior }}",
+              "operation": "equal",
+              "value2": "strafe_right"
+            }
+          ]
+        }
       },
-      "id": "velocity-publisher",
-      "name": "Velocity Publisher",
-      "type": "custom.ros2Publisher",
+      "id": "obstacle-avoidance-decision",
+      "name": "Obstacle Avoidance Decision",
+      "type": "n8n-nodes-base.if",
       "typeVersion": 1,
       "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/move",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"{{ $json.direction }}\",\n  \"speed\": {{ $json.speed }}\n}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "id": "move-robot",
+      "name": "Move Robot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Obstacle avoidance executed - {{ $node[\"Process Laser Data\"].json.behavior }}"
+            },
+            {
+              "name": "distance",
+              "value": "={{ $node[\"Get Robot Status\"].json.ultrasonic_front }}"
+            }
+          ]
+        }
+      },
+      "id": "log-result",
+      "name": "Log Result",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 300]
     }
   ],
   "connections": {
-    "Laser Scan Subscriber": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Robot Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Robot Status": {
       "main": [
         [
           {
@@ -55,7 +116,29 @@
       "main": [
         [
           {
-            "node": "Velocity Publisher",
+            "node": "Obstacle Avoidance Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obstacle Avoidance Decision": {
+      "main": [
+        [
+          {
+            "node": "Move Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Robot": {
+      "main": [
+        [
+          {
+            "node": "Log Result",
             "type": "main",
             "index": 0
           }
@@ -66,15 +149,15 @@
   "settings": {
     "saveExecutionProgress": true,
     "saveManualExecutions": true,
-    "saveDataErrorExecution": "all"
+    "saveDataErrorExecution": "all",
+    "executionOrder": "v1"
   },
-  "staticData": {
-    "Obstacle Avoidance Settings": {
-      "min_obstacle_distance": 0.5,
-      "slow_down_distance": 1.0,
-      "strafe_speed": 0.3,
-      "slow_speed": 0.2,
-      "normal_speed": 0.5
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
     }
-  }
+  ]
 }
