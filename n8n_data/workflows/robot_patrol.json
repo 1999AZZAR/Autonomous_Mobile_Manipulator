@@ -18,7 +18,7 @@
           "number": [
             {
               "name": "patrol_step",
-              "value": "={{ ($node[\"Patrol Counter\"].json.patrol_step || 0) + 1 }}"
+              "value": 1
             }
           ]
         }
@@ -31,25 +31,36 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "number": [
-            {
-              "value1": "={{ $node[\"Patrol Counter\"].json.patrol_step }}",
-              "operation": "modulo",
-              "value2": 2
-            }
-          ]
-        }
+        "functionCode": "// Simple patrol logic: alternate between move and turn\nconst step = $input.item.json.patrol_step || 1;\nconst shouldMove = (step % 2 === 1);\n\nif (shouldMove) {\n  return { action: 'move', step: step };\n} else {\n  return { action: 'turn', step: step };\n}"
       },
       "id": "movement-decision",
       "name": "Movement Decision",
-      "type": "n8n-nodes-base.if",
+      "type": "n8n-nodes-base.function",
       "typeVersion": 1,
       "position": [460, 200]
     },
     {
       "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "move"
+            }
+          ]
+        }
+      },
+      "id": "action-decision",
+      "name": "Action Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
         "url": "http://10.0.3.1:5000/api/robot/move",
+        "method": "POST",
         "options": {
           "bodyContentType": "json"
         },
@@ -68,6 +79,7 @@
     {
       "parameters": {
         "url": "http://10.0.3.1:5000/api/robot/turn",
+        "method": "POST",
         "options": {
           "bodyContentType": "json"
         },
@@ -102,23 +114,42 @@
     },
     {
       "parameters": {
-        "delay": 4000
+        "amount": 4,
+        "unit": "seconds"
       },
       "id": "delay-forward",
       "name": "Delay Forward",
-      "type": "n8n-nodes-base.set",
+      "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [1120, 80]
     },
     {
       "parameters": {
-        "delay": 2000
+        "amount": 2,
+        "unit": "seconds"
       },
       "id": "delay-rotate",
       "name": "Delay Rotate",
-      "type": "n8n-nodes-base.set",
+      "type": "n8n-nodes-base.wait",
       "typeVersion": 1,
       "position": [1120, 320]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Patrol completed - Ready for next cycle"
+            }
+          ]
+        }
+      },
+      "id": "patrol-complete",
+      "name": "Patrol Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1340, 200]
     }
   ],
   "connections": {
@@ -145,6 +176,17 @@
       ]
     },
     "Movement Decision": {
+      "main": [
+        [
+          {
+            "node": "Action Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Decision": {
       "main": [
         [
           {
@@ -196,6 +238,28 @@
         [
           {
             "node": "Delay Rotate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Forward": {
+      "main": [
+        [
+          {
+            "node": "Patrol Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Rotate": {
+      "main": [
+        [
+          {
+            "node": "Patrol Complete",
             "type": "main",
             "index": 0
           }
