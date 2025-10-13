@@ -1,5 +1,5 @@
 {
-  "name": "Robot Simple Test",
+  "name": "Robot Complete Test",
   "active": false,
   "nodes": [
     {
@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/status",
+        "url": "http://10.0.3.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -24,12 +24,16 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/move",
+        "url": "http://10.0.3.1:5000/api/robot/move",
         "method": "POST",
         "options": {
-          "bodyContentType": "json"
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
         },
-        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}"
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}"
       },
       "id": "move-forward",
       "name": "Move Forward",
@@ -39,12 +43,16 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/turn",
+        "url": "http://10.0.3.1:5000/api/robot/turn",
         "method": "POST",
         "options": {
-          "bodyContentType": "json"
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
         },
-        "bodyParametersJson": "{\n  \"direction\": \"left\",\n  \"speed\": 0.3\n}"
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"left\",\n  \"speed\": 0.3\n}"
       },
       "id": "turn-left",
       "name": "Turn Left",
@@ -54,12 +62,16 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/servos",
+        "url": "http://10.0.3.1:5000/api/robot/servos",
         "method": "POST",
         "options": {
-          "bodyContentType": "json"
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
         },
-        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
+        "sendBody": true,
+        "jsonBody": "{\n  \"action\": \"home\"\n}"
       },
       "id": "open-gripper",
       "name": "Open Gripper",
@@ -69,12 +81,16 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/lifter",
+        "url": "http://10.0.3.1:5000/api/robot/lifter",
         "method": "POST",
         "options": {
-          "bodyContentType": "json"
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
         },
-        "bodyParametersJson": "{\n  \"action\": \"up\",\n  \"speed\": 0.5\n}"
+        "sendBody": true,
+        "jsonBody": "{\n  \"action\": \"up\",\n  \"speed\": 0.5\n}"
       },
       "id": "control-lifter",
       "name": "Control Lifter",
@@ -84,12 +100,16 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/servos",
+        "url": "http://10.0.3.1:5000/api/robot/servos",
         "method": "POST",
         "options": {
-          "bodyContentType": "json"
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
         },
-        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
+        "sendBody": true,
+        "jsonBody": "{\n  \"action\": \"home\"\n}"
       },
       "id": "control-servos",
       "name": "Control Servos",
@@ -99,12 +119,16 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/stop",
+        "url": "http://10.0.3.1:5000/api/robot/stop",
         "method": "POST",
         "options": {
-          "bodyContentType": "json"
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
         },
-        "bodyParametersJson": "{}"
+        "sendBody": true,
+        "jsonBody": "{}"
       },
       "id": "stop-robot",
       "name": "Stop Robot",
@@ -197,5 +221,13 @@
     "saveManualExecutions": true,
     "saveDataErrorExecution": "all",
     "executionOrder": "v1"
-  }
+  },
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    }
+  ]
 }

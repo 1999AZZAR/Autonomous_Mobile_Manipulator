@@ -277,5 +277,13 @@
     "saveExecutionProgress": true,
     "saveManualExecutions": true,
     "saveDataErrorExecution": "all"
-  }
+  },
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    }
+  ]
 }
