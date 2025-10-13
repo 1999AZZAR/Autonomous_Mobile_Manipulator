@@ -57,7 +57,7 @@ install(PROGRAMS
   scripts/websocket_server.py
   scripts/mqtt_bridge.py
   scripts/n8n_ros2_bridge.py
-  scripts/dummy_sensor_actuator.py
+  scripts/real_robot_sensor_actuator.py
   scripts/robot_controller.py
   scripts/web_robot_interface.py
   DESTINATION lib/${PROJECT_NAME}

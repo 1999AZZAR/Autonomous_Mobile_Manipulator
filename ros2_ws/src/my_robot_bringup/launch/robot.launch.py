@@ -72,18 +72,18 @@ def generate_launch_description():
         output='screen'
     )
 
-    spawn_diff_drive_controller = ExecuteProcess(
-        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'diff_drive_controller'],
+    spawn_omni_wheels_controller = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'omni_wheels_controller'],
         output='screen'
     )
 
-    spawn_arm_controller = ExecuteProcess(
-        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'arm_controller'],
+    spawn_lifter_controller = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'lifter_controller'],
         output='screen'
     )
 
-    spawn_gripper_controller = ExecuteProcess(
-        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'gripper_controller'],
+    spawn_servo_controller = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'servo_controller'],
         output='screen'
     )
 
@@ -118,15 +118,15 @@ def generate_launch_description():
         parameters=[os.path.join(pkg_my_robot_bringup, 'config', 'ekf.yaml')]
     )
 
-    # RPLidar
-    rplidar_node = Node(
+    # LIDAR
+    lidar_node = Node(
         package='rplidar_ros',
         executable='rplidar_composition',
-        name='rplidar_composition',
+        name='lidar_composition',
         parameters=[{
             'serial_port': '/dev/ttyUSB0',
             'serial_baudrate': 115200,
-            'frame_id': 'laser_frame',
+            'frame_id': 'lidar_frame',
             'inverted': False,
             'angle_compensate': True,
             'scan_mode': 'Standard'

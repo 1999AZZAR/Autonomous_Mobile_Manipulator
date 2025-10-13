@@ -9,10 +9,12 @@ services:
       bash -c "
       source /opt/ros/iron/setup.bash &&
       cd /root/ros2_ws &&
+      echo 'Building packages...' &&
       colcon build --packages-select my_robot_automation &&
       source install/setup.bash &&
-      echo 'Starting automation services...' &&
-      ros2 run my_robot_automation robot_automation_server.py
+      echo 'Package built successfully' &&
+      echo 'Starting web robot interface...' &&
+      ros2 run my_robot_automation web_robot_interface.py
       "
     # Share the source code folder so you can edit code on your PC and it updates inside the container
     volumes:
@@ -28,14 +30,14 @@ services:
     ports:
       - "5678:5678" # REST API server port
       - "8765:8765" # WebSocket server port
+      - "5000:5000" # Web Robot Interface port
 
   # The n8n Workflow Automation Service
   n8n:
     image: docker.io/n8nio/n8n:1.115.2 # Latest stable version
     container_name: n8n_container
     restart: always
-    ports:
-      - "5679:5678" # Maps to different port to avoid conflict with ROS2 automation
+    network_mode: "host" # Use host networking to access robot API
     environment:
       - GENERIC_TIMEZONE=Asia/Jakarta # Set your local timezone
     volumes:

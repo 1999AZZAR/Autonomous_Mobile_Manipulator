@@ -4,7 +4,8 @@ import rclpy
 from rclpy.node import Node
 from flask import Flask, render_template_string, jsonify, request
 from geometry_msgs.msg import Twist
-from std_msgs.msg import Bool
+from std_msgs.msg import Bool, Float32
+from sensor_msgs.msg import JointState
 import threading
 import json
 
@@ -37,18 +38,34 @@ HTML_TEMPLATE = """
         <h1>🤖 Robot Control Interface</h1>
         
         <div class="status-panel">
-            <h3>Robot Status</h3>
-            <div class="status-item">
-                <span>Battery:</span>
-                <span id="battery">--%</span>
-            </div>
-            <div class="status-item">
-                <span>Obstacle:</span>
-                <span id="obstacle">None</span>
-            </div>
+            <h3>🤖 Real Robot Status</h3>
             <div class="status-item">
                 <span>Position:</span>
-                <span id="position">(0, 0)</span>
+                <span id="position">x: 0, y: 0, θ: 0</span>
+            </div>
+            <div class="status-item">
+                <span>Lifter:</span>
+                <span id="lifter">0.0 cm</span>
+            </div>
+            <div class="status-item">
+                <span>Servo 1:</span>
+                <span id="servo1">0°</span>
+            </div>
+            <div class="status-item">
+                <span>Servo 2:</span>
+                <span id="servo2">0°</span>
+            </div>
+            <div class="status-item">
+                <span>Front Ultrasonic:</span>
+                <span id="ultrasonic_front">-- cm</span>
+            </div>
+            <div class="status-item">
+                <span>Front IR:</span>
+                <span id="ir_front">-- cm</span>
+            </div>
+            <div class="status-item">
+                <span>Line Sensor:</span>
+                <span id="line_sensor">--</span>
             </div>
         </div>
         
@@ -58,6 +75,7 @@ HTML_TEMPLATE = """
         </div>
         
         <div class="control-panel">
+            <!-- Omni Wheel Movement -->
             <button class="move-btn control-btn" onclick="moveRobot('forward')">⬆️ Forward</button>
             <button class="move-btn control-btn" onclick="moveRobot('backward')">⬇️ Backward</button>
             <button class="move-btn control-btn" onclick="stopRobot()">⏹️ Stop</button>
@@ -66,9 +84,38 @@ HTML_TEMPLATE = """
             <button class="turn-btn control-btn" onclick="turnRobot('right')">↪️ Turn Right</button>
             <button class="turn-btn control-btn" onclick="moveRobot('strafe_left')">⬅️ Strafe Left</button>
             
-            <button class="gripper-btn control-btn" onclick="controlGripper('open')">🤏 Open Gripper</button>
-            <button class="gripper-btn control-btn" onclick="controlGripper('close')">✊ Close Gripper</button>
-            <button class="emergency-btn control-btn" onclick="emergencyStop()">🛑 EMERGENCY STOP</button>
+            <!-- Lifter Control -->
+            <button class="gripper-btn control-btn" onclick="controlLifter('up')">⬆️ Lifter Up</button>
+            <button class="gripper-btn control-btn" onclick="controlLifter('down')">⬇️ Lifter Down</button>
+            
+            <!-- Servo Control -->
+            <button class="emergency-btn control-btn" onclick="controlServos('home')">🏠 Servo Home</button>
+        </div>
+        
+        <div class="control-panel">
+            <h3>🔧 Servo Control</h3>
+            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
+                <div>
+                    <label>Servo 1:</label><br>
+                    <input type="range" min="0" max="180" value="90" id="servo1-slider" onchange="setServo(1, this.value)">
+                </div>
+                <div>
+                    <label>Servo 2:</label><br>
+                    <input type="range" min="0" max="180" value="90" id="servo2-slider" onchange="setServo(2, this.value)">
+                </div>
+                <div>
+                    <label>Servo 3:</label><br>
+                    <input type="range" min="0" max="180" value="90" id="servo3-slider" onchange="setServo(3, this.value)">
+                </div>
+                <div>
+                    <label>Servo 4:</label><br>
+                    <input type="range" min="0" max="180" value="90" id="servo4-slider" onchange="setServo(4, this.value)">
+                </div>
+                <div>
+                    <label>Servo 5:</label><br>
+                    <input type="range" min="0" max="180" value="90" id="servo5-slider" onchange="setServo(5, this.value)">
+                </div>
+            </div>
         </div>
         
         <div class="status-panel">
@@ -113,14 +160,34 @@ HTML_TEMPLATE = """
             addLog(`Stop: ${result.message}`);
         }
         
-        async function controlGripper(action) {
-            const response = await fetch('/api/robot/gripper', {
+        async function controlLifter(action) {
+            const response = await fetch('/api/robot/lifter', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({action: action, speed: currentSpeed})
+            });
+            const result = await response.json();
+            addLog(`Lifter ${action}: ${result.message}`);
+        }
+        
+        async function setServo(servoNum, angle) {
+            const response = await fetch('/api/robot/servo', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({servo: servoNum, angle: parseFloat(angle)})
+            });
+            const result = await response.json();
+            addLog(`Servo ${servoNum} to ${angle}°: ${result.message}`);
+        }
+        
+        async function controlServos(action) {
+            const response = await fetch('/api/robot/servos', {
                 method: 'POST',
                 headers: {'Content-Type': 'application/json'},
                 body: JSON.stringify({action: action})
             });
             const result = await response.json();
-            addLog(`Gripper ${action}: ${result.message}`);
+            addLog(`Servos ${action}: ${result.message}`);
         }
         
         async function emergencyStop() {
@@ -135,9 +202,13 @@ HTML_TEMPLATE = """
                 const response = await fetch('/api/robot/status');
                 const status = await response.json();
                 
-                document.getElementById('battery').textContent = status.battery + '%';
-                document.getElementById('obstacle').textContent = status.obstacle;
-                document.getElementById('position').textContent = `(${status.x.toFixed(1)}, ${status.y.toFixed(1)})`;
+                document.getElementById('position').textContent = `x: ${status.x.toFixed(1)}, y: ${status.y.toFixed(1)}, θ: ${status.theta.toFixed(1)}`;
+                document.getElementById('lifter').textContent = `${status.lifter.toFixed(1)} cm`;
+                document.getElementById('servo1').textContent = `${status.servo1.toFixed(0)}°`;
+                document.getElementById('servo2').textContent = `${status.servo2.toFixed(0)}°`;
+                document.getElementById('ultrasonic_front').textContent = `${status.ultrasonic_front.toFixed(1)} cm`;
+                document.getElementById('ir_front').textContent = `${status.ir_front.toFixed(1)} cm`;
+                document.getElementById('line_sensor').textContent = `0x${status.line_sensor.toString(16).toUpperCase()}`;
             } catch (error) {
                 console.error('Status update failed:', error);
             }
@@ -165,15 +236,20 @@ class WebRobotInterface(Node):
     def __init__(self):
         super().__init__('web_robot_interface')
         
-        # ROS2 publishers
-        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
-        self.gripper_pub = self.create_publisher(Bool, '/gripper_control', 10)
+        # ROS2 publishers for real hardware
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)  # Omni wheels
+        self.lifter_pub = self.create_publisher(Float32, '/lifter/position', 10)  # Lifter
+        self.servo_pub = self.create_publisher(JointState, '/servo/command', 10)  # Servos
         
         # Robot state
         self.robot_x = 0.0
         self.robot_y = 0.0
-        self.battery_level = 100.0
-        self.obstacle_detected = False
+        self.robot_theta = 0.0
+        self.lifter_position = 0.0
+        self.servo_positions = [90.0, 90.0, 90.0, 90.0, 90.0]  # 5 servos at 90 degrees
+        self.ultrasonic_front = 2.0
+        self.ir_front = 0.3
+        self.line_sensor = 0xAA
         
         # Flask web server
         self.app = Flask(__name__)
@@ -229,16 +305,62 @@ class WebRobotInterface(Node):
             self.cmd_vel_pub.publish(cmd)
             return jsonify({'success': True, 'message': 'Robot stopped'})
         
-        @self.app.route('/api/robot/gripper', methods=['POST'])
-        def control_gripper():
+        @self.app.route('/api/robot/lifter', methods=['POST'])
+        def control_lifter():
             data = request.get_json()
-            action = data.get('action', 'open')
+            action = data.get('action', 'up')
+            speed = data.get('speed', 0.5)
             
-            cmd = Bool()
-            cmd.data = (action == 'open')
-            self.gripper_pub.publish(cmd)
+            if action == 'up':
+                self.lifter_position += speed * 0.1  # Move up
+            elif action == 'down':
+                self.lifter_position -= speed * 0.1  # Move down
             
-            return jsonify({'success': True, 'message': f'Gripper {action}ed'})
+            # Clamp position
+            self.lifter_position = max(0.0, min(10.0, self.lifter_position))
+            
+            cmd = Float32()
+            cmd.data = self.lifter_position
+            self.lifter_pub.publish(cmd)
+            
+            return jsonify({'success': True, 'message': f'Lifter moved {action} to {self.lifter_position:.1f} cm'})
+        
+        @self.app.route('/api/robot/servo', methods=['POST'])
+        def set_servo():
+            data = request.get_json()
+            servo_num = data.get('servo', 1)
+            angle = data.get('angle', 90.0)
+            
+            # Clamp angle
+            angle = max(0.0, min(180.0, angle))
+            
+            # Update servo position
+            if 1 <= servo_num <= 5:
+                self.servo_positions[servo_num - 1] = angle
+            
+            # Publish servo command
+            cmd = JointState()
+            cmd.name = [f'servo_{i}' for i in range(1, 6)]
+            cmd.position = self.servo_positions
+            self.servo_pub.publish(cmd)
+            
+            return jsonify({'success': True, 'message': f'Servo {servo_num} set to {angle:.0f}°'})
+        
+        @self.app.route('/api/robot/servos', methods=['POST'])
+        def control_servos():
+            data = request.get_json()
+            action = data.get('action', 'home')
+            
+            if action == 'home':
+                self.servo_positions = [90.0, 90.0, 90.0, 90.0, 90.0]
+            
+            # Publish servo command
+            cmd = JointState()
+            cmd.name = [f'servo_{i}' for i in range(1, 6)]
+            cmd.position = self.servo_positions
+            self.servo_pub.publish(cmd)
+            
+            return jsonify({'success': True, 'message': f'All servos moved to {action} position'})
         
         @self.app.route('/api/robot/emergency', methods=['POST'])
         def emergency_stop():
@@ -246,20 +368,31 @@ class WebRobotInterface(Node):
             cmd = Twist()
             self.cmd_vel_pub.publish(cmd)
             
-            # Close gripper for safety
-            gripper_cmd = Bool()
-            gripper_cmd.data = False
-            self.gripper_pub.publish(gripper_cmd)
+            # Move lifter to safe position
+            lifter_cmd = Float32()
+            lifter_cmd.data = 0.0  # Lower lifter
+            self.lifter_pub.publish(lifter_cmd)
             
-            return jsonify({'success': True, 'message': 'EMERGENCY STOP ACTIVATED'})
+            # Move servos to safe position
+            servo_cmd = JointState()
+            servo_cmd.name = [f'servo_{i}' for i in range(1, 6)]
+            servo_cmd.position = [90.0, 90.0, 90.0, 90.0, 90.0]  # Safe position
+            self.servo_pub.publish(servo_cmd)
+            
+            return jsonify({'success': True, 'message': 'EMERGENCY STOP ACTIVATED - All actuators moved to safe position'})
         
         @self.app.route('/api/robot/status')
         def get_robot_status():
             return jsonify({
-                'battery': self.battery_level,
-                'obstacle': 'Detected' if self.obstacle_detected else 'None',
                 'x': self.robot_x,
-                'y': self.robot_y
+                'y': self.robot_y,
+                'theta': self.robot_theta,
+                'lifter': self.lifter_position,
+                'servo1': self.servo_positions[0],
+                'servo2': self.servo_positions[1],
+                'ultrasonic_front': self.ultrasonic_front,
+                'ir_front': self.ir_front,
+                'line_sensor': self.line_sensor
             })
     
     def run_web_server(self):

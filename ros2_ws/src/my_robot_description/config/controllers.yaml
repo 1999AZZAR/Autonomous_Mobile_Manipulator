@@ -5,21 +5,24 @@ controller_manager:
     joint_state_broadcaster:
       type: joint_state_broadcaster/JointStateBroadcaster
 
-    diff_drive_controller:
+    # Omni wheels controller (3x DC Motors with encoders)
+    omni_wheels_controller:
       type: diff_drive_controller/DiffDriveController
 
-    arm_controller:
+    # Lifter controller (1x DC Motor with encoder)
+    lifter_controller:
       type: joint_trajectory_controller/JointTrajectoryController
 
-    gripper_controller:
-      type: position_controllers/GripperActionController
+    # Servo controllers (5x Servo motors)
+    servo_controller:
+      type: joint_trajectory_controller/JointTrajectoryController
 
     imu_sensor_broadcaster:
       type: imu_sensor_broadcaster/IMUSensorBroadcaster
 
-diff_drive_controller:
+omni_wheels_controller:
   ros__parameters:
-    # Robot physical parameters
+    # Robot physical parameters for 3-wheeled omnidirectional robot
     wheel_separation: 0.52  # Distance between wheels (3-wheeled omni config)
     wheel_radius: 0.075
 
@@ -35,9 +38,16 @@ diff_drive_controller:
     publish_limited_velocity: true
     velocity_rolling_window_size: 10
 
-    # Velocity limits
+    # Velocity limits for omni wheels (support lateral movement)
     linear:
       x:
+        has_velocity_limits: true
+        max_velocity: 1.0
+        min_velocity: -1.0
+        has_acceleration_limits: true
+        max_acceleration: 2.0
+        min_acceleration: -2.0
+      y:  # Lateral movement for omni wheels
         has_velocity_limits: true
         max_velocity: 1.0
         min_velocity: -1.0
@@ -64,14 +74,11 @@ diff_drive_controller:
     wheels_per_side: 2  # For 3-wheeled robot
     use_stamped_vel: false
 
-arm_controller:
+lifter_controller:
   ros__parameters:
     type: joint_trajectory_controller/JointTrajectoryController
     joints:
-      - shoulder_joint
-      - elbow_joint
-      - wrist_joint
-      - wrist_rotation_joint
+      - lifter_joint
 
     command_interfaces:
       - position
@@ -87,55 +94,71 @@ arm_controller:
       stopped_velocity_tolerance: 0.01
       goal_time: 0.0
 
-    # PID gains for each joint
+    # PID gains for lifter joint
     gains:
-      shoulder_joint:
+      lifter_joint:
         p: 100.0
         i: 0.01
         d: 10.0
-        i_clamp: 1.0
-        antiwindup: true
-      elbow_joint:
-        p: 100.0
-        i: 0.01
-        d: 10.0
-        i_clamp: 1.0
-        antiwindup: true
-      wrist_joint:
-        p: 50.0
-        i: 0.01
-        d: 5.0
-        i_clamp: 1.0
-        antiwindup: true
-      wrist_rotation_joint:
-        p: 20.0
-        i: 0.01
-        d: 2.0
         i_clamp: 1.0
         antiwindup: true
 
-gripper_controller:
+servo_controller:
   ros__parameters:
-    joint: gripper_joint
+    type: joint_trajectory_controller/JointTrajectoryController
+    joints:
+      - servo_1_joint
+      - servo_2_joint
+      - servo_3_joint
+      - servo_4_joint
+      - servo_5_joint
+
     command_interfaces:
       - position
+
     state_interfaces:
       - position
       - velocity
 
-    # Gripper parameters
-    max_opening: 0.04  # Maximum gripper opening (m)
-    min_opening: 0.0   # Minimum gripper opening (m)
-    action_name: gripper_action
+    # Trajectory planning parameters
+    allow_partial_joints_goal: false
+    open_loop_control: false
+    constraints:
+      stopped_velocity_tolerance: 0.01
+      goal_time: 0.0
 
-    # PID gains for gripper
+    # PID gains for servo joints
     gains:
-      gripper_joint:
+      servo_1_joint:
         p: 50.0
-        i: 0.0
+        i: 0.01
         d: 5.0
-        i_clamp: 0.0
-        antiwindup: false
+        i_clamp: 1.0
+        antiwindup: true
+      servo_2_joint:
+        p: 50.0
+        i: 0.01
+        d: 5.0
+        i_clamp: 1.0
+        antiwindup: true
+      servo_3_joint:
+        p: 50.0
+        i: 0.01
+        d: 5.0
+        i_clamp: 1.0
+        antiwindup: true
+      servo_4_joint:
+        p: 50.0
+        i: 0.01
+        d: 5.0
+        i_clamp: 1.0
+        antiwindup: true
+      servo_5_joint:
+        p: 50.0
+        i: 0.01
+        d: 5.0
+        i_clamp: 1.0
+        antiwindup: true
 
 imu_sensor_broadcaster:
   ros__parameters:
