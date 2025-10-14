@@ -4,25 +4,29 @@ services:
     build:
       context: ./ros2_ws  # Tells Docker Compose to use the Dockerfile in the ./ros2_ws folder
     container_name: ros2_sim_container
-    # Launch the complete automation system
+    # Launch Gazebo simulation with robot
     command: >
       bash -c "
       source /opt/ros/iron/setup.bash &&
       cd /root/ros2_ws &&
-      echo 'Building packages...' &&
-      colcon build --packages-select my_robot_automation &&
+      echo 'Building robot packages...' &&
+      colcon build --packages-select my_robot_description my_robot_bringup &&
       source install/setup.bash &&
-      echo 'Package built successfully' &&
-      echo 'Starting web robot interface...' &&
-      ros2 run my_robot_automation web_robot_interface.py
+      echo 'Packages built successfully' &&
+      echo 'Starting Gazebo simulation...' &&
+      ros2 launch my_robot_bringup gazebo_simple.launch.py
       "
     # Share the source code folder so you can edit code on your PC and it updates inside the container
     volumes:
       - ./ros2_ws/src:/root/ros2_ws/src
-    # Network settings to allow Gazebo GUI to display on your PC
+    # Network settings to allow Gazebo GUI to display on your PC (Wayland mode)
     environment:
       - DISPLAY=${DISPLAY}
+      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
+      - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}
+      - QT_QPA_PLATFORM=wayland
       - QT_X11_NO_MITSHM=1
+      - GAZEBO_MODEL_PATH=/root/ros2_ws/src/my_robot_description/models
       - PYTHONPATH=/root/ros2_ws/install/my_robot_automation/lib/python3.10/site-packages:$PYTHONPATH
     # Allows the container to access your host machine's graphics hardware
     privileged: true

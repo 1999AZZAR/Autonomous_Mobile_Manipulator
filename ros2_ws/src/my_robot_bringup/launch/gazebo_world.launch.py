@@ -3,7 +3,8 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, ExecuteProcess
+from launch.actions import IncludeLaunchDescription, ExecuteProcess, DeclareLaunchArgument, RegisterEventHandler, TimerAction
+from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, Command, FindExecutable
 from launch_ros.actions import Node
@@ -98,18 +99,18 @@ def generate_launch_description():
         output='screen'
     )
 
-    spawn_diff_drive_controller = ExecuteProcess(
-        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'diff_drive_controller'],
+    spawn_omni_wheels_controller = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'omni_wheels_controller'],
         output='screen'
     )
 
-    spawn_arm_controller = ExecuteProcess(
-        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'arm_controller'],
+    spawn_lifter_controller = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'lifter_controller'],
         output='screen'
     )
 
-    spawn_gripper_controller = ExecuteProcess(
-        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'gripper_controller'],
+    spawn_servo_controller = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'servo_controller'],
         output='screen'
     )
 
@@ -126,7 +127,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='base_to_laser_tf',
-        arguments=['0', '0', '0.2', '0', '0', '0', 'base_link', 'laser_frame']
+        arguments=['0', '0', '0.2', '0', '0', '0', 'base_link', 'lidar_frame']
     )
 
     base_to_imu_tf = Node(
@@ -143,20 +144,6 @@ def generate_launch_description():
         arguments=['0.2', '0', '0.3', '0', '0', '0', 'base_link', 'camera_link']
     )
 
-    # Ground truth odometry for simulation
-    ground_truth_odom = Node(
-        package='gazebo_ros',
-        executable='spawn_entity.py',
-        name='spawn_ground_truth',
-        arguments=[
-            '-entity', 'ground_truth',
-            '-file', os.path.join(pkg_my_robot_bringup, 'models', 'ground_truth.urdf'),
-            '-x', '0.0',
-            '-y', '0.0',
-            '-z', '0.0'
-        ],
-        output='screen'
-    )
 
     # Load joint state broadcaster and controllers
     load_joint_state_broadcaster = ExecuteProcess(
@@ -164,8 +151,8 @@ def generate_launch_description():
         output='screen'
     )
 
-    load_diff_drive_controller = ExecuteProcess(
-        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'diff_drive_controller'],
+    load_omni_wheels_controller = ExecuteProcess(
+        cmd=['ros2', 'control', 'load_controller', '--set-state', 'active', 'omni_wheels_controller'],
         output='screen'
     )
 
@@ -181,7 +168,6 @@ def generate_launch_description():
         # Robot description and spawning
         robot_state_publisher_node,
         spawn_robot_node,
-        ground_truth_odom,
 
         # Joint state and GUI
         joint_state_publisher_gui_node,
@@ -195,7 +181,7 @@ def generate_launch_description():
                 target_action=controller_manager_node,
                 on_exit=[
                     load_joint_state_broadcaster,
-                    load_diff_drive_controller,
+                    load_omni_wheels_controller,
                 ]
             )
         ),

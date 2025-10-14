@@ -5,8 +5,7 @@
   <xacro:arg name="use_ros2_control" default="true"/>
   <xacro:arg name="use_sim_time" default="true"/>
 
-  <!-- Include common macros -->
-  <xacro:include filename="$(find my_robot_description)/urdf/macros.xacro"/>
+  <!-- Macros defined below -->
 
   <!-- Robot base properties -->
   <xacro:property name="base_radius" value="0.3"/>
@@ -113,7 +112,7 @@
       <axis xyz="1 0 0"/>
     </joint>
 
-    <xacro:if condition="$(arg use_ros2_control)">
+    <xacro:if value="$(arg use_ros2_control)">
       <!-- ROS 2 Control interface for wheel -->
       <ros2_control name="${name}_wheel_controller" type="system">
         <hardware>
@@ -407,21 +406,20 @@
 
   <!-- Gazebo plugins -->
   <gazebo>
-    <!-- Differential drive plugin for omnidirectional movement -->
+    <!-- Differential drive plugin (simplified for basic movement) -->
     <plugin name="diff_drive" filename="libgazebo_ros_diff_drive.so">
       <ros>
         <namespace></namespace>
-        <remapping>cmd_vel:=/diff_drive_controller/cmd_vel_unstamped</remapping>
-        <remapping>odom:=/diff_drive_controller/odom</remapping>
+        <remapping>cmd_vel:=/cmd_vel</remapping>
+        <remapping>odom:=/odom</remapping>
       </ros>
 
-      <!-- Wheel configuration for 3-wheeled omnidirectional robot -->
-      <wheel_1_joint>wheel_1_joint</wheel_1_joint>
-      <wheel_2_joint>wheel_2_joint</wheel_2_joint>
-      <wheel_3_joint>wheel_3_joint</wheel_3_joint>
+      <!-- Use only two wheels for basic differential drive -->
+      <left_joint>wheel_1_joint</left_joint>
+      <right_joint>wheel_2_joint</right_joint>
 
       <!-- Wheel properties -->
-      <wheel_separation>${base_radius * 1.732}</wheel_separation> <!-- 2 * sin(60°) * radius -->
+      <wheel_separation>${base_radius * 1.732}</wheel_separation>
       <wheel_diameter>${wheel_radius * 2}</wheel_diameter>
 
       <!-- Robot properties -->

@@ -3,13 +3,14 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, ExecuteProcess, RegisterEventHandler
+from launch.actions import IncludeLaunchDescription, ExecuteProcess, RegisterEventHandler, DeclareLaunchArgument
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.event_handlers import OnProcessExit
 from launch.substitutions import LaunchConfiguration, Command, FindExecutable, PathJoinSubstitution
 from launch_ros.actions import Node
 from launch_ros.substitutions import FindPackageShare
 import launch_ros.actions
+import launch.conditions
 
 def generate_launch_description():
     # Get package directories
@@ -187,7 +188,7 @@ def generate_launch_description():
         name='teleop_twist_joy_node',
         parameters=[os.path.join(pkg_my_robot_bringup, 'config', 'teleop_joy.yaml')],
         remappings=[
-            ('cmd_vel', '/diff_drive_controller/cmd_vel_unstamped')
+            ('cmd_vel', '/omni_wheels_controller/cmd_vel_unstamped')
         ]
     )
 
@@ -199,7 +200,7 @@ def generate_launch_description():
         output='screen',
         prefix='xterm -e',
         remappings=[
-            ('cmd_vel', '/diff_drive_controller/cmd_vel_unstamped')
+            ('cmd_vel', '/omni_wheels_controller/cmd_vel_unstamped')
         ]
     )
 
@@ -208,7 +209,7 @@ def generate_launch_description():
         package='tf2_ros',
         executable='static_transform_publisher',
         name='base_to_laser_tf',
-        arguments=['0', '0', '0.2', '0', '0', '0', 'base_link', 'laser_frame']
+        arguments=['0', '0', '0.2', '0', '0', '0', 'base_link', 'lidar_frame']
     )
 
     base_to_imu_tf = Node(
@@ -243,9 +244,9 @@ def generate_launch_description():
                 target_action=controller_manager_node,
                 on_exit=[
                     spawn_joint_state_broadcaster,
-                    spawn_diff_drive_controller,
-                    spawn_arm_controller,
-                    spawn_gripper_controller,
+                    spawn_omni_wheels_controller,
+                    spawn_lifter_controller,
+                    spawn_servo_controller,
                 ]
             )
         ),
