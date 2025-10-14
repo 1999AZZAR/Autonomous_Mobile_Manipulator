@@ -3,22 +3,17 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import IncludeLaunchDescription, ExecuteProcess, DeclareLaunchArgument, RegisterEventHandler, TimerAction
-from launch.event_handlers import OnProcessExit
-from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
 from launch.substitutions import LaunchConfiguration, Command, FindExecutable
 from launch_ros.actions import Node
-from launch_ros.substitutions import FindPackageShare
 
 def generate_launch_description():
     # Get package directories
     pkg_my_robot_bringup = get_package_share_directory('my_robot_bringup')
     pkg_my_robot_description = get_package_share_directory('my_robot_description')
-    pkg_gazebo_ros = get_package_share_directory('gazebo_ros')
 
     # Launch arguments
     use_sim_time = LaunchConfiguration('use_sim_time', default='true')
-    world_file = LaunchConfiguration('world', default='competition_arena.world')
 
     # Robot description file
     robot_description_file = os.path.join(
@@ -35,19 +30,6 @@ def generate_launch_description():
         ' use_sim_time:=', use_sim_time
     ])
 
-    # Gazebo launch with GUI enabled
-    gazebo_launch = IncludeLaunchDescription(
-        PythonLaunchDescriptionSource(
-            os.path.join(pkg_gazebo_ros, 'launch', 'gazebo.launch.py')
-        ),
-        launch_arguments={
-            'world': os.path.join(pkg_my_robot_bringup, 'worlds', 'competition_arena.world'),
-            'use_sim_time': use_sim_time,
-            'headless': 'false',  # Enable GUI
-            'verbose': 'true',    # Enable verbose output
-        }.items()
-    )
-
     # Robot state publisher
     robot_state_publisher_node = Node(
         package='robot_state_publisher',
@@ -61,12 +43,27 @@ def generate_launch_description():
         }]
     )
 
-    # Spawn robot in Gazebo
-    spawn_robot_node = Node(
-        package='gazebo_ros',
-        executable='spawn_entity.py',
-        name='spawn_robot',
-        arguments=[
+    # Gazebo server
+    gazebo_server = ExecuteProcess(
+        cmd=[
+            'gzserver',
+            os.path.join(pkg_my_robot_bringup, 'worlds', 'competition_arena.world'),
+            '--verbose'
+        ],
+        output='screen'
+    )
+
+    # Gazebo client (GUI)
+    gazebo_client = ExecuteProcess(
+        cmd=['gzclient', '--verbose'],
+        output='screen',
+        environment={'QT_QPA_PLATFORM': 'xcb'}
+    )
+
+    # Spawn robot (delayed to allow Gazebo to start)
+    spawn_robot = ExecuteProcess(
+        cmd=[
+            'ros2', 'run', 'gazebo_ros', 'spawn_entity.py',
             '-entity', 'my_robot',
             '-topic', 'robot_description',
             '-x', '0.0',
@@ -76,17 +73,25 @@ def generate_launch_description():
         output='screen'
     )
 
-
-    # Return launch description
     return LaunchDescription([
         # Launch arguments
         DeclareLaunchArgument('use_sim_time', default_value='true'),
-        DeclareLaunchArgument('world', default_value='competition_arena.world'),
 
-        # Gazebo simulation
-        gazebo_launch,
-
-        # Robot description and spawning
+        # Robot state publisher
         robot_state_publisher_node,
-        spawn_robot_node,
+
+        # Gazebo server
+        gazebo_server,
+
+        # Gazebo client (GUI) - start after server
+        TimerAction(
+            period=3.0,
+            actions=[gazebo_client]
+        ),
+
+        # Spawn robot - start after Gazebo
+        TimerAction(
+            period=5.0,
+            actions=[spawn_robot]
+        ),
     ])

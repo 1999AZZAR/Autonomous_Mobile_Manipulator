@@ -13,19 +13,20 @@ services:
       colcon build --packages-select my_robot_description my_robot_bringup &&
       source install/setup.bash &&
       echo 'Packages built successfully' &&
-      echo 'Starting Gazebo simulation...' &&
-      ros2 launch my_robot_bringup gazebo_simple.launch.py
+      echo 'Starting Gazebo simulation with GUI...' &&
+      ros2 launch my_robot_bringup gazebo_gui.launch.py
       "
     # Share the source code folder so you can edit code on your PC and it updates inside the container
     volumes:
       - ./ros2_ws/src:/root/ros2_ws/src
-    # Network settings to allow Gazebo GUI to display on your PC (Wayland mode)
+    # Network settings to allow Gazebo GUI to display on your PC
     environment:
-      - DISPLAY=${DISPLAY}
+      - DISPLAY=${DISPLAY:-:0}
       - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
       - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}
-      - QT_QPA_PLATFORM=wayland
+      - QT_QPA_PLATFORM=xcb
       - QT_X11_NO_MITSHM=1
+      - LIBGL_ALWAYS_INDIRECT=1
       - GAZEBO_MODEL_PATH=/root/ros2_ws/src/my_robot_description/models
       - PYTHONPATH=/root/ros2_ws/install/my_robot_automation/lib/python3.10/site-packages:$PYTHONPATH
     # Allows the container to access your host machine's graphics hardware
