@@ -1,0 +1,65 @@
+picker
+- gripper (servo)
+- gripper tilt (servo)
+- gripper neck (forward backward)(servo continuous)
+- gripper base (up down)(motor)
+
+
+distance sensors (laser base)
+- front
+- back left
+- back right
+
+
+other sensors
+- 380 degree lidar sensor (rplidar a1)
+- microsoft camera (usb)(used for object recongnition)
+- line sensor (used for line based nav)
+
+
+wheel (omni)
+- back
+- front left
+- front right
+
+
+containe load (to save piced object)
+- 2 on left
+    - left front
+    - left back
+- 2 on right
+    - right front
+    - right back
+
+
+robot shape
+- hexagonal shaped robot
+
+
+hw controll
+- emergency
+- start/stop
+- mode (train/run)
+
+
+brain/controll
+- raspiberry pi 5
+    - ubuntu server
+    - docker
+    - casaos
+    - tailscale
+- n8n (on docker)
+    - automation
+- ros2 (on docker)
+    - low level
+    - direct io
+
+
+contoll mechanism
+- path planing
+- automatic planing based on map data training
+- obstacle avoidance
+- line follower
+- pid based contoll to gain smooth motor characteristic movement
+- object pick and place
+- object recongnition
