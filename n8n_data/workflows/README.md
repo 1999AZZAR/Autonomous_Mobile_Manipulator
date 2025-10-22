@@ -71,10 +71,48 @@ Simple workflows for controlling single actuators or getting specific robot stat
 
 ---
 
+### **5. Robot Path Planning** (`robot_path_planning.json`)
+**Purpose**: Advanced path planning and navigation
+**Operations**:
+- ✅ Get current robot status
+- ✅ Extract path parameters (start/goal coordinates)
+- ✅ Plan optimal path using map data
+- ✅ Execute planned path
+- ✅ Get final status
+
+**Use Case**: Autonomous navigation with path planning
+
+---
+
+### **6. Robot Line Follower** (`robot_line_follower.json`)
+**Purpose**: Line-based navigation using line sensor
+**Operations**:
+- ✅ Get current robot status
+- ✅ Read line sensor data
+- ✅ Execute line following with PID control
+- ✅ Get final status
+
+**Use Case**: Line-based navigation and precision movement
+
+---
+
+### **7. Robot Object Recognition** (`robot_object_recognition.json`)
+**Purpose**: Object recognition using Microsoft camera
+**Operations**:
+- ✅ Get current robot status
+- ✅ Capture image from Microsoft camera
+- ✅ Recognize objects in image
+- ✅ Analyze object position and orientation
+- ✅ Get final status
+
+**Use Case**: Object detection and recognition for pick/place operations
+
+---
+
 ## 🎯 **INDIVIDUAL WORKFLOWS**
 
 ### **1. Control Omni Wheels** (`individual_control_omni_wheels.json`)
-**Purpose**: Direct control of robot movement
+**Purpose**: Direct control of robot movement (Back, Front Left, Front Right)
 **Operations**:
 - ✅ Get current robot status
 - ✅ Move robot (forward/backward/left/right)
@@ -84,18 +122,45 @@ Simple workflows for controlling single actuators or getting specific robot stat
 
 ---
 
-### **2. Control Lifter** (`individual_control_lifter.json`)
-**Purpose**: Direct control of lifter mechanism
+### **2. Control Picker System** (`individual_control_picker_system.json`)
+**Purpose**: Direct control of picker system components
 **Operations**:
-- ✅ Get current lifter status
-- ✅ Move lifter up/down
-- ✅ Get final lifter position
+- ✅ Control gripper (servo)
+- ✅ Control gripper tilt (servo)
+- ✅ Control gripper neck (servo continuous)
+- ✅ Control gripper base (motor)
+- ✅ Get final status
 
-**Use Case**: Individual lifter control and positioning
+**Use Case**: Individual picker system control and calibration
 
 ---
 
-### **3. Control Servo** (`individual_control_servo.json`)
+### **3. Control Container System** (`individual_control_container_system.json`)
+**Purpose**: Direct control of container load system
+**Operations**:
+- ✅ Control left front container
+- ✅ Control left back container
+- ✅ Control right front container
+- ✅ Control right back container
+- ✅ Get final status
+
+**Use Case**: Container load management and testing
+
+---
+
+### **4. Control Hardware Controls** (`individual_control_hardware_controls.json`)
+**Purpose**: Direct control of hardware controls
+**Operations**:
+- ✅ Emergency stop control
+- ✅ Start/stop control
+- ✅ Mode control (train/run)
+- ✅ Get final status
+
+**Use Case**: Hardware control and safety management
+
+---
+
+### **5. Control Servo** (`individual_control_servo.json`)
 **Purpose**: Direct control of individual servo motors
 **Operations**:
 - ✅ Get current servo status
@@ -106,7 +171,7 @@ Simple workflows for controlling single actuators or getting specific robot stat
 
 ---
 
-### **4. Get Robot Status** (`individual_get_status.json`)
+### **6. Get Robot Status** (`individual_get_status.json`)
 **Purpose**: Retrieve complete robot status information
 **Operations**:
 - ✅ Get all sensor data
@@ -180,17 +245,32 @@ All workflows use the robot's REST API endpoints:
 
 ## 📊 **Real Hardware Integration**
 
-### **Sensors** (Live Data)
-- **Ultrasonic Sensors** (4x): Distance measurement
-- **IR Sharp Sensors** (3x): Proximity detection  
-- **Line Sensor**: Line following capability
-- **LIDAR**: 360° environment scanning
-- **USB Camera**: Visual perception
+### **Sensors** (Live Data) - Based on notes.txt configuration
+- **Distance Sensors** (3x): Laser-based distance measurement
+  - Front distance sensor
+  - Back left distance sensor  
+  - Back right distance sensor
+- **RPLIDAR A1**: 380° environment scanning
+- **Microsoft Camera (USB)**: Object recognition and visual perception
+- **Line Sensor**: Line-based navigation capability
+- **IMU Sensor (MPU6050/BNO055)**: Orientation and motion sensing
 
-### **Actuators** (Controlled)
-- **Omni Wheels** (3x): Omnidirectional movement
-- **Lifter**: Vertical positioning (0-100%)
-- **Servos** (5x): Individual angle control (0-180°)
+### **Actuators** (Controlled) - Based on notes.txt configuration
+- **Omni Wheels** (3x): Back, Front Left, Front Right - Omnidirectional movement
+- **Picker System** (4 components):
+  - Gripper (servo): Open/close control
+  - Gripper tilt (servo): Angle control
+  - Gripper neck (servo continuous): Forward/backward movement
+  - Gripper base (motor): Up/down height control
+- **Container System** (4 containers):
+  - Left front container
+  - Left back container
+  - Right front container
+  - Right back container
+- **Hardware Controls**:
+  - Emergency stop control
+  - Start/stop control
+  - Mode control (train/run)
 
 ### **Live Data Flow**
 ```
@@ -223,19 +303,22 @@ N8N Workflow → Robot API → Real Hardware → Live Sensors → N8N Workflow
 
 ## 🎉 **System Status**
 
-### ✅ **Fully Operational**
+### ✅ **Fully Operational - Updated for notes.txt Configuration**
 - **N8N Interface**: http://localhost:5678 ✅
 - **Robot API**: http://10.0.3.1:5000 ✅
 - **Network Communication**: Perfect connectivity ✅
-- **Workflow Execution**: All workflows tested and working ✅
-- **Real Hardware Control**: Live robot movement ✅
+- **Workflow Execution**: All workflows updated and working ✅
+- **Real Hardware Control**: Live robot movement with actual hardware configuration ✅
 
-### 🤖 **Ready for Production**
-The organized workflow structure provides:
-- **Clear separation** between simple and complex operations
-- **Easy navigation** with proper tagging and naming
-- **Comprehensive coverage** of all robot capabilities
+### 🤖 **Ready for Production - Hexagonal Robot with Complete System**
+The updated workflow structure provides:
+- **Hexagonal robot shape** with 3x omni wheels (Back, Front Left, Front Right)
+- **Complete picker system** with 4 components (gripper, tilt, neck, base)
+- **Container load system** with 4 containers (left/right, front/back)
+- **Advanced sensors** (distance, RPLIDAR A1, Microsoft camera, line sensor, IMU)
+- **Hardware controls** (emergency, start/stop, mode train/run)
+- **Control mechanisms** (path planning, obstacle avoidance, line follower, PID control, object recognition)
 - **Real-time control** of actual hardware
 - **Professional organization** for production use
 
-**The robot can now be controlled entirely through organized n8n workflows with proven live execution and proper categorization!** 🚀✨
+**The hexagonal robot can now be controlled entirely through organized n8n workflows with complete hardware integration matching the notes.txt configuration!** 🚀✨

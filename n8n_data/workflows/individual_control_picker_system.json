@@ -1,0 +1,259 @@
+{
+  "name": "Control Picker System",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-status",
+      "name": "Get Current Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "gripper_command",
+              "value": "={{ $json.body.gripper_command || 'open' }}"
+            },
+            {
+              "name": "gripper_tilt_angle",
+              "value": "={{ $json.body.gripper_tilt_angle || 0 }}"
+            },
+            {
+              "name": "gripper_neck_position",
+              "value": "={{ $json.body.gripper_neck_position || 0 }}"
+            },
+            {
+              "name": "gripper_base_height",
+              "value": "={{ $json.body.gripper_base_height || 0 }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-picker-params",
+      "name": "Extract Picker Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/picker/gripper",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"command\": \"={{ $json.gripper_command }}\"\n}"
+      },
+      "id": "control-gripper",
+      "name": "Control Gripper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/picker/gripper_tilt",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"angle\": {{ $json.gripper_tilt_angle }}\n}"
+      },
+      "id": "control-gripper-tilt",
+      "name": "Control Gripper Tilt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/picker/gripper_neck",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"position\": {{ $json.gripper_neck_position }}\n}"
+      },
+      "id": "control-gripper-neck",
+      "name": "Control Gripper Neck",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/picker/gripper_base",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"height\": {{ $json.gripper_base_height }}\n}"
+      },
+      "id": "control-gripper-base",
+      "name": "Control Gripper Base",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-final-status",
+      "name": "Get Final Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Current Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Status": {
+      "main": [
+        [
+          {
+            "node": "Extract Picker Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Picker Parameters": {
+      "main": [
+        [
+          {
+            "node": "Control Gripper",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Control Gripper Tilt",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Control Gripper Neck",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Control Gripper Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Gripper": {
+      "main": [
+        [
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Gripper Tilt": {
+      "main": [
+        [
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Gripper Neck": {
+      "main": [
+        [
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Gripper Base": {
+      "main": [
+        [
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  ],
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "individual-control",
+      "name": "Individual Control"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "picker-system",
+      "name": "Picker System"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
+}

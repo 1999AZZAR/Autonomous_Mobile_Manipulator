@@ -15,6 +15,7 @@ other sensors
 - 380 degree lidar sensor (rplidar a1)
 - microsoft camera (usb)(used for object recongnition)
 - line sensor (used for line based nav)
+- imu sensor (MPU6050/BNO055)
 
 
 wheel (omni)
