@@ -51,7 +51,7 @@ class RESTAPIServer(Node):
         # Start Flask server in separate thread
         self.start_flask_server()
         
-        self.get_logger().info('REST API Server started on port 5678')
+        self.get_logger().info('REST API Server started on port 5000')
         
     def wait_for_services(self):
         """Wait for all required services to be available"""
@@ -348,7 +348,7 @@ class RESTAPIServer(Node):
     def start_flask_server(self):
         """Start Flask server in separate thread"""
         def run_server():
-            self.app.run(host='0.0.0.0', port=5678, debug=False, threaded=True)
+            self.app.run(host='0.0.0.0', port=5000, debug=False, threaded=True)
             
         server_thread = threading.Thread(target=run_server, daemon=True)
         server_thread.start()

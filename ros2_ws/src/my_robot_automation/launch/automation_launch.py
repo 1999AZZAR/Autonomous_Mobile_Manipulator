@@ -40,7 +40,7 @@ def generate_launch_description():
             'use_sim_time': use_sim_time
         }]
     )
-    
+
     # REST API server
     rest_api_server = Node(
         package='my_robot_automation',
@@ -52,7 +52,7 @@ def generate_launch_description():
         }],
         condition=IfCondition(enable_rest_api)
     )
-    
+
     # WebSocket server
     websocket_server = Node(
         package='my_robot_automation',
@@ -64,7 +64,7 @@ def generate_launch_description():
         }],
         condition=IfCondition(enable_websocket)
     )
-    
+
     # n8n-ROS2 bridge
     n8n_bridge = Node(
         package='my_robot_automation',
@@ -75,6 +75,18 @@ def generate_launch_description():
             'use_sim_time': use_sim_time
         }],
         condition=IfCondition(enable_n8n_bridge)
+    )
+
+    # Web robot interface
+    web_robot_interface = Node(
+        package='my_robot_automation',
+        executable='web_robot_interface.py',
+        name='web_robot_interface',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time
+        }],
+        condition=IfCondition(enable_rest_api)
     )
     
     return LaunchDescription([
@@ -92,4 +104,5 @@ def generate_launch_description():
         rest_api_server,
         websocket_server,
         n8n_bridge,
+        web_robot_interface,
     ])

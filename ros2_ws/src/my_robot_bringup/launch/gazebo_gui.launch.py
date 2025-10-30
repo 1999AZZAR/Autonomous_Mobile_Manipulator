@@ -3,8 +3,9 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction
-from launch.substitutions import LaunchConfiguration, Command, FindExecutable
+from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, SetEnvironmentVariable, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
+from launch.substitutions import LaunchConfiguration, Command, FindExecutable, EnvironmentVariable
 from launch_ros.actions import Node
 
 def generate_launch_description():
@@ -56,8 +57,7 @@ def generate_launch_description():
     # Gazebo client (GUI)
     gazebo_client = ExecuteProcess(
         cmd=['gzclient', '--verbose'],
-        output='screen',
-        environment={'QT_QPA_PLATFORM': 'xcb'}
+        output='screen'
     )
 
     # Spawn robot (delayed to allow Gazebo to start)
@@ -73,7 +73,20 @@ def generate_launch_description():
         output='screen'
     )
 
+    # Automation services launch
+    automation_launch = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(
+            os.path.join(pkg_my_robot_bringup, '..', 'my_robot_automation', 'launch', 'automation_launch.py')
+        ),
+        launch_arguments={
+            'use_sim_time': use_sim_time
+        }.items()
+    )
+
     return LaunchDescription([
+        # Environment variables
+        SetEnvironmentVariable('QT_QPA_PLATFORM', 'xcb'),
+
         # Launch arguments
         DeclareLaunchArgument('use_sim_time', default_value='true'),
 
@@ -93,5 +106,11 @@ def generate_launch_description():
         TimerAction(
             period=5.0,
             actions=[spawn_robot]
+        ),
+
+        # Start automation services - start after robot is spawned
+        TimerAction(
+            period=8.0,
+            actions=[automation_launch]
         ),
     ])

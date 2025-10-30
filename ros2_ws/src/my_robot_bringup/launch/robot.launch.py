@@ -48,7 +48,7 @@ def generate_launch_description():
         }]
     )
 
-    # Joint state publisher GUI
+    # Joint state publisher GUI (disabled in headless environment)
     joint_state_publisher_gui_node = Node(
         package='joint_state_publisher_gui',
         executable='joint_state_publisher_gui',
@@ -96,19 +96,19 @@ def generate_launch_description():
         output='screen'
     )
 
-    # Laser scan matcher for odometry
-    laser_scan_matcher_node = Node(
-        package='laser_scan_matcher',
-        executable='laser_scan_matcher_node',
-        name='laser_scan_matcher_node',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time,
-            'base_frame': 'base_link',
-            'odom_frame': 'odom',
-            'fixed_frame': 'odom'
-        }]
-    )
+    # Laser scan matcher for odometry (commented out - package not available)
+    # laser_scan_matcher_node = Node(
+    #     package='laser_scan_matcher',
+    #     executable='laser_scan_matcher_node',
+    #     name='laser_scan_matcher_node',
+    #     output='screen',
+    #     parameters=[{
+    #         'use_sim_time': use_sim_time,
+    #         'base_frame': 'base_link',
+    #         'odom_frame': 'odom',
+    #         'fixed_frame': 'odom'
+    #     }]
+    # )
 
     # Robot localization (EKF fusion)
     robot_localization_node = Node(
@@ -231,7 +231,7 @@ def generate_launch_description():
         # Launch arguments
         DeclareLaunchArgument('use_sim_time', default_value='true'),
         DeclareLaunchArgument('use_ros2_control', default_value='true'),
-        DeclareLaunchArgument('gui', default_value='true'),
+        DeclareLaunchArgument('gui', default_value='false'),
 
         # Core robot nodes
         robot_state_publisher_node,
@@ -252,12 +252,12 @@ def generate_launch_description():
         ),
 
         # Sensor nodes
-        rplidar_node,
+        lidar_node,
         imu_filter_node,
 
         # Localization and odometry
         robot_localization_node,
-        laser_scan_matcher_node,
+        # laser_scan_matcher_node,  # commented out
 
         # Static transforms
         base_to_laser_tf,

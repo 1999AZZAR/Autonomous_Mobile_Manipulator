@@ -4,17 +4,17 @@ services:
     build:
       context: ./ros2_ws  # Tells Docker Compose to use the Dockerfile in the ./ros2_ws folder
     container_name: ros2_sim_container
-    # Launch Gazebo simulation with robot
+    # Launch Gazebo simulation with robot and automation services
     command: >
       bash -c "
       source /opt/ros/iron/setup.bash &&
       cd /root/ros2_ws &&
       echo 'Building robot packages...' &&
-      colcon build --packages-select my_robot_description my_robot_bringup &&
+      colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation &&
       source install/setup.bash &&
       echo 'Packages built successfully' &&
-      echo 'Starting Gazebo simulation with GUI...' &&
-      ros2 launch my_robot_bringup gazebo_gui.launch.py
+      echo 'Starting Gazebo simulation with automation services...' &&
+      ros2 launch my_robot_automation automation_launch.py
       "
     # Share the source code folder so you can edit code on your PC and it updates inside the container
     volumes:
@@ -39,10 +39,12 @@ services:
 
   # The n8n Workflow Automation Service
   n8n:
-    image: docker.io/n8nio/n8n:1.115.2 # Latest stable version
+    image: docker.io/n8nio/n8n:latest # Latest stable version
     container_name: n8n_container
     restart: always
     network_mode: "host" # Use host networking to access robot API
+    ports:
+      - "5678:5678" # n8n web interface
     environment:
       - GENERIC_TIMEZONE=Asia/Jakarta # Set your local timezone
     volumes:

@@ -8,18 +8,30 @@ SHELL ["/bin/bash", "-c"]
 # Install essential tools and libraries
 RUN apt-get update && apt-get install -y \
     terminator \
+    xterm \
     git \
     python3-pip \
     python3-colcon-common-extensions \
     ros-iron-navigation2 \
     ros-iron-nav2-bringup \
     ros-iron-moveit \
+    ros-iron-ros2-control \
+    ros-iron-ros2-controllers \
+    ros-iron-joint-state-publisher \
+    ros-iron-xacro \
+    ros-iron-robot-localization \
+    ros-iron-slam-toolbox \
+    ros-iron-imu-filter-madgwick \
+    ros-iron-foxglove-bridge \
+    ros-iron-teleop-twist-joy \
+    ros-iron-teleop-twist-keyboard \
+    ros-iron-rplidar-ros \
     # Add any other specific libraries your robot needs here
     && rm -rf /var/lib/apt/lists/*
 
 # --- Python Dependencies ---
 # Install Python libraries for your custom nodes
-RUN pip3 install flask
+RUN pip3 install flask flask-cors websockets
 
 # --- ROS 2 Workspace Setup ---
 # Create and build the workspace
