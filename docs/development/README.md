@@ -55,6 +55,36 @@ code --install-extension eamodio.gitlens
 
 ## Code Development Workflow
 
+### Development Environment Considerations
+
+#### Host vs Container Development
+This project uses Docker containers for ROS2 development, but you edit code on your host system. The launch files include conditional imports to handle this workflow:
+
+- **Host System (Code Editing)**: ROS2 packages are not available, but launch files include error handling that provides clear messages directing you to use the Docker environment
+- **Docker Container (Execution)**: All ROS2 packages are available, and your code changes are automatically available via volume mounts
+- **Best Practice**: Edit code on host, execute and test in containers
+
+#### Conditional Import Handling
+Launch files use conditional imports to gracefully handle missing ROS2 packages:
+
+```python
+# Conditional import for ROS2 packages - allows development on systems without ROS2 installed
+try:
+    from ament_index_python.packages import get_package_share_directory
+    from launch import LaunchDescription
+    # ... other ROS2 imports
+except ImportError as e:
+    print(f"Warning: ROS2 packages not available. This launch file requires ROS2 to be installed.")
+    print(f"Install ROS2 or run this in the Docker container environment.")
+    print(f"Error: {e}")
+    raise
+```
+
+This allows:
+- Syntax checking on host systems
+- Clear error messages when ROS2 is not available
+- Proper execution within Docker containers
+
 ### 1. Feature Branch Development
 
 ```bash

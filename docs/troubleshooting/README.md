@@ -133,6 +133,46 @@ xeyes  # Should show animated eyes
 # Comment out DISPLAY and X11 volumes in docker-compose.yml
 ```
 
+### ROS 2 Import Errors
+
+**Issue**: `Import "ament_index_python.packages" could not be resolved` or similar ROS2 import errors
+
+**Symptoms**:
+- Launch files show import errors when opened in IDE
+- Python files fail to import ROS2 packages on host system
+- Error messages about missing `ament_index_python`, `launch`, or `launch_ros` packages
+
+**Cause**: ROS2 packages are only available within Docker containers, not on host systems.
+
+**Solutions**:
+```bash
+# Verify you're in the correct environment - this should work in container:
+docker exec -it ros2_sim_container bash
+cd /root/ros2_ws
+source /opt/ros/iron/setup.bash
+python3 -c "from ament_index_python.packages import get_package_share_directory; print('ROS2 import successful')"
+
+# For development on host system - this is expected behavior:
+# Launch files include conditional imports that provide clear error messages
+# directing you to use the Docker container environment
+
+# If you need to install ROS2 on host for development:
+# Ubuntu/Debian:
+sudo apt update
+sudo apt install software-properties-common
+sudo add-apt-repository universe
+sudo apt update && sudo apt install curl -y
+sudo curl -sSL https://raw.githubusercontent.com/ros/rosdistro/master/ros.key -o /usr/share/keyrings/ros-archive-keyring.gpg
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/ros-archive-keyring.gpg] http://packages.ros.org/ros2/ubuntu $(source /etc/os-release && echo $UBUNTU_CODENAME) main" | sudo tee /etc/apt/sources.list.d/ros2.list > /dev/null
+sudo apt update
+sudo apt upgrade -y
+sudo apt install ros-iron-desktop -y
+echo "source /opt/ros/iron/setup.bash" >> ~/.bashrc
+source ~/.bashrc
+```
+
+**Prevention**: Always run ROS2 commands and imports within the Docker container environment. The conditional imports in launch files are designed to guide you to the correct execution environment.
+
 ### ROS 2 Communication Issues
 
 **Issue**: ROS 2 nodes not communicating

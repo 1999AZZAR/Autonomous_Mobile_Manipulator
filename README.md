@@ -289,6 +289,11 @@ source install/setup.bash
 ros2 launch my_robot_bringup robot.launch.py
 ```
 
+#### Development Environment Notes
+- **Host System Development**: Launch files include conditional imports to handle ROS2 package availability. If ROS2 is not installed on your host system, imports will fail gracefully with clear error messages directing you to use the Docker container environment.
+- **Container Development**: All ROS2 packages are available within the Docker containers. Edit files on your host (they're volume-mounted) and execute within the container.
+- **IDE Integration**: Use VS Code with Docker container integration for seamless development experience.
+
 ### Workflow Development
 1. Access n8n at http://localhost:5678
 2. Import workflows from `n8n_data/workflows/`

@@ -1,12 +1,21 @@
 #!/usr/bin/env python3
 
 import os
-from ament_index_python.packages import get_package_share_directory
-from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, SetEnvironmentVariable, IncludeLaunchDescription
-from launch.launch_description_sources import PythonLaunchDescriptionSource
-from launch.substitutions import LaunchConfiguration, Command, FindExecutable, EnvironmentVariable
-from launch_ros.actions import Node
+
+# Conditional import for ROS2 packages - allows development on systems without ROS2 installed
+try:
+    from ament_index_python.packages import get_package_share_directory
+    from launch import LaunchDescription
+    from launch.actions import DeclareLaunchArgument, ExecuteProcess, TimerAction, SetEnvironmentVariable, IncludeLaunchDescription
+    from launch.launch_description_sources import PythonLaunchDescriptionSource
+    from launch.substitutions import LaunchConfiguration, Command, FindExecutable, EnvironmentVariable
+    from launch_ros.actions import Node
+except ImportError as e:
+    print(f"Warning: ROS2 packages not available. This launch file requires ROS2 to be installed.")
+    print(f"Install ROS2 or run this in the Docker container environment.")
+    print(f"Error: {e}")
+    # Re-raise to prevent execution without proper dependencies
+    raise
 
 def generate_launch_description():
     # Get package directories
