@@ -1,5 +1,5 @@
 {
-  "name": "Control Omni Wheels",
+  "name": "Control Omni Wheels (3-Wheel Movement)",
   "active": false,
   "nodes": [
     {
@@ -24,6 +24,101 @@
     },
     {
       "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "movement_command",
+              "value": "={{ $json.body.movement_command || 'forward' }}"
+            },
+            {
+              "name": "speed",
+              "value": "={{ $json.body.speed || 0.5 }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Movement Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.movement_command }}",
+              "operation": "equal",
+              "value2": "turn_left"
+            }
+          ]
+        }
+      },
+      "id": "is-turn-left",
+      "name": "Is Turn Left?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.movement_command }}",
+              "operation": "equal",
+              "value2": "turn_right"
+            }
+          ]
+        }
+      },
+      "id": "is-turn-right",
+      "name": "Is Turn Right?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/turn",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"left\",\n  \"speed\": {{ $json.speed }}\n}"
+      },
+      "id": "turn-left",
+      "name": "Turn Left",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/turn",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"right\",\n  \"speed\": {{ $json.speed }}\n}"
+      },
+      "id": "turn-right",
+      "name": "Turn Right",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
         "url": "http://10.0.3.1:5000/api/robot/move",
         "method": "POST",
         "options": {
@@ -33,13 +128,25 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}"
+        "jsonBody": "{\n  \"direction\": \"={{ $json.movement_command }}\",\n  \"speed\": {{ $json.speed }}\n}"
       },
-      "id": "move-robot",
-      "name": "Move Robot",
+      "id": "move-linear",
+      "name": "Linear Movement (Forward/Backward/Strafe)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [460, 300]
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-robot",
+      "name": "Stop Robot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
     },
     {
       "parameters": {
@@ -51,7 +158,7 @@
       "name": "Get Final Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, 300]
+      "position": [1340, 300]
     }
   ],
   "connections": {
@@ -70,14 +177,90 @@
       "main": [
         [
           {
-            "node": "Move Robot",
+            "node": "Extract Movement Parameters",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Move Robot": {
+    "Extract Movement Parameters": {
+      "main": [
+        [
+          {
+            "node": "Is Turn Left?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Turn Right?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Linear Movement (Forward/Backward/Strafe)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Turn Left?": {
+      "main": [
+        [
+          {
+            "node": "Turn Left",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Turn Right?": {
+      "main": [
+        [
+          {
+            "node": "Turn Right",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Left": {
+      "main": [
+        [
+          {
+            "node": "Stop Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Right": {
+      "main": [
+        [
+          {
+            "node": "Stop Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear Movement (Forward/Backward/Strafe)": {
+      "main": [
+        [
+          {
+            "node": "Stop Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop Robot": {
       "main": [
         [
           {

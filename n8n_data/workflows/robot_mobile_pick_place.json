@@ -1,5 +1,5 @@
 {
-  "name": "Pick and Place Automation (Servo-Based)",
+  "name": "Mobile Pick and Place Automation",
   "active": false,
   "nodes": [
     {
@@ -41,12 +41,16 @@
             {
               "name": "place_y",
               "value": "={{ $json.body.place_y || 0.0 }}"
+            },
+            {
+              "name": "movement_speed",
+              "value": "={{ $json.body.speed || 0.3 }}"
             }
           ]
         }
       },
       "id": "extract-coordinates",
-      "name": "Extract Coordinates",
+      "name": "Extract Coordinates & Speed",
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
       "position": [460, 300]
@@ -64,15 +68,15 @@
         "sendBody": true,
         "jsonBody": "{\n  \"action\": \"home\"\n}"
       },
-      "id": "home-servos",
-      "name": "Home All Servos",
+      "id": "home-servos-start",
+      "name": "Home Servos (Start)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [680, 200]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "url": "http://10.0.3.1:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -81,29 +85,22 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 30\n}"
+        "jsonBody": "{\n  \"direction\": \"forward\",\n  \"speed\": {{ $json.movement_speed }}\n}"
       },
-      "id": "lower-gripper-base",
-      "name": "Lower Gripper Base (Servo 4)",
+      "id": "move-to-pickup",
+      "name": "Move to Pickup Location",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [900, 200]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "url": "http://10.0.3.1:5000/api/robot/stop",
         "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 45\n}"
+        "options": {}
       },
-      "id": "open-gripper",
-      "name": "Open Gripper (Servo 1)",
+      "id": "stop-at-pickup",
+      "name": "Stop at Pickup Location",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1120, 200]
@@ -119,10 +116,10 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 135\n}"
+        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 30\n}"
       },
-      "id": "close-gripper",
-      "name": "Close Gripper (Servo 1)",
+      "id": "lower-gripper-base",
+      "name": "Lower Gripper Base",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1340, 200]
@@ -138,13 +135,139 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 90\n}"
+        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 45\n}"
       },
-      "id": "raise-gripper-base",
-      "name": "Raise Gripper Base (Servo 4)",
+      "id": "open-gripper",
+      "name": "Open Gripper",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 135\n}"
+      },
+      "id": "close-gripper",
+      "name": "Close Gripper (Pick Object)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 90\n}"
+      },
+      "id": "raise-with-object",
+      "name": "Raise with Object",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"backward\",\n  \"speed\": {{ $json.movement_speed }}\n}"
+      },
+      "id": "move-to-place",
+      "name": "Move to Place Location",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-at-place",
+      "name": "Stop at Place Location",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 30\n}"
+      },
+      "id": "lower-at-place",
+      "name": "Lower at Place Location",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 45\n}"
+      },
+      "id": "open-gripper-release",
+      "name": "Open Gripper (Release Object)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 90\n}"
+      },
+      "id": "raise-after-release",
+      "name": "Raise After Release",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3100, 200]
     },
     {
       "parameters": {
@@ -160,10 +283,10 @@
         "jsonBody": "{\n  \"action\": \"home\"\n}"
       },
       "id": "home-servos-final",
-      "name": "Home All Servos (Final)",
+      "name": "Home Servos (Final)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [1780, 300]
+      "position": [3320, 300]
     },
     {
       "parameters": {
@@ -175,7 +298,7 @@
       "name": "Get Final Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [2000, 300]
+      "position": [3540, 300]
     },
     {
       "parameters": {
@@ -183,7 +306,7 @@
           "string": [
             {
               "name": "result",
-              "value": "Pick and place operation completed successfully using servo-based picker system"
+              "value": "Mobile pick and place operation completed successfully - moved to pickup location, grasped object, transported to place location, and released object"
             }
           ]
         }
@@ -192,7 +315,7 @@
       "name": "Operation Complete",
       "type": "n8n-nodes-base.set",
       "typeVersion": 1,
-      "position": [2200, 300]
+      "position": [3760, 300]
     }
   ],
   "connections": {
@@ -211,80 +334,157 @@
       "main": [
         [
           {
-            "node": "Extract Coordinates",
+            "node": "Extract Coordinates & Speed",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Coordinates": {
+    "Extract Coordinates & Speed": {
       "main": [
         [
           {
-            "node": "Home All Servos",
+            "node": "Home Servos (Start)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Home All Servos": {
+    "Home Servos (Start)": {
       "main": [
         [
           {
-            "node": "Lower Gripper Base (Servo 4)",
+            "node": "Move to Pickup Location",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Lower Gripper Base (Servo 4)": {
+    "Move to Pickup Location": {
       "main": [
         [
           {
-            "node": "Open Gripper (Servo 1)",
+            "node": "Stop at Pickup Location",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Open Gripper (Servo 1)": {
+    "Stop at Pickup Location": {
       "main": [
         [
           {
-            "node": "Close Gripper (Servo 1)",
+            "node": "Lower Gripper Base",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Close Gripper (Servo 1)": {
+    "Lower Gripper Base": {
       "main": [
         [
           {
-            "node": "Raise Gripper Base (Servo 4)",
+            "node": "Open Gripper",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Raise Gripper Base (Servo 4)": {
+    "Open Gripper": {
       "main": [
         [
           {
-            "node": "Home All Servos (Final)",
+            "node": "Close Gripper (Pick Object)",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Home All Servos (Final)": {
+    "Close Gripper (Pick Object)": {
+      "main": [
+        [
+          {
+            "node": "Raise with Object",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Raise with Object": {
+      "main": [
+        [
+          {
+            "node": "Move to Place Location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Place Location": {
+      "main": [
+        [
+          {
+            "node": "Stop at Place Location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop at Place Location": {
+      "main": [
+        [
+          {
+            "node": "Lower at Place Location",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lower at Place Location": {
+      "main": [
+        [
+          {
+            "node": "Open Gripper (Release Object)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open Gripper (Release Object)": {
+      "main": [
+        [
+          {
+            "node": "Raise After Release",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Raise After Release": {
+      "main": [
+        [
+          {
+            "node": "Home Servos (Final)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Home Servos (Final)": {
       "main": [
         [
           {
@@ -322,8 +522,8 @@
     {
       "createdAt": "2025-10-13T16:30:00.000Z",
       "updatedAt": "2025-10-13T16:30:00.000Z",
-      "id": "pick-place",
-      "name": "Pick and Place"
+      "id": "mobile-pick-place",
+      "name": "Mobile Pick and Place"
     }
   ],
   "triggerCount": 0,

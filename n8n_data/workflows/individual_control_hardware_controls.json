@@ -1,5 +1,5 @@
 {
-  "name": "Control Hardware Controls",
+  "name": "Control Hardware Controls (Emergency & Safety)",
   "active": false,
   "nodes": [
     {
@@ -33,10 +33,6 @@
             {
               "name": "control_action",
               "value": "={{ $json.body.control_action || 'stop' }}"
-            },
-            {
-              "name": "mode",
-              "value": "={{ $json.body.mode || 'run' }}"
             }
           ]
         }
@@ -49,60 +45,103 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/hardware/emergency",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"={{ $json.control_action }}\"\n}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.control_type }}",
+              "operation": "equal",
+              "value2": "emergency"
+            }
+          ]
+        }
       },
-      "id": "emergency-control",
-      "name": "Emergency Control",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "is-emergency",
+      "name": "Is Emergency Control?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "position": [680, 200]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/hardware/start_stop",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"={{ $json.control_action }}\"\n}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.control_type }}",
+              "operation": "equal",
+              "value2": "start_stop"
+            }
+          ]
+        }
       },
-      "id": "start-stop-control",
-      "name": "Start/Stop Control",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "is-start-stop",
+      "name": "Is Start/Stop Control?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "position": [680, 300]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/hardware/mode",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"mode\": \"={{ $json.mode }}\"\n}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.control_type }}",
+              "operation": "equal",
+              "value2": "mode"
+            }
+          ]
+        }
       },
-      "id": "mode-control",
-      "name": "Mode Control",
+      "id": "is-mode",
+      "name": "Is Mode Control?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/emergency",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "emergency-stop",
+      "name": "Emergency Stop (Implemented)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [680, 400]
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "Start/Stop control not yet implemented in ROS2 API"
+            }
+          ]
+        }
+      },
+      "id": "start-stop-placeholder",
+      "name": "Start/Stop Control (Not Implemented)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "Mode control (train/run) not yet implemented in ROS2 API"
+            }
+          ]
+        }
+      },
+      "id": "mode-placeholder",
+      "name": "Mode Control (Not Implemented)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 400]
     },
     {
       "parameters": {
@@ -114,7 +153,7 @@
       "name": "Get Final Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [900, 300]
+      "position": [1120, 300]
     }
   ],
   "connections": {
@@ -144,24 +183,57 @@
       "main": [
         [
           {
-            "node": "Emergency Control",
+            "node": "Is Emergency Control?",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Start/Stop Control",
+            "node": "Is Start/Stop Control?",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Mode Control",
+            "node": "Is Mode Control?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Emergency Control": {
+    "Is Emergency Control?": {
+      "main": [
+        [
+          {
+            "node": "Emergency Stop (Implemented)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Start/Stop Control?": {
+      "main": [
+        [
+          {
+            "node": "Start/Stop Control (Not Implemented)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Mode Control?": {
+      "main": [
+        [
+          {
+            "node": "Mode Control (Not Implemented)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emergency Stop (Implemented)": {
       "main": [
         [
           {
@@ -172,7 +244,7 @@
         ]
       ]
     },
-    "Start/Stop Control": {
+    "Start/Stop Control (Not Implemented)": {
       "main": [
         [
           {
@@ -183,7 +255,7 @@
         ]
       ]
     },
-    "Mode Control": {
+    "Mode Control (Not Implemented)": {
       "main": [
         [
           {

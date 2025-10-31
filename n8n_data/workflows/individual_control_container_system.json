@@ -1,5 +1,5 @@
 {
-  "name": "Control Container System",
+  "name": "Control Container System (Not Yet Implemented)",
   "active": false,
   "nodes": [
     {
@@ -33,10 +33,6 @@
             {
               "name": "container_position",
               "value": "={{ $json.body.container_position || 'left_front' }}"
-            },
-            {
-              "name": "container_load",
-              "value": "={{ $json.body.container_load || false }}"
             }
           ]
         }
@@ -49,79 +45,143 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/containers/left_front",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"={{ $json.container_action }}\",\n  \"load\": {{ $json.container_load }}\n}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.container_position }}",
+              "operation": "equal",
+              "value2": "left_front"
+            }
+          ]
+        }
       },
-      "id": "control-left-front",
-      "name": "Control Left Front Container",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "is-left-front",
+      "name": "Is Left Front Container?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "position": [680, 200]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/containers/left_back",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"={{ $json.container_action }}\",\n  \"load\": {{ $json.container_load }}\n}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.container_position }}",
+              "operation": "equal",
+              "value2": "left_back"
+            }
+          ]
+        }
       },
-      "id": "control-left-back",
-      "name": "Control Left Back Container",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "is-left-back",
+      "name": "Is Left Back Container?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "position": [680, 300]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/containers/right_front",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"={{ $json.container_action }}\",\n  \"load\": {{ $json.container_load }}\n}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.container_position }}",
+              "operation": "equal",
+              "value2": "right_front"
+            }
+          ]
+        }
       },
-      "id": "control-right-front",
-      "name": "Control Right Front Container",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "is-right-front",
+      "name": "Is Right Front Container?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "position": [680, 400]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/containers/right_back",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"={{ $json.container_action }}\",\n  \"load\": {{ $json.container_load }}\n}"
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.container_position }}",
+              "operation": "equal",
+              "value2": "right_back"
+            }
+          ]
+        }
       },
-      "id": "control-right-back",
-      "name": "Control Right Back Container",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "is-right-back",
+      "name": "Is Right Back Container?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
       "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "Left Front Container control not yet implemented in ROS2 API. Action requested: {{ $json.container_action }}"
+            }
+          ]
+        }
+      },
+      "id": "left-front-placeholder",
+      "name": "Left Front Container (Not Implemented)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "Left Back Container control not yet implemented in ROS2 API. Action requested: {{ $json.container_action }}"
+            }
+          ]
+        }
+      },
+      "id": "left-back-placeholder",
+      "name": "Left Back Container (Not Implemented)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "Right Front Container control not yet implemented in ROS2 API. Action requested: {{ $json.container_action }}"
+            }
+          ]
+        }
+      },
+      "id": "right-front-placeholder",
+      "name": "Right Front Container (Not Implemented)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "message",
+              "value": "Right Back Container control not yet implemented in ROS2 API. Action requested: {{ $json.container_action }}"
+            }
+          ]
+        }
+      },
+      "id": "right-back-placeholder",
+      "name": "Right Back Container (Not Implemented)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 500]
     },
     {
       "parameters": {
@@ -133,7 +193,7 @@
       "name": "Get Final Status",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
-      "position": [900, 300]
+      "position": [1120, 300]
     }
   ],
   "connections": {
@@ -163,29 +223,73 @@
       "main": [
         [
           {
-            "node": "Control Left Front Container",
+            "node": "Is Left Front Container?",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Control Left Back Container",
+            "node": "Is Left Back Container?",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Control Right Front Container",
+            "node": "Is Right Front Container?",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Control Right Back Container",
+            "node": "Is Right Back Container?",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Control Left Front Container": {
+    "Is Left Front Container?": {
+      "main": [
+        [
+          {
+            "node": "Left Front Container (Not Implemented)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Left Back Container?": {
+      "main": [
+        [
+          {
+            "node": "Left Back Container (Not Implemented)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Right Front Container?": {
+      "main": [
+        [
+          {
+            "node": "Right Front Container (Not Implemented)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Right Back Container?": {
+      "main": [
+        [
+          {
+            "node": "Right Back Container (Not Implemented)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Left Front Container (Not Implemented)": {
       "main": [
         [
           {
@@ -196,7 +300,7 @@
         ]
       ]
     },
-    "Control Left Back Container": {
+    "Left Back Container (Not Implemented)": {
       "main": [
         [
           {
@@ -207,7 +311,7 @@
         ]
       ]
     },
-    "Control Right Front Container": {
+    "Right Front Container (Not Implemented)": {
       "main": [
         [
           {
@@ -218,7 +322,7 @@
         ]
       ]
     },
-    "Control Right Back Container": {
+    "Right Back Container (Not Implemented)": {
       "main": [
         [
           {

@@ -47,6 +47,14 @@ services:
       - "5678:5678" # n8n web interface
     environment:
       - GENERIC_TIMEZONE=Asia/Jakarta # Set your local timezone
+      - N8N_BASIC_AUTH_ACTIVE=false # Disable basic auth for API access
+      - N8N_BASIC_AUTH_USER= # Empty user
+      - N8N_BASIC_AUTH_PASSWORD= # Empty password
+      - N8N_JWT_SECRET=super-secret-jwt-key-for-development # JWT secret for API
+      - N8N_ENCRYPTION_KEY=super-secret-encryption-key # Encryption key
+      - N8N_SKIP_WEBHOOK_DEREGISTRATION_FROM_LOADER=true
+      - N8N_PUBLIC_API_DISABLED=false
+      - N8N_PUBLIC_API_SWAGGERUI_DISABLED=false
     volumes:
       - ./n8n_data:/home/node/.n8n # Persists your n8n workflows and data on your PC
       - ./n8n_data/custom_nodes:/home/node/.n8n/custom_nodes # Mount custom nodes

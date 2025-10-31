@@ -1,0 +1,815 @@
+{
+  "name": "Complete Production Line Automation",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "production-line-start",
+      "name": "Production Line Start",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "production_stage",
+              "value": "initialization"
+            },
+            {
+              "name": "completed_stations",
+              "value": "[]"
+            },
+            {
+              "name": "production_status",
+              "value": "🏭 Production line initialized - hexagonal robot ready for manufacturing operations"
+            }
+          ]
+        }
+      },
+      "id": "initialize-production",
+      "name": "Initialize Production",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "stage_message",
+              "value": "📦 Station 1: Raw Material Pickup - Collecting components from input area"
+            }
+          ]
+        }
+      },
+      "id": "station-1-start",
+      "name": "Station 1 Start",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servos",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"action\": \"home\"\n}"
+      },
+      "id": "prepare-picker-station-1",
+      "name": "Prepare Picker for Station 1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.3\n}"
+      },
+      "id": "move-to-input-station",
+      "name": "Move to Input Station",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-at-input-station",
+      "name": "Stop at Input Station",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 30\n}"
+      },
+      "id": "lower-picker-input",
+      "name": "Lower Picker at Input",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 45\n}"
+      },
+      "id": "open-gripper-input",
+      "name": "Open Gripper at Input",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 135\n}"
+      },
+      "id": "close-gripper-input",
+      "name": "Close Gripper at Input",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 90\n}"
+      },
+      "id": "raise-with-material",
+      "name": "Raise with Material",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "stage_message",
+              "value": "🔧 Station 2: Assembly Operation - Processing material at assembly station"
+            }
+          ]
+        }
+      },
+      "id": "station-2-start",
+      "name": "Station 2 Start",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"strafe_right\",\n  \"speed\": 0.3\n}"
+      },
+      "id": "move-to-assembly-station",
+      "name": "Move to Assembly Station",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-at-assembly-station",
+      "name": "Stop at Assembly Station",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 2,\n  \"angle\": 60\n}"
+      },
+      "id": "adjust-gripper-tilt",
+      "name": "Adjust Gripper Tilt",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 3,\n  \"angle\": 45\n}"
+      },
+      "id": "adjust-gripper-neck",
+      "name": "Adjust Gripper Neck",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "stage_message",
+              "value": "🔍 Station 3: Quality Inspection - Using sensors to verify assembly"
+            }
+          ]
+        }
+      },
+      "id": "station-3-start",
+      "name": "Station 3 Start",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "inspect-assembly",
+      "name": "Inspect Assembly",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 600]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "inspection_result",
+              "value": "✅ Quality inspection passed: Ultrasonic={{ $json.ultrasonic_front }}m, IR={{ $json.ir_front }}m"
+            }
+          ]
+        }
+      },
+      "id": "quality-check-passed",
+      "name": "Quality Check Passed",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1120, 600]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "stage_message",
+              "value": "📤 Station 4: Output Delivery - Moving completed product to output area"
+            }
+          ]
+        }
+      },
+      "id": "station-4-start",
+      "name": "Station 4 Start",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 800]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"strafe_left\",\n  \"speed\": 0.3\n}"
+      },
+      "id": "move-to-output-station",
+      "name": "Move to Output Station",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 800]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-at-output-station",
+      "name": "Stop at Output Station",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 800]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 30\n}"
+      },
+      "id": "lower-at-output",
+      "name": "Lower at Output",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 800]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 45\n}"
+      },
+      "id": "release-at-output",
+      "name": "Release at Output",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 800]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 90\n}"
+      },
+      "id": "raise-after-release",
+      "name": "Raise After Release",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 800]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servos",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"action\": \"home\"\n}"
+      },
+      "id": "final-home-position",
+      "name": "Final Home Position",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "production-complete-check",
+      "name": "Production Complete Check",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 500]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "production_result",
+              "value": "🎉 Production line cycle completed successfully! Material processed through all 4 stations: Input → Assembly → Quality Check → Output"
+            }
+          ]
+        }
+      },
+      "id": "production-cycle-complete",
+      "name": "Production Cycle Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2440, 500]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Production Line Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Production Line Start": {
+      "main": [
+        [
+          {
+            "node": "Initialize Production",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Production": {
+      "main": [
+        [
+          {
+            "node": "Station 1 Start",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Station 2 Start",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Station 3 Start",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Station 4 Start",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Station 1 Start": {
+      "main": [
+        [
+          {
+            "node": "Prepare Picker for Station 1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Picker for Station 1": {
+      "main": [
+        [
+          {
+            "node": "Move to Input Station",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Input Station": {
+      "main": [
+        [
+          {
+            "node": "Stop at Input Station",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop at Input Station": {
+      "main": [
+        [
+          {
+            "node": "Lower Picker at Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lower Picker at Input": {
+      "main": [
+        [
+          {
+            "node": "Open Gripper at Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open Gripper at Input": {
+      "main": [
+        [
+          {
+            "node": "Close Gripper at Input",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Close Gripper at Input": {
+      "main": [
+        [
+          {
+            "node": "Raise with Material",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Station 2 Start": {
+      "main": [
+        [
+          {
+            "node": "Move to Assembly Station",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Assembly Station": {
+      "main": [
+        [
+          {
+            "node": "Stop at Assembly Station",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop at Assembly Station": {
+      "main": [
+        [
+          {
+            "node": "Adjust Gripper Tilt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adjust Gripper Tilt": {
+      "main": [
+        [
+          {
+            "node": "Adjust Gripper Neck",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Station 3 Start": {
+      "main": [
+        [
+          {
+            "node": "Inspect Assembly",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inspect Assembly": {
+      "main": [
+        [
+          {
+            "node": "Quality Check Passed",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Station 4 Start": {
+      "main": [
+        [
+          {
+            "node": "Move to Output Station",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Output Station": {
+      "main": [
+        [
+          {
+            "node": "Stop at Output Station",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop at Output Station": {
+      "main": [
+        [
+          {
+            "node": "Lower at Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lower at Output": {
+      "main": [
+        [
+          {
+            "node": "Release at Output",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Release at Output": {
+      "main": [
+        [
+          {
+            "node": "Raise After Release",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Raise with Material": {
+      "main": [
+        [
+          {
+            "node": "Final Home Position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Adjust Gripper Neck": {
+      "main": [
+        [
+          {
+            "node": "Final Home Position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Quality Check Passed": {
+      "main": [
+        [
+          {
+            "node": "Final Home Position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Raise After Release": {
+      "main": [
+        [
+          {
+            "node": "Final Home Position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Home Position": {
+      "main": [
+        [
+          {
+            "node": "Production Complete Check",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Production Complete Check": {
+      "main": [
+        [
+          {
+            "node": "Production Cycle Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "production-line",
+      "name": "Production Line"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
+}

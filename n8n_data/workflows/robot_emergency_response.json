@@ -1,0 +1,724 @@
+{
+  "name": "Emergency Response and Safety Protocol",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-emergency-status",
+      "name": "Get Emergency Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "emergency_type",
+              "value": "={{ $json.body.emergency_type || 'manual' }}"
+            },
+            {
+              "name": "emergency_severity",
+              "value": "={{ $json.body.emergency_severity || 'high' }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-emergency-params",
+      "name": "Extract Emergency Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/emergency",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "activate-emergency-stop",
+      "name": "Activate Emergency Stop",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "emergency_alert",
+              "value": "🚨 EMERGENCY STOP ACTIVATED - {{ $json.emergency_type }} emergency ({{ $json.emergency_severity }} severity)"
+            }
+          ]
+        }
+      },
+      "id": "log-emergency-activation",
+      "name": "Log Emergency Activation",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/servos",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"action\": \"home\"\n}"
+      },
+      "id": "safe-servo-positioning",
+      "name": "Safe Servo Positioning",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.emergency_severity }}",
+              "operation": "equal",
+              "value2": "critical"
+            }
+          ]
+        }
+      },
+      "id": "is-critical-emergency",
+      "name": "Is Critical Emergency?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 150]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.emergency_severity }}",
+              "operation": "equal",
+              "value2": "high"
+            }
+          ]
+        }
+      },
+      "id": "is-high-emergency",
+      "name": "Is High Emergency?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.emergency_severity }}",
+              "operation": "equal",
+              "value2": "medium"
+            }
+          ]
+        }
+      },
+      "id": "is-medium-emergency",
+      "name": "Is Medium Emergency?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 350]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "evacuation_message",
+              "value": "🔴 CRITICAL EMERGENCY: Initiating full system lockdown and evacuation protocol"
+            }
+          ]
+        }
+      },
+      "id": "critical-evacuation",
+      "name": "Critical Evacuation Protocol",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1560, 150]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "evacuation_message",
+              "value": "🟠 HIGH EMERGENCY: Moving to safe zone and monitoring situation"
+            }
+          ]
+        }
+      },
+      "id": "high-evacuation",
+      "name": "High Emergency Safe Zone",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1560, 250]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "evacuation_message",
+              "value": "🟡 MEDIUM EMERGENCY: Holding position and assessing situation"
+            }
+          ]
+        }
+      },
+      "id": "medium-assessment",
+      "name": "Medium Emergency Assessment",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1560, 350]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"backward\",\n  \"speed\": 0.3\n}"
+      },
+      "id": "evacuate-to-safe-zone",
+      "name": "Evacuate to Safe Zone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-at-safe-zone",
+      "name": "Stop at Safe Zone",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "continuous-monitoring",
+      "name": "Continuous Safety Monitoring",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.ultrasonic_front }}",
+              "operation": "less",
+              "value2": 1.0
+            }
+          ]
+        }
+      },
+      "id": "check-environment-safety",
+      "name": "Check Environment Safety",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2440, 250]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "safety_status",
+              "value": "⚠️ POTENTIAL HAZARD DETECTED - Object at {{ $json.ultrasonic_front }}m during emergency monitoring"
+            }
+          ]
+        }
+      },
+      "id": "hazard-detected",
+      "name": "Hazard Detected",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2660, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "safety_status",
+              "value": "✅ Environment appears safe - no hazards detected within 1m range"
+            }
+          ]
+        }
+      },
+      "id": "environment-safe",
+      "name": "Environment Safe",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.emergency_type }}",
+              "operation": "equal",
+              "value2": "obstacle"
+            }
+          ]
+        }
+      },
+      "id": "is-obstacle-emergency",
+      "name": "Is Obstacle Emergency?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2440, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "obstacle_response",
+              "value": "Obstacle emergency: Robot has detected an obstacle and stopped automatically"
+            }
+          ]
+        }
+      },
+      "id": "obstacle-response",
+      "name": "Obstacle Response",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2660, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.emergency_severity }}",
+              "operation": "notEqual",
+              "value2": "critical"
+            }
+          ]
+        }
+      },
+      "id": "should-attempt-recovery",
+      "name": "Should Attempt Recovery?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2880, 350]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "recovery_status",
+              "value": "Attempting emergency recovery - checking if safe to resume limited operations"
+            }
+          ]
+        }
+      },
+      "id": "attempt-recovery",
+      "name": "Attempt Recovery",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [3100, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "recovery_status",
+              "value": "Critical emergency - maintaining full lockdown, no recovery attempted"
+            }
+          ]
+        }
+      },
+      "id": "no-recovery-critical",
+      "name": "No Recovery (Critical)",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [3100, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://10.0.3.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "final-emergency-status",
+      "name": "Final Emergency Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3320, 350]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "emergency_summary",
+              "value": "Emergency response completed: {{ $json.emergency_type }} emergency handled with {{ $json.emergency_severity }} severity protocol. Safety systems engaged and monitoring active."
+            }
+          ]
+        }
+      },
+      "id": "emergency-response-complete",
+      "name": "Emergency Response Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [3540, 350]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Emergency Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Emergency Status": {
+      "main": [
+        [
+          {
+            "node": "Extract Emergency Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Emergency Parameters": {
+      "main": [
+        [
+          {
+            "node": "Activate Emergency Stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Activate Emergency Stop": {
+      "main": [
+        [
+          {
+            "node": "Log Emergency Activation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Emergency Activation": {
+      "main": [
+        [
+          {
+            "node": "Safe Servo Positioning",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safe Servo Positioning": {
+      "main": [
+        [
+          {
+            "node": "Is Critical Emergency?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is High Emergency?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Medium Emergency?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Critical Emergency?": {
+      "main": [
+        [
+          {
+            "node": "Critical Evacuation Protocol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is High Emergency?": {
+      "main": [
+        [
+          {
+            "node": "High Emergency Safe Zone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Medium Emergency?": {
+      "main": [
+        [
+          {
+            "node": "Medium Emergency Assessment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "High Emergency Safe Zone": {
+      "main": [
+        [
+          {
+            "node": "Evacuate to Safe Zone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Evacuate to Safe Zone": {
+      "main": [
+        [
+          {
+            "node": "Stop at Safe Zone",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop at Safe Zone": {
+      "main": [
+        [
+          {
+            "node": "Continuous Safety Monitoring",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continuous Safety Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Check Environment Safety",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Obstacle Emergency?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Environment Safety": {
+      "main": [
+        [
+          {
+            "node": "Hazard Detected",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Environment Safe",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Obstacle Emergency?": {
+      "main": [
+        [
+          {
+            "node": "Obstacle Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Hazard Detected": {
+      "main": [
+        [
+          {
+            "node": "Should Attempt Recovery?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Environment Safe": {
+      "main": [
+        [
+          {
+            "node": "Should Attempt Recovery?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obstacle Response": {
+      "main": [
+        [
+          {
+            "node": "Should Attempt Recovery?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Attempt Recovery?": {
+      "main": [
+        [
+          {
+            "node": "Attempt Recovery",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "No Recovery (Critical)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Attempt Recovery": {
+      "main": [
+        [
+          {
+            "node": "Final Emergency Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "No Recovery (Critical)": {
+      "main": [
+        [
+          {
+            "node": "Final Emergency Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Critical Evacuation Protocol": {
+      "main": [
+        [
+          {
+            "node": "Final Emergency Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Medium Emergency Assessment": {
+      "main": [
+        [
+          {
+            "node": "Final Emergency Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Final Emergency Status": {
+      "main": [
+        [
+          {
+            "node": "Emergency Response Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "emergency-response",
+      "name": "Emergency Response"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
+}
