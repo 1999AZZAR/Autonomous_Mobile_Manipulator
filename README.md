@@ -93,7 +93,13 @@ The system consists of two main components:
 git clone <repository-url>
 cd lks_robot_project
 
-# Build and start services
+# Quick start (recommended)
+./run.sh
+
+# Or use the advanced startup script
+./start_robot.sh
+
+# Manual Docker Compose (alternative)
 docker compose up --build -d
 
 # Verify services are running
@@ -104,6 +110,30 @@ docker compose ps
 - **n8n Web Interface**: http://localhost:5678
 - **Robot Web Interface**: http://localhost:5000
 - **ROS 2 Development**: `docker exec -it ros2_sim_container bash`
+
+### Startup Scripts
+
+The project includes convenient startup scripts for easy deployment:
+
+#### Quick Start (`./run.sh`)
+One-command startup for the entire system:
+```bash
+./run.sh  # Builds, starts, and shows access info
+```
+
+#### Advanced Startup (`./start_robot.sh`)
+Full-featured startup script with options:
+```bash
+./start_robot.sh --help  # Show all options
+
+# Common usage
+./start_robot.sh              # Start services
+./start_robot.sh -b           # Force rebuild and start
+./start_robot.sh -s           # Show service status
+./start_robot.sh -l           # Show service logs
+./start_robot.sh -x           # Stop all services
+./start_robot.sh -r           # Restart all services
+```
 
 ## Project Structure
 
