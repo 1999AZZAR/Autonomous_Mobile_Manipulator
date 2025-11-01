@@ -353,7 +353,11 @@ curl http://localhost:5678  # n8n interface
 curl http://localhost:5000  # robot API
 
 # Import and manage n8n workflows
-./manage_n8n_workflows.sh  # Import all robot control workflows
+./workflow_management_tools.sh import-enhanced  # Import enhanced control workflows
+./workflow_management_tools.sh status           # Check N8N status
+./workflow_management_tools.sh list             # List available workflows
+
+# Complete workflow management guide: WORKFLOW_MANAGEMENT_README.md
 ```
 
 ### Raspberry Pi Deployment

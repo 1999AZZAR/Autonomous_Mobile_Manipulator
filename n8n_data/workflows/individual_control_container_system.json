@@ -1,47 +1,162 @@
 {
-  "name": "Control Container System (Not Yet Implemented)",
+  "name": "Container System Control Framework",
   "active": false,
   "nodes": [
-    {
-      "parameters": {},
-      "id": "manual-trigger",
-      "name": "Manual Trigger",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
-      "position": [20, 300]
-    },
-    {
-      "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/status",
-        "method": "GET",
-        "options": {}
-      },
-      "id": "get-status",
-      "name": "Get Current Status",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [240, 300]
-    },
     {
       "parameters": {
         "values": {
           "string": [
             {
               "name": "container_action",
-              "value": "={{ $json.body.container_action || 'check' }}"
+              "value": "{{$parameter.container_action || 'status'}}"
             },
             {
               "name": "container_position",
-              "value": "={{ $json.body.container_position || 'left_front' }}"
+              "value": "{{$parameter.container_position || 'left_front'}}"
+            },
+            {
+              "name": "operation_mode",
+              "value": "{{$parameter.operation_mode || 'simulation'}}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "enable_simulation",
+              "value": "{{$parameter.enable_simulation}}"
             }
           ]
         }
       },
-      "id": "extract-container-params",
-      "name": "Extract Container Parameters",
+      "name": "Configure Container Operation",
       "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        240,
+        300
+      ],
+      "id": "container_001"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.operation_mode }}",
+              "value2": "simulation",
+              "operation": "equal"
+            }
+          ]
+        }
+      },
+      "name": "Check Operation Mode",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        460,
+        300
+      ],
+      "id": "container_002"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Simulate container system operations\nconst action = $input.item.json.container_action;\nconst position = $input.item.json.container_position;\n\n// Container positions\nconst positions = {\n  'left_front': { id: 1, status: 'empty', capacity: 100 },\n  'left_back': { id: 2, status: 'empty', capacity: 100 },\n  'right_front': { id: 3, status: 'empty', capacity: 100 },\n  'right_back': { id: 4, status: 'empty', capacity: 100 }\n};\n\nconst container = positions[position] || positions['left_front'];\n\nlet result = {\n  success: true,\n  message: '',\n  container_id: container.id,\n  position: position,\n  action: action,\n  status: container.status,\n  capacity: container.capacity,\n  timestamp: new Date().toISOString()\n};\n\n// Simulate different actions\nswitch (action) {\n  case 'pickup':\n    if (container.status === 'empty') {\n      result.message = `Container ${container.id} at ${position} is empty - cannot pickup`;\n      result.success = false;\n    } else {\n      result.message = `Picked up item from container ${container.id} at ${position}`;\n      result.status = 'empty';\n    }\n    break;\n  \n  case 'place':\n    if (container.status === 'occupied') {\n      result.message = `Container ${container.id} at ${position} is full - cannot place`;\n      result.success = false;\n    } else {\n      result.message = `Placed item in container ${container.id} at ${position}`;\n      result.status = 'occupied';\n    }\n    break;\n  \n  case 'check':\n    result.message = `Container ${container.id} at ${position} status: ${container.status} (${container.capacity}% capacity)`;\n    break;\n  \n  case 'empty':\n    result.message = `Emptied container ${container.id} at ${position}`;\n    result.status = 'empty';\n    break;\n  \n  default:\n    result.message = `Unknown action: ${action}`;\n    result.success = false;\n}\n\nreturn [{ json: { ...$input.item.json, simulation_result: result } }];"
+      },
+      "name": "Simulate Container Operation",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        680,
+        160
+      ],
+      "id": "container_003"
+    },
+    {
+      "parameters": {
+        "message": "🎭 SIMULATION: {{ $json.simulation_result.message }}",
+        "level": "info"
+      },
+      "name": "Log Simulation Result",
+      "type": "n8n-nodes-base.log",
       "typeVersion": 1,
-      "position": [460, 300]
+      "position": [
+        900,
+        160
+      ],
+      "id": "container_004"
+    },
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "operation_completed",
+              "value": "={{ $json.simulation_result.success }}"
+            }
+          ],
+          "string": [
+            {
+              "name": "operation_status",
+              "value": "simulation_completed"
+            },
+            {
+              "name": "result_message",
+              "value": "={{ $json.simulation_result.message }}"
+            }
+          ]
+        }
+      },
+      "name": "Set Simulation Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        160
+      ],
+      "id": "container_005"
+    },
+    {
+      "parameters": {
+        "message": "🔧 HARDWARE MODE: Container system not yet implemented in ROS2 API. This is a framework for future hardware integration.",
+        "level": "warning"
+      },
+      "name": "Log Hardware Mode Warning",
+      "type": "n8n-nodes-base.log",
+      "typeVersion": 1,
+      "position": [
+        680,
+        440
+      ],
+      "id": "container_006"
+    },
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "hardware_available",
+              "value": false
+            }
+          ],
+          "string": [
+            {
+              "name": "operation_status",
+              "value": "hardware_not_available"
+            },
+            {
+              "name": "framework_status",
+              "value": "ready_for_implementation"
+            }
+          ]
+        }
+      },
+      "name": "Set Hardware Framework Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        900,
+        440
+      ],
+      "id": "container_007"
     },
     {
       "parameters": {
@@ -49,284 +164,292 @@
           "string": [
             {
               "value1": "={{ $json.container_position }}",
-              "operation": "equal",
-              "value2": "left_front"
+              "value2": "left_front",
+              "operation": "equal"
             }
           ]
         }
       },
-      "id": "is-left-front",
-      "name": "Is Left Front Container?",
+      "name": "Route by Container Position",
       "type": "n8n-nodes-base.if",
-      "typeVersion": 1,
-      "position": [680, 200]
+      "typeVersion": 2,
+      "position": [
+        1340,
+        300
+      ],
+      "id": "container_008"
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.container_position }}",
-              "operation": "equal",
-              "value2": "left_back"
-            }
-          ]
-        }
+        "message": "📦 Left Front Container Operation Framework - Ready for hardware implementation",
+        "level": "info"
       },
-      "id": "is-left-back",
-      "name": "Is Left Back Container?",
-      "type": "n8n-nodes-base.if",
+      "name": "Left Front Container",
+      "type": "n8n-nodes-base.log",
       "typeVersion": 1,
-      "position": [680, 300]
+      "position": [
+        1560,
+        160
+      ],
+      "id": "container_009"
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.container_position }}",
-              "operation": "equal",
-              "value2": "right_front"
-            }
-          ]
-        }
+        "message": "📦 Left Back Container Operation Framework - Ready for hardware implementation",
+        "level": "info"
       },
-      "id": "is-right-front",
-      "name": "Is Right Front Container?",
-      "type": "n8n-nodes-base.if",
+      "name": "Left Back Container",
+      "type": "n8n-nodes-base.log",
       "typeVersion": 1,
-      "position": [680, 400]
+      "position": [
+        1560,
+        300
+      ],
+      "id": "container_010"
     },
     {
       "parameters": {
-        "conditions": {
-          "string": [
-            {
-              "value1": "={{ $json.container_position }}",
-              "operation": "equal",
-              "value2": "right_back"
-            }
-          ]
-        }
+        "message": "📦 Right Front Container Operation Framework - Ready for hardware implementation",
+        "level": "info"
       },
-      "id": "is-right-back",
-      "name": "Is Right Back Container?",
-      "type": "n8n-nodes-base.if",
+      "name": "Right Front Container",
+      "type": "n8n-nodes-base.log",
       "typeVersion": 1,
-      "position": [680, 500]
+      "position": [
+        1560,
+        440
+      ],
+      "id": "container_011"
+    },
+    {
+      "parameters": {
+        "message": "📦 Right Back Container Operation Framework - Ready for hardware implementation",
+        "level": "info"
+      },
+      "name": "Right Back Container",
+      "type": "n8n-nodes-base.log",
+      "typeVersion": 1,
+      "position": [
+        1560,
+        580
+      ],
+      "id": "container_012"
     },
     {
       "parameters": {
         "values": {
           "string": [
             {
-              "name": "message",
-              "value": "Left Front Container control not yet implemented in ROS2 API. Action requested: {{ $json.container_action }}"
-            }
-          ]
-        }
-      },
-      "id": "left-front-placeholder",
-      "name": "Left Front Container (Not Implemented)",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
-      "position": [900, 200]
-    },
-    {
-      "parameters": {
-        "values": {
-          "string": [
+              "name": "framework_ready_actions",
+              "value": "pickup,place,check,empty,status"
+            },
             {
-              "name": "message",
-              "value": "Left Back Container control not yet implemented in ROS2 API. Action requested: {{ $json.container_action }}"
-            }
-          ]
-        }
-      },
-      "id": "left-back-placeholder",
-      "name": "Left Back Container (Not Implemented)",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
-      "position": [900, 300]
-    },
-    {
-      "parameters": {
-        "values": {
-          "string": [
+              "name": "supported_positions",
+              "value": "left_front,left_back,right_front,right_back"
+            },
             {
-              "name": "message",
-              "value": "Right Front Container control not yet implemented in ROS2 API. Action requested: {{ $json.container_action }}"
+              "name": "integration_points",
+              "value": "ROS2 API endpoints: /api/container/{position}/{action}"
             }
           ]
         }
       },
-      "id": "right-front-placeholder",
-      "name": "Right Front Container (Not Implemented)",
+      "name": "Document Framework Capabilities",
       "type": "n8n-nodes-base.set",
-      "typeVersion": 1,
-      "position": [900, 400]
+      "typeVersion": 3.2,
+      "position": [
+        1780,
+        300
+      ],
+      "id": "container_013"
     },
     {
       "parameters": {
-        "values": {
-          "string": [
-            {
-              "name": "message",
-              "value": "Right Back Container control not yet implemented in ROS2 API. Action requested: {{ $json.container_action }}"
-            }
-          ]
-        }
+        "message": "🏗️ Container System Framework Status: {{ $json.operation_status }} | Ready Actions: {{ $json.framework_ready_actions }} | Positions: {{ $json.supported_positions }}",
+        "level": "info"
       },
-      "id": "right-back-placeholder",
-      "name": "Right Back Container (Not Implemented)",
-      "type": "n8n-nodes-base.set",
+      "name": "Log Framework Status",
+      "type": "n8n-nodes-base.log",
       "typeVersion": 1,
-      "position": [900, 500]
-    },
-    {
-      "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/status",
-        "method": "GET",
-        "options": {}
-      },
-      "id": "get-final-status",
-      "name": "Get Final Status",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [1120, 300]
+      "position": [
+        2000,
+        300
+      ],
+      "id": "container_014"
     }
   ],
   "connections": {
-    "Manual Trigger": {
+    "Configure Container Operation": {
       "main": [
         [
           {
-            "node": "Get Current Status",
+            "node": "Check Operation Mode",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Current Status": {
+    "Check Operation Mode": {
       "main": [
         [
           {
-            "node": "Extract Container Parameters",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Extract Container Parameters": {
-      "main": [
-        [
-          {
-            "node": "Is Left Front Container?",
+            "node": "Simulate Container Operation",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Is Left Back Container?",
+            "node": "Log Simulation Result",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Hardware Mode Warning",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Is Right Front Container?",
+            "node": "Set Hardware Framework Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate Container Operation": {
+      "main": [
+        [
+          {
+            "node": "Set Simulation Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Simulation Result": {
+      "main": [
+        [
+          {
+            "node": "Set Simulation Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Simulation Results": {
+      "main": [
+        [
+          {
+            "node": "Route by Container Position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Hardware Mode Warning": {
+      "main": [
+        [
+          {
+            "node": "Set Hardware Framework Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Hardware Framework Status": {
+      "main": [
+        [
+          {
+            "node": "Route by Container Position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Route by Container Position": {
+      "main": [
+        [
+          {
+            "node": "Left Front Container",
             "type": "main",
             "index": 0
           },
           {
-            "node": "Is Right Back Container?",
+            "node": "Document Framework Capabilities",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Left Back Container",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Document Framework Capabilities",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Left Front Container?": {
+    "Left Front Container": {
       "main": [
         [
           {
-            "node": "Left Front Container (Not Implemented)",
+            "node": "Log Framework Status",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Left Back Container?": {
+    "Left Back Container": {
       "main": [
         [
           {
-            "node": "Left Back Container (Not Implemented)",
+            "node": "Log Framework Status",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Right Front Container?": {
+    "Right Front Container": {
       "main": [
         [
           {
-            "node": "Right Front Container (Not Implemented)",
+            "node": "Log Framework Status",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Is Right Back Container?": {
+    "Right Back Container": {
       "main": [
         [
           {
-            "node": "Right Back Container (Not Implemented)",
+            "node": "Log Framework Status",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Left Front Container (Not Implemented)": {
+    "Document Framework Capabilities": {
       "main": [
         [
           {
-            "node": "Get Final Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Left Back Container (Not Implemented)": {
-      "main": [
-        [
-          {
-            "node": "Get Final Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Right Front Container (Not Implemented)": {
-      "main": [
-        [
-          {
-            "node": "Get Final Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Right Back Container (Not Implemented)": {
-      "main": [
-        [
-          {
-            "node": "Get Final Status",
+            "node": "Log Framework Status",
             "type": "main",
             "index": 0
           }
@@ -334,26 +457,13 @@
       ]
     }
   },
-  "pinData": {},
   "settings": {
     "executionOrder": "v1"
   },
   "staticData": null,
-  "tags": [
-    {
-      "createdAt": "2025-10-13T16:30:00.000Z",
-      "updatedAt": "2025-10-13T16:30:00.000Z",
-      "id": "individual-control",
-      "name": "Individual Control"
-    },
-    {
-      "createdAt": "2025-10-13T16:30:00.000Z",
-      "updatedAt": "2025-10-13T16:30:00.000Z",
-      "id": "container-system",
-      "name": "Container System"
-    }
-  ],
-  "triggerCount": 0,
-  "updatedAt": "2025-10-13T16:30:00.000Z",
-  "versionId": "1"
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "99001122-3344-5566-7788-990011223344"
 }

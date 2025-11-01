@@ -183,80 +183,182 @@ Simple workflows for controlling single actuators or getting specific robot stat
 
 ## 🎯 **INDIVIDUAL WORKFLOWS**
 
-### **1. Control Omni Wheels** (`individual_control_omni_wheels.json`)
-**Purpose**: Direct control of 3-wheel omnidirectional movement system
-**Operations**:
-- ✅ Get current robot status
-- ✅ Conditional logic for movement type (linear vs turning)
-- ✅ Linear movement (forward/backward/strafe left/right)
-- ✅ Turning movement (left/right rotation)
-- ✅ Automatic stop after movement
-- ✅ Get final status after movement
+### **🛡️ Enhanced Individual Control Mechanisms**
 
-**Use Case**: Precise omnidirectional movement control and testing
+These workflows provide comprehensive, modular control of individual robot systems. Each mechanism is designed to be easily combined into complex automation workflows while maintaining safety and reliability.
 
 ---
 
-### **2. Control Picker System** (`individual_control_picker_system.json`)
-**Purpose**: Direct control of 4-component servo-based picker system
+#### **1. Ultrasonic Sensor Monitoring** (`individual_sensor_ultrasonic_monitoring.json`)
+**Purpose**: Continuous obstacle detection with configurable safety thresholds
 **Operations**:
-- ✅ Get current robot status
-- ✅ Control gripper (servo 1) - open/close functionality
-- ✅ Control gripper tilt (servo 2) - angle adjustment
-- ✅ Control gripper neck (servo 3) - forward/backward positioning
-- ✅ Control gripper base (servo 4) - height control
-- ✅ Home all servos option
-- ✅ Get final status
+- ✅ Continuous ultrasonic distance monitoring
+- ✅ Configurable safety thresholds (default: 0.5m)
+- ✅ Automatic emergency stop on obstacle detection
+- ✅ Configurable monitoring intervals
+- ✅ Real-time distance logging and alerting
+- ✅ Obstacle proximity warnings
 
-**Use Case**: Individual servo control and picker system calibration
+**Use Case**: Safety monitoring for autonomous navigation and obstacle avoidance
 
 ---
 
-### **3. Control Container System** (`individual_control_container_system.json`)
-**Purpose**: Container load management system (Future Implementation)
+#### **2. IR Proximity Sensor Monitoring** (`individual_sensor_ir_proximity.json`)
+**Purpose**: Short-range proximity detection for close obstacle avoidance
 **Operations**:
-- ⚠️ Left front container control (not implemented)
-- ⚠️ Left back container control (not implemented)
-- ⚠️ Right front container control (not implemented)
-- ⚠️ Right back container control (not implemented)
-- ✅ Placeholder structure for future implementation
-- ✅ Get final status
+- ✅ Continuous IR proximity monitoring
+- ✅ Configurable proximity thresholds (default: 0.3m)
+- ✅ Automatic robot stop on proximity alerts
+- ✅ Configurable monitoring intervals
+- ✅ Proximity warning system
+- ✅ Safe distance verification
 
-**Use Case**: Framework for future container load management system
+**Use Case**: Close-range safety monitoring and precision navigation
 
 ---
 
-### **4. Control Hardware Controls** (`individual_control_hardware_controls.json`)
-**Purpose**: Hardware safety and control systems
+#### **3. Line Sensor Following** (`individual_sensor_line_following.json`)
+**Purpose**: Autonomous line following with pattern recognition
 **Operations**:
-- ✅ Emergency stop (implemented) - stops all actuators immediately
-- ⚠️ Start/stop control (not implemented) - framework for future use
-- ⚠️ Mode control (train/run) (not implemented) - framework for future use
-- ✅ Get final status
+- ✅ Real-time line sensor pattern detection
+- ✅ Automatic course correction (left/right deviations)
+- ✅ Configurable following speed and sensitivity
+- ✅ Line loss detection and emergency stop
+- ✅ Pattern recognition for straight/curved lines
+- ✅ Continuous position correction
 
-**Use Case**: Emergency safety control and framework for future hardware management
+**Use Case**: Automated guided navigation and path following
 
 ---
 
-### **5. Control Servo** (`individual_control_servo.json`)
-**Purpose**: Direct control of individual servo motors
+#### **4. Distance-Based Movement Control** (`individual_movement_distance_control.json`)
+**Purpose**: Precise distance-based robot navigation
 **Operations**:
-- ✅ Get current servo status
-- ✅ Set servo angle (0-180 degrees)
-- ✅ Get final servo position
+- ✅ Configurable target distance and direction
+- ✅ Real-time position tracking and distance calculation
+- ✅ Automatic movement execution with speed control
+- ✅ Distance tolerance checking (configurable)
+- ✅ Progress monitoring and accuracy reporting
+- ✅ Automatic stop at target distance
+- ✅ Movement completion verification
 
-**Use Case**: Individual servo control and calibration
+**Use Case**: Precise positioning and distance-based navigation tasks
 
 ---
 
-### **6. Get Robot Status** (`individual_get_status.json`)
-**Purpose**: Retrieve complete robot status information
+#### **5. Angle-Based Rotation Control** (`individual_movement_angle_rotation.json`)
+**Purpose**: Precise angular rotation with position feedback
 **Operations**:
-- ✅ Get all sensor data
-- ✅ Get actuator positions
-- ✅ Format status output
+- ✅ Configurable target angle and rotation direction
+- ✅ Automatic direction calculation (shortest path)
+- ✅ Real-time angle tracking and progress monitoring
+- ✅ Configurable rotation speed and tolerance
+- ✅ Angle accuracy verification
+- ✅ Rotation completion confirmation
+- ✅ Automatic stop at target angle
 
-**Use Case**: Status monitoring and diagnostics
+**Use Case**: Precise orientation control and angular positioning
+
+---
+
+#### **6. Advanced Servo Control** (`individual_servo_advanced_control.json`)
+**Purpose**: Comprehensive servo control with safety limits and verification
+**Operations**:
+- ✅ Individual servo position control (1-5)
+- ✅ Safety limit enforcement per servo
+- ✅ Movement parameter calculation (speed, time)
+- ✅ Real-time position verification
+- ✅ Accuracy checking with configurable tolerance
+- ✅ Movement success confirmation
+- ✅ Error detection and reporting
+
+**Use Case**: Safe and precise servo positioning with feedback verification
+
+---
+
+#### **7. Servo Sequence Patterns** (`individual_servo_sequence_patterns.json`)
+**Purpose**: Pre-programmed servo movement sequences for complex operations
+**Operations**:
+- ✅ Pickup object sequence (lower → open → close → raise)
+- ✅ Place object sequence (lower → open → raise)
+- ✅ Environment scanning (pan/tilt patterns)
+- ✅ Home all servos sequence
+- ✅ Step-by-step execution with delays
+- ✅ Verification at each step
+- ✅ Sequence completion confirmation
+
+**Use Case**: Automated manipulation sequences and complex servo operations
+
+---
+
+#### **8. Comprehensive Safety & Error Handling** (`individual_safety_error_handling.json`)
+**Purpose**: Multi-level safety monitoring and emergency response
+**Operations**:
+- ✅ Ultrasonic obstacle detection
+- ✅ IR proximity monitoring
+- ✅ Operation timeout protection
+- ✅ Servo limit enforcement
+- ✅ Automatic emergency stops
+- ✅ Multi-level emergency responses
+- ✅ Continuous safety monitoring
+- ✅ Safety status reporting
+
+**Use Case**: Complete safety system for all robot operations
+
+---
+
+#### **9. Robot State Management System** (`individual_state_management_system.json`)
+**Purpose**: Comprehensive robot state tracking and health monitoring
+**Operations**:
+- ✅ Position history tracking
+- ✅ Servo position memory
+- ✅ Sensor data logging
+- ✅ Health metrics calculation
+- ✅ Movement pattern analysis
+- ✅ System status monitoring
+- ✅ State persistence and recovery
+- ✅ Performance analytics
+
+**Use Case**: System monitoring, diagnostics, and state-aware automation
+
+---
+
+#### **10. Container System Control Framework** (`individual_control_container_system.json`)
+**Purpose**: Container management system framework (ready for hardware implementation)
+**Operations**:
+- ✅ Simulation mode for testing workflows
+- ✅ Individual container position routing
+- ✅ Container operation simulation (pickup/place/check)
+- ✅ Multi-container coordination framework
+- ✅ Hardware integration ready structure
+- ✅ Container status tracking
+- ✅ Future hardware implementation framework
+
+**Use Case**: Material handling and container management (framework for future hardware)
+
+---
+
+### **🔧 Legacy Individual Workflows** (Maintained for Compatibility)
+
+#### **11. Control Omni Wheels** (`individual_control_omni_wheels.json`)
+**Purpose**: Basic 3-wheel omnidirectional movement control
+**Operations**: Linear movement, turning, and basic control
+
+#### **12. Control Picker System** (`individual_control_picker_system.json`)
+**Purpose**: Basic servo-based picker system control
+**Operations**: Individual servo control and basic picker operations
+
+#### **13. Control Hardware Controls** (`individual_control_hardware_controls.json`)
+**Purpose**: Basic hardware safety controls
+**Operations**: Emergency stop and basic hardware control framework
+
+#### **14. Control Servo** (`individual_control_servo.json`)
+**Purpose**: Basic individual servo motor control
+**Operations**: Single servo positioning
+
+#### **15. Get Robot Status** (`individual_get_status.json`)
+**Purpose**: Basic robot status retrieval
+**Operations**: Sensor and actuator status monitoring
 
 ---
 
@@ -415,25 +517,34 @@ The workflow system now provides:
 - ⚠️ **Advanced Navigation**: Path planning and obstacle avoidance (ready for extension)
 - ⚠️ **Computer Vision**: Object recognition framework (ready for integration)
 
-### 🤖 **Complete Workflow Suite**
-The system now supports **10 comprehensive workflows** spanning the full spectrum of robot automation:
+### 🤖 **Complete Workflow Suite - Enhanced Individual Control Mechanisms**
+The system now supports **25 comprehensive workflows** with enhanced individual control mechanisms:
 
-**Individual Control Workflows (4)**: Precise control of specific robot systems
+**Enhanced Individual Control Workflows (10)**: Comprehensive modular control systems
 **Combination Workflows (6)**: Advanced multi-system coordination for complex tasks
+**Legacy Individual Workflows (9)**: Maintained for compatibility and basic operations
 
-#### **Workflow Categories by Complexity:**
-- **Basic Control**: Individual system testing and calibration
-- **Safety & Emergency**: Multi-level emergency response and safety protocols
-- **Material Handling**: Pick, place, transport, and search operations
-- **Autonomous Tasks**: Patrol, inspection, and production automation
-- **System Integration**: Complete production lines and calibration sequences
+#### **New Enhanced Control Categories:**
+- **🛡️ Sensor Monitoring**: Ultrasonic, IR proximity, line following with safety integration
+- **🎯 Precise Movement**: Distance-based navigation and angle-based rotation control
+- **🔧 Advanced Servo Control**: Safety-limited servo positioning with verification
+- **⚙️ Servo Sequences**: Pre-programmed manipulation patterns for complex operations
+- **🛡️ Safety Systems**: Multi-level emergency response and continuous monitoring
+- **📊 State Management**: Comprehensive robot state tracking and health monitoring
+- **📦 Container Framework**: Ready-for-implementation container management system
 
 #### **Advanced Features Implemented:**
-- ✅ **Real API Integration**: All workflows use actual ROS2 HTTP endpoints
-- ✅ **Multi-System Coordination**: Simultaneous control of movement, servos, and sensors
-- ✅ **Intelligent Decision Making**: Conditional logic based on sensor data
-- ✅ **Safety-First Design**: Emergency stops and hazard detection throughout
-- ✅ **Production-Ready**: Error handling, status monitoring, and logging
-- ✅ **Scalable Architecture**: Frameworks for future container and vision systems
+- ✅ **Modular Architecture**: Each control mechanism can be easily combined into complex workflows
+- ✅ **Real-Time Safety**: Continuous sensor monitoring with automatic emergency responses
+- ✅ **Precision Control**: Distance, angle, and position-based control with feedback verification
+- ✅ **Intelligent Automation**: Sensor-based decision making and adaptive behavior
+- ✅ **Enterprise-Grade Safety**: Multi-level emergency protocols and hazard detection
+- ✅ **Production Monitoring**: Comprehensive state tracking and performance analytics
+- ✅ **Future-Ready Frameworks**: Container and advanced vision system integration ready
 
-**The hexagonal robot now demonstrates enterprise-level industrial automation capabilities through a complete suite of sophisticated n8n workflow orchestrations!** 🚀🤖✨
+#### **Control Mechanism Maturity Levels:**
+- **🔴 Basic Control**: Simple actuator control (legacy workflows)
+- **🟡 Enhanced Control**: Comprehensive individual mechanisms with safety and verification
+- **🟢 Complex Automation**: Multi-system coordination with intelligent decision making
+
+**The robot control system now provides enterprise-level industrial automation with 10 enhanced individual control mechanisms that can be seamlessly combined into sophisticated automation workflows!** 🚀🤖✨

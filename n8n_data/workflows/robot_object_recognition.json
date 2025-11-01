@@ -1,5 +1,5 @@
 {
-  "name": "Robot Object Recognition",
+  "name": "Robot Object Recognition (Framework - Vision Not Implemented)",
   "active": false,
   "nodes": [
     {
@@ -24,59 +24,32 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/camera/capture",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"resolution\": \"640x480\",\n  \"format\": \"rgb8\"\n}"
+        "message": "⚠️ VISION CAPABILITIES NOT IMPLEMENTED\n\nThis workflow requires:\n• ROS2 Camera Node\n• OpenCV Integration\n• Vision Processing Pipeline\n\nCurrent ROS2 API only supports basic sensors (ultrasonic, IR, line)"
       },
-      "id": "capture-image",
-      "name": "Capture Image",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "vision-warning",
+      "name": "Vision Framework Warning",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [460, 300]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/vision/recognize",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"image_data\": \"={{ $json.image_data }}\",\n  \"object_types\": [\"cube\", \"cylinder\", \"sphere\", \"box\"]\n}"
+        "message": "🔍 OBJECT RECOGNITION FRAMEWORK\n\nWould analyze camera feed for:\n• Geometric shapes (cube, cylinder, sphere)\n• Object classification\n• Feature extraction\n\nRequires: TensorFlow/OpenCV integration"
       },
-      "id": "recognize-objects",
-      "name": "Recognize Objects",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "recognition-framework",
+      "name": "Object Recognition Framework",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [680, 300]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/vision/analyze",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"objects\": \"={{ $json.objects }}\",\n  \"analysis_type\": \"position_and_orientation\"\n}"
+        "message": "📊 OBJECT ANALYSIS FRAMEWORK\n\nWould provide:\n• 3D position estimation\n• Object orientation\n• Distance calculations\n• Pose estimation\n\nRequires: Stereo vision or depth sensing"
       },
-      "id": "analyze-objects",
-      "name": "Analyze Objects",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "analysis-framework",
+      "name": "Object Analysis Framework",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [900, 300]
     },
     {

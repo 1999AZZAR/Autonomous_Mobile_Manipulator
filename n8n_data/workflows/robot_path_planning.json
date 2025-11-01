@@ -1,5 +1,5 @@
 {
-  "name": "Robot Path Planning",
+  "name": "Robot Path Planning (Framework - Navigation Not Implemented)",
   "active": false,
   "nodes": [
     {
@@ -57,40 +57,22 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/navigation/plan_path",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"start\": {\n    \"x\": {{ $json.start_x }},\n    \"y\": {{ $json.start_y }}\n  },\n  \"goal\": {\n    \"x\": {{ $json.goal_x }},\n    \"y\": {{ $json.goal_y }}\n  },\n  \"mode\": \"={{ $json.planning_mode }}\"\n}"
+        "message": "🗺️ PATH PLANNING FRAMEWORK\n\nWould calculate optimal path from:\nStart: ({{ $json.start_x }}, {{ $json.start_y }})\nGoal: ({{ $json.goal_x }}, {{ $json.goal_y }})\n\nRequires:\n• ROS2 Navigation2 Stack\n• SLAM or localization system\n• Costmap and planner configuration\n• Obstacle avoidance algorithms"
       },
-      "id": "plan-path",
-      "name": "Plan Path",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "path-planning-framework",
+      "name": "Path Planning Framework",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [680, 300]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/navigation/execute_path",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"path_id\": \"={{ $json.path_id }}\"\n}"
+        "message": "🚶 PATH EXECUTION FRAMEWORK\n\nWould execute planned path with:\n• Velocity control along waypoints\n• Dynamic obstacle avoidance\n• Path following with feedback\n• Goal achievement verification\n\nRequires: Navigation action server integration"
       },
-      "id": "execute-path",
-      "name": "Execute Path",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "path-execution-framework",
+      "name": "Path Execution Framework",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [900, 300]
     },
     {

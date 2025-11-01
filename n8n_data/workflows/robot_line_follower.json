@@ -1,5 +1,5 @@
 {
-  "name": "Robot Line Follower",
+  "name": "Robot Line Follower (Framework - Advanced Line Following Not Implemented)",
   "active": false,
   "nodes": [
     {
@@ -24,33 +24,33 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/sensors/line",
-        "method": "GET",
-        "options": {}
+        "values": {
+          "string": [
+            {
+              "name": "line_sensor_data",
+              "value": "={{ $json.line_sensor }}"
+            },
+            {
+              "name": "sensor_hex",
+              "value": "={{ $json.line_sensor.toString(16).toUpperCase() }}"
+            }
+          ]
+        }
       },
-      "id": "get-line-sensor",
-      "name": "Get Line Sensor Data",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "extract-line-sensor",
+      "name": "Extract Line Sensor Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
       "position": [460, 300]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/control/line_follow",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"line_data\": \"={{ $json.line_data }}\",\n  \"pid_enabled\": true,\n  \"speed\": 0.3\n}"
+        "message": "🎯 ADVANCED LINE FOLLOWING FRAMEWORK\n\nLine Sensor Data: {{ $json.sensor_hex }}\n\nWould implement:\n• PID-based steering control\n• Adaptive speed adjustment\n• Line detection algorithms\n• Course correction logic\n\nCurrent ROS2 API supports basic line sensor reading only.\nAdvanced control requires dedicated line following node."
       },
-      "id": "line-follow-control",
-      "name": "Line Follow Control",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
+      "id": "line-follow-framework",
+      "name": "Line Following Framework",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
       "position": [680, 300]
     },
     {
@@ -82,25 +82,25 @@
       "main": [
         [
           {
-            "node": "Get Line Sensor Data",
+            "node": "Extract Line Sensor Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Line Sensor Data": {
+    "Extract Line Sensor Data": {
       "main": [
         [
           {
-            "node": "Line Follow Control",
+            "node": "Line Following Framework",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Line Follow Control": {
+    "Line Following Framework": {
       "main": [
         [
           {
