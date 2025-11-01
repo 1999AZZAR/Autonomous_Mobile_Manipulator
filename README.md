@@ -351,6 +351,9 @@ docker compose up -d
 docker compose ps
 curl http://localhost:5678  # n8n interface
 curl http://localhost:5000  # robot API
+
+# Import and manage n8n workflows
+./manage_n8n_workflows.sh  # Import all robot control workflows
 ```
 
 ### Raspberry Pi Deployment
