@@ -1,370 +1,378 @@
 {
-  "name": "Ultrasonic Sensor Monitoring Variant 1",
+  "name": "Angle-Based Rotation Control",
   "active": false,
   "nodes": [
     {
-      "parameters": {
-        "values": {
-          "boolean": [
-            {
-              "name": "continuous_monitoring",
-              "value": "{{$parameter.continuous_monitoring}}"
-            }
-          ]
-        }
-      },
-      "name": "Configure Monitoring",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.2,
-      "position": [
-        240,
-        300
-      ],
-      "id": "sensor_ultrasonic_001"
-    },
-    {
-      "parameters": {
-        "httpMethod": "GET",
-        "path": "api/robot/status",
-        "options": {}
-      },
-      "name": "Get Sensor Status",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        460,
-        300
-      ],
-      "id": "sensor_ultrasonic_002"
-    },
-    {
-      "parameters": {
-        "values": {
-          "number": [
-            {
-              "name": "ultrasonic_distance",
-              "value": "={{ $json.ultrasonic_front }}"
-            }
-          ]
-        }
-      },
-      "name": "Extract Ultrasonic Data",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.2,
-      "position": [
-        680,
-        300
-      ],
-      "id": "sensor_ultrasonic_003"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "number": [
-            {
-              "value1": "={{ $json.ultrasonic_distance }}",
-              "value2": "={{ $json.safety_threshold || 0.5 }}",
-              "operation": "smallerEqual"
-            }
-          ]
-        }
-      },
-      "name": "Check Obstacle Threshold",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        900,
-        300
-      ],
-      "id": "sensor_ultrasonic_004"
-    },
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "api/robot/emergency",
-        "bodyContentType": "raw",
-        "sendBody": true,
-        "body": "{}",
-        "options": {}
-      },
-      "name": "Trigger Emergency Stop",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1120,
-        160
-      ],
-      "id": "sensor_ultrasonic_005"
-    },
-    {
-      "parameters": {
-        "message": "🚨 OBSTACLE DETECTED! Distance: {{ $json.ultrasonic_distance }}m - EMERGENCY STOP ACTIVATED",
-        "level": "warning"
-      },
-      "name": "Log Obstacle Alert",
-      "type": "n8n-nodes-base.log",
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [
-        1340,
-        160
-      ],
-      "id": "sensor_ultrasonic_006"
-    },
-    {
-      "parameters": {
-        "values": {
-          "boolean": [
-            {
-              "name": "obstacle_detected",
-              "value": true
-            }
-          ],
-          "number": [
-            {
-              "name": "detected_distance",
-              "value": "={{ $json.ultrasonic_distance }}"
-            }
-          ]
-        }
-      },
-      "name": "Safe Distance - Continue",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.2,
-      "position": [
-        1120,
-        440
-      ],
-      "id": "sensor_ultrasonic_007"
-    },
-    {
-      "parameters": {
-        "message": "✅ Ultrasonic monitoring: Distance {{ $json.ultrasonic_distance }}m - Safe",
-        "level": "info"
-      },
-      "name": "Log Safe Status",
-      "type": "n8n-nodes-base.log",
-      "typeVersion": 1,
-      "position": [
-        1340,
-        440
-      ],
-      "id": "sensor_ultrasonic_008"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.continuous_monitoring }}",
-              "value2": true,
-              "operation": "equal"
-            }
-          ]
-        }
-      },
-      "name": "Continue Monitoring?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        1560,
-        300
-      ],
-      "id": "sensor_ultrasonic_009"
-    },
-    {
-      "parameters": {
-        "amount": 2,
-        "unit": "seconds"
-      },
-      "name": "Wait Before Next Check",
-      "type": "@n8n/n8n-nodes-base.wait",
-      "typeVersion": 1,
-      "position": [
-        1780,
-        160
-      ],
-      "id": "sensor_ultrasonic_010"
-    },
-    {
-      "parameters": {
-        "message": "🔄 Ultrasonic monitoring cycle completed. Distance: {{ $json.ultrasonic_distance }}m",
-        "level": "info"
-      },
-      "name": "Log Monitoring Cycle",
-      "type": "n8n-nodes-base.log",
-      "typeVersion": 1,
-      "position": [
-        2000,
-        160
-      ],
-      "id": "sensor_ultrasonic_011"
+      "position": [20, 300]
     },
     {
       "parameters": {
         "values": {
           "string": [
             {
-              "name": "monitoring_status",
-              "value": "completed"
+              "name": "target_angle",
+              "value": "={{ $json.body.target_angle || 90 }}"
+            },
+            {
+              "name": "rotation_direction",
+              "value": "={{ $json.body.rotation_direction || 'auto' }}"
+            },
+            {
+              "name": "rotation_speed",
+              "value": "={{ $json.body.rotation_speed || 0.5 }}"
+            },
+            {
+              "name": "angle_tolerance",
+              "value": "={{ $json.body.angle_tolerance || 5 }}"
             }
           ]
         }
       },
-      "name": "Monitoring Complete",
+      "id": "extract-rotation-params",
+      "name": "Extract Rotation Parameters",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.2,
-      "position": [
-        1780,
-        440
-      ],
-      "id": "sensor_ultrasonic_012"
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-initial-orientation",
+      "name": "Get Initial Orientation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Extract initial yaw angle from quaternion\nconst q = $input.item.json.data?.current_pose?.orientation || {x:0,y:0,z:0,w:1};\nconst yaw = Math.atan2(2*(q.w*q.z + q.x*q.y), 1 - 2*(q.y*q.y + q.z*q.z));\nconst initial_angle_degrees = yaw * 180 / Math.PI;\n\nreturn {\n  initial_yaw: yaw,\n  initial_angle_degrees: initial_angle_degrees,\n  target_angle_degrees: parseFloat($input.item.json.target_angle),\n  angle_difference: 0,\n  rotation_direction: 'auto'\n};"
+      },
+      "id": "calculate-angle-difference",
+      "name": "Calculate Angle Difference",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Determine optimal rotation direction\nconst target_angle = parseFloat($input.item.json.target_angle_degrees);\nconst current_angle = parseFloat($input.item.json.initial_angle_degrees);\nconst specified_direction = $input.item.json.rotation_direction;\n\nlet angle_diff = target_angle - current_angle;\n\n// Normalize angle to -180 to 180 range\nwhile (angle_diff > 180) angle_diff -= 360;\nwhile (angle_diff < -180) angle_diff += 360;\n\nlet direction = 'right'; // Default\nif (specified_direction === 'auto') {\n  // Choose shortest path\n  direction = Math.abs(angle_diff) <= 180 ? (angle_diff >= 0 ? 'right' : 'left') : (angle_diff >= 0 ? 'left' : 'right');\n} else {\n  direction = specified_direction;\n}\n\n// Adjust angle_diff based on chosen direction\nif (direction === 'left') {\n  angle_diff = angle_diff <= 0 ? angle_diff : angle_diff - 360;\n} else {\n  angle_diff = angle_diff >= 0 ? angle_diff : angle_diff + 360;\n}\n\nreturn {\n  angle_difference: Math.abs(angle_diff),\n  rotation_direction: direction,\n  normalized_angle_diff: angle_diff,\n  actual_direction: direction\n};"
+      },
+      "id": "determine-rotation-direction",
+      "name": "Determine Rotation Direction",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/turn",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"{{ $json.rotation_direction }}\",\n  \"speed\": {{ $json.rotation_speed || 0.5 }}\n}"
+      },
+      "id": "start-rotation",
+      "name": "Start Rotation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Monitor rotation progress\nconst initial_angle = parseFloat($input.item.json.initial_angle_degrees);\nconst target_angle = parseFloat($input.item.json.target_angle_degrees);\nconst tolerance = parseFloat($input.item.json.angle_tolerance || 5);\nconst direction = $input.item.json.actual_direction;\n\n// Get current orientation\nconst q = $input.item.json.data?.current_pose?.orientation || {x:0,y:0,z:0,w:1};\nconst current_yaw = Math.atan2(2*(q.w*q.z + q.x*q.y), 1 - 2*(q.y*q.y + q.z*q.z));\nconst current_angle_degrees = current_yaw * 180 / Math.PI;\n\n// Calculate progress based on direction\nlet progress_angle;\nif (direction === 'right') {\n  progress_angle = current_angle_degrees - initial_angle;\n  if (progress_angle < 0) progress_angle += 360;\n} else {\n  progress_angle = initial_angle - current_angle_degrees;\n  if (progress_angle < 0) progress_angle += 360;\n}\n\nconst target_diff = Math.abs(target_angle - initial_angle);\nconst progress_percentage = Math.min(100, (progress_angle / target_diff) * 100);\nconst remaining_angle = Math.max(0, target_diff - progress_angle);\n\nconst target_reached = remaining_angle <= tolerance;\n\nreturn {\n  current_angle_degrees: current_angle_degrees,\n  progress_angle: progress_angle,\n  progress_percentage: progress_percentage,\n  remaining_angle: remaining_angle,\n  target_reached: target_reached,\n  angle_accuracy: Math.abs(target_angle - current_angle_degrees)\n};"
+      },
+      "id": "monitor-rotation-progress",
+      "name": "Monitor Rotation Progress",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.target_reached }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "check-target-angle-reached",
+      "name": "Check Target Angle Reached",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{}"
+      },
+      "id": "stop-at-target-angle",
+      "name": "Stop at Target Angle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 140]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "Target angle reached: {{ $json.current_angle_degrees }}° (target: {{ $json.target_angle_degrees }}°, accuracy: {{ $json.angle_accuracy }}°)"
+            }
+          ],
+          "number": [
+            {
+              "name": "final_angle",
+              "value": "={{ $json.current_angle_degrees }}"
+            },
+            {
+              "name": "angle_accuracy",
+              "value": "={{ $json.angle_accuracy }}"
+            }
+          ]
+        }
+      },
+      "id": "rotation-complete",
+      "name": "Rotation Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1780, 140]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "continue-rotation-monitoring",
+      "name": "Continue Rotation Monitoring",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 460]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Rotating {{ $json.actual_direction }} - Angle: {{ $json.current_angle_degrees }}°/{{ $json.target_angle_degrees }}° ({{ $json.progress_percentage }}%)"
+            }
+          ]
+        }
+      },
+      "id": "log-rotation-progress",
+      "name": "Log Rotation Progress",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1780, 460]
+    },
+    {
+      "parameters": {
+        "amount": 0.2,
+        "unit": "seconds"
+      },
+      "id": "rotation-monitoring-delay",
+      "name": "Rotation Monitoring Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-final-orientation",
+      "name": "Get Final Orientation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2220, 300]
     }
   ],
   "connections": {
-    "Configure Monitoring": {
+    "Manual Trigger": {
       "main": [
         [
           {
-            "node": "Get Sensor Status",
+            "node": "Extract Rotation Parameters",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Get Sensor Status": {
+    "Extract Rotation Parameters": {
       "main": [
         [
           {
-            "node": "Extract Ultrasonic Data",
+            "node": "Get Initial Orientation",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Ultrasonic Data": {
+    "Get Initial Orientation": {
       "main": [
         [
           {
-            "node": "Check Obstacle Threshold",
+            "node": "Calculate Angle Difference",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Obstacle Threshold": {
+    "Calculate Angle Difference": {
       "main": [
         [
           {
-            "node": "Trigger Emergency Stop",
+            "node": "Determine Rotation Direction",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Determine Rotation Direction": {
+      "main": [
+        [
           {
-            "node": "Log Obstacle Alert",
+            "node": "Start Rotation",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Start Rotation": {
+      "main": [
+        [
+          {
+            "node": "Monitor Rotation Progress",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Monitor Rotation Progress": {
+      "main": [
+        [
+          {
+            "node": "Check Target Angle Reached",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Target Angle Reached": {
+      "main": [
+        [
+          {
+            "node": "Stop at Target Angle",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Safe Distance - Continue",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Log Safe Status",
+            "node": "Continue Rotation Monitoring",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Trigger Emergency Stop": {
+    "Stop at Target Angle": {
       "main": [
         [
           {
-            "node": "Continue Monitoring?",
+            "node": "Rotation Complete",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Obstacle Alert": {
+    "Rotation Complete": {
       "main": [
         [
           {
-            "node": "Continue Monitoring?",
+            "node": "Get Final Orientation",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Safe Distance - Continue": {
+    "Continue Rotation Monitoring": {
       "main": [
         [
           {
-            "node": "Continue Monitoring?",
+            "node": "Log Rotation Progress",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Safe Status": {
+    "Log Rotation Progress": {
       "main": [
         [
           {
-            "node": "Continue Monitoring?",
+            "node": "Rotation Monitoring Delay",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Continue Monitoring?": {
+    "Rotation Monitoring Delay": {
       "main": [
         [
           {
-            "node": "Wait Before Next Check",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Log Monitoring Cycle",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Monitoring Complete",
+            "node": "Monitor Rotation Progress",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Wait Before Next Check": {
+    "Get Final Orientation": {
       "main": [
         [
           {
-            "node": "Get Sensor Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log Monitoring Cycle": {
-      "main": [
-        [
-          {
-            "node": "Get Sensor Status",
+            "node": "Rotation Complete",
             "type": "main",
             "index": 0
           }
@@ -376,9 +384,22 @@
     "executionOrder": "v1"
   },
   "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
   "pinData": {},
-  "versionId": "12345678-1234-1234-1234-123456789012"
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "individual-control",
+      "name": "Individual Control"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "movement-control",
+      "name": "Movement Control"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
 }

@@ -99,7 +99,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/emergency",
+        "url": "http://127.0.0.1:5000/api/robot/emergency-stop",
         "method": "POST",
         "options": {}
       },

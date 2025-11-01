@@ -1,227 +1,204 @@
 {
-  "name": "Ultrasonic Sensor Monitoring Variant 4",
+  "name": "Line Sensor Following with PID Control",
   "active": false,
   "nodes": [
     {
-      "parameters": {
-        "values": {
-          "boolean": [
-            {
-              "name": "continuous_monitoring",
-              "value": "{{$parameter.continuous_monitoring}}"
-            }
-          ]
-        }
-      },
-      "name": "Configure Monitoring",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.2,
-      "position": [
-        240,
-        300
-      ],
-      "id": "sensor_ultrasonic_001"
-    },
-    {
-      "parameters": {
-        "httpMethod": "GET",
-        "path": "api/robot/status",
-        "options": {}
-      },
-      "name": "Get Sensor Status",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        460,
-        300
-      ],
-      "id": "sensor_ultrasonic_002"
-    },
-    {
-      "parameters": {
-        "values": {
-          "number": [
-            {
-              "name": "ultrasonic_distance",
-              "value": "={{ $json.ultrasonic_front }}"
-            }
-          ]
-        }
-      },
-      "name": "Extract Ultrasonic Data",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.2,
-      "position": [
-        680,
-        300
-      ],
-      "id": "sensor_ultrasonic_003"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "number": [
-            {
-              "value1": "={{ $json.ultrasonic_distance }}",
-              "value2": "={{ $json.safety_threshold || 0.5 }}",
-              "operation": "smallerEqual"
-            }
-          ]
-        }
-      },
-      "name": "Check Obstacle Threshold",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        900,
-        300
-      ],
-      "id": "sensor_ultrasonic_004"
-    },
-    {
-      "parameters": {
-        "httpMethod": "POST",
-        "path": "api/robot/emergency",
-        "bodyContentType": "raw",
-        "sendBody": true,
-        "body": "{}",
-        "options": {}
-      },
-      "name": "Trigger Emergency Stop",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [
-        1120,
-        160
-      ],
-      "id": "sensor_ultrasonic_005"
-    },
-    {
-      "parameters": {
-        "message": "🚨 OBSTACLE DETECTED! Distance: {{ $json.ultrasonic_distance }}m - EMERGENCY STOP ACTIVATED",
-        "level": "warning"
-      },
-      "name": "Log Obstacle Alert",
-      "type": "n8n-nodes-base.log",
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
       "typeVersion": 1,
-      "position": [
-        1340,
-        160
-      ],
-      "id": "sensor_ultrasonic_006"
-    },
-    {
-      "parameters": {
-        "values": {
-          "boolean": [
-            {
-              "name": "obstacle_detected",
-              "value": true
-            }
-          ],
-          "number": [
-            {
-              "name": "detected_distance",
-              "value": "={{ $json.ultrasonic_distance }}"
-            }
-          ]
-        }
-      },
-      "name": "Safe Distance - Continue",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.2,
-      "position": [
-        1120,
-        440
-      ],
-      "id": "sensor_ultrasonic_007"
-    },
-    {
-      "parameters": {
-        "message": "✅ Ultrasonic monitoring: Distance {{ $json.ultrasonic_distance }}m - Safe",
-        "level": "info"
-      },
-      "name": "Log Safe Status",
-      "type": "n8n-nodes-base.log",
-      "typeVersion": 1,
-      "position": [
-        1340,
-        440
-      ],
-      "id": "sensor_ultrasonic_008"
-    },
-    {
-      "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ $json.continuous_monitoring }}",
-              "value2": true,
-              "operation": "equal"
-            }
-          ]
-        }
-      },
-      "name": "Continue Monitoring?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        1560,
-        300
-      ],
-      "id": "sensor_ultrasonic_009"
-    },
-    {
-      "parameters": {
-        "amount": 2,
-        "unit": "seconds"
-      },
-      "name": "Wait Before Next Check",
-      "type": "@n8n/n8n-nodes-base.wait",
-      "typeVersion": 1,
-      "position": [
-        1780,
-        160
-      ],
-      "id": "sensor_ultrasonic_010"
-    },
-    {
-      "parameters": {
-        "message": "🔄 Ultrasonic monitoring cycle completed. Distance: {{ $json.ultrasonic_distance }}m",
-        "level": "info"
-      },
-      "name": "Log Monitoring Cycle",
-      "type": "n8n-nodes-base.log",
-      "typeVersion": 1,
-      "position": [
-        2000,
-        160
-      ],
-      "id": "sensor_ultrasonic_011"
+      "position": [20, 300]
     },
     {
       "parameters": {
         "values": {
           "string": [
             {
-              "name": "monitoring_status",
-              "value": "completed"
+              "name": "following_speed",
+              "value": "={{ $json.body.following_speed || 0.3 }}"
+            },
+            {
+              "name": "sensitivity",
+              "value": "={{ $json.body.sensitivity || 0.8 }}"
+            },
+            {
+              "name": "max_correction",
+              "value": "={{ $json.body.max_correction || 0.5 }}"
             }
           ]
         }
       },
-      "name": "Monitoring Complete",
+      "id": "configure-following",
+      "name": "Configure Line Following",
       "type": "n8n-nodes-base.set",
       "typeVersion": 3.2,
-      "position": [
-        1780,
-        440
-      ],
-      "id": "sensor_ultrasonic_012"
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-sensor-status",
+      "name": "Get Sensor Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Simulate line sensor reading (0 = no line, 1 = line detected)\n// In real implementation, this would read from actual line sensor\nconst sensor_left = Math.random() > 0.7 ? 1 : 0;\nconst sensor_center = Math.random() > 0.5 ? 1 : 0;\nconst sensor_right = Math.random() > 0.7 ? 1 : 0;\n\n// Calculate line position (-1 to 1, where 0 is center)\nlet line_position = 0;\nif (sensor_left && !sensor_right) line_position = -0.8;\nelse if (sensor_right && !sensor_left) line_position = 0.8;\nelse if (sensor_center) line_position = 0;\nelse line_position = 0; // Lost line\n\nreturn {\n  sensor_left: sensor_left,\n  sensor_center: sensor_center,\n  sensor_right: sensor_right,\n  line_position: line_position,\n  line_detected: sensor_left || sensor_center || sensor_right\n};"
+      },
+      "id": "process-line-sensors",
+      "name": "Process Line Sensor Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// PID-like line following correction\nconst line_pos = $input.item.json.line_position;\nconst sensitivity = parseFloat($input.item.json.sensitivity || 0.8);\nconst max_correction = parseFloat($input.item.json.max_correction || 0.5);\nconst base_speed = parseFloat($input.item.json.following_speed || 0.3);\n\n// Proportional correction\nlet correction = line_pos * sensitivity;\n\n// Limit correction\ncorrection = Math.max(-max_correction, Math.min(max_correction, correction));\n\n// Calculate wheel speeds for differential steering\nconst left_speed = base_speed - correction;\nconst right_speed = base_speed + correction;\n\nreturn {\n  left_wheel_speed: Math.max(0, left_speed),\n  right_wheel_speed: Math.max(0, right_speed),\n  correction: correction,\n  line_position: line_pos\n};"
+      },
+      "id": "calculate-correction",
+      "name": "Calculate PID Correction",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.line_detected }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "id": "line-detected-check",
+      "name": "Line Detected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Execute line following movement using individual wheel control\n// This simulates differential drive by controlling each wheel\n\nconst left_speed = $input.item.json.left_wheel_speed;\nconst right_speed = $input.item.json.right_wheel_speed;\n\n// For now, we'll use forward movement with slight turns\n// In a real implementation, this would control individual omni wheels\nif (Math.abs(left_speed - right_speed) < 0.1) {\n  // Go straight\n  return { action: 'forward', speed: left_speed, direction: 'straight' };\n} else if (left_speed < right_speed) {\n  // Turn right\n  return { action: 'turn', direction: 'right', speed: Math.abs(left_speed - right_speed) * 0.5, direction_type: 'slight_right' };\n} else {\n  // Turn left\n  return { action: 'turn', direction: 'left', speed: Math.abs(left_speed - right_speed) * 0.5, direction_type: 'slight_left' };\n}"
+      },
+      "id": "execute-following-movement",
+      "name": "Execute Following Movement",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 160]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"{{ $json.direction || 'forward' }}\",\n  \"speed\": {{ $json.speed || 0.3 }}\n}"
+      },
+      "id": "move-robot",
+      "name": "Move Robot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 160]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Implement line search pattern when line is lost\nconst search_attempts = $input.item.json.search_attempts || 0;\n\nif (search_attempts < 3) {\n  // Spiral search pattern\n  const directions = ['forward', 'strafe_left', 'turn_left', 'strafe_right'];\n  const direction = directions[search_attempts % directions.length];\n  return {\n    search_direction: direction,\n    search_speed: 0.2,\n    search_attempts: search_attempts + 1,\n    continue_search: true\n  };\n} else {\n  // Give up and stop\n  return {\n    search_direction: 'stop',\n    search_speed: 0,\n    search_attempts: search_attempts + 1,\n    continue_search: false\n  };\n}"
+      },
+      "id": "line-search-pattern",
+      "name": "Line Search Pattern",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [1120, 440]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "jsonBody": "{\n  \"direction\": \"{{ $json.search_direction }}\",\n  \"speed\": {{ $json.search_speed }}\n}"
+      },
+      "id": "search-movement",
+      "name": "Execute Search Movement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 440]
+    },
+    {
+      "parameters": {
+        "amount": 0.5,
+        "unit": "seconds"
+      },
+      "id": "following-delay",
+      "name": "Following Control Delay",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "following_status",
+              "value": "Line following active - Position: {{ $json.line_position }}, Correction: {{ $json.correction }}"
+            }
+          ],
+          "number": [
+            {
+              "name": "sensor_left",
+              "value": "={{ $json.sensor_left }}"
+            },
+            {
+              "name": "sensor_center",
+              "value": "={{ $json.sensor_center }}"
+            },
+            {
+              "name": "sensor_right",
+              "value": "={{ $json.sensor_right }}"
+            }
+          ]
+        }
+      },
+      "id": "log-following-status",
+      "name": "Log Following Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1780, 300]
     }
   ],
   "connections": {
-    "Configure Monitoring": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Configure Line Following",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Configure Line Following": {
       "main": [
         [
           {
@@ -236,131 +213,109 @@
       "main": [
         [
           {
-            "node": "Extract Ultrasonic Data",
+            "node": "Process Line Sensor Data",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Extract Ultrasonic Data": {
+    "Process Line Sensor Data": {
       "main": [
         [
           {
-            "node": "Check Obstacle Threshold",
+            "node": "Calculate PID Correction",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Check Obstacle Threshold": {
+    "Calculate PID Correction": {
       "main": [
         [
           {
-            "node": "Trigger Emergency Stop",
+            "node": "Line Detected?",
             "type": "main",
             "index": 0
-          },
+          }
+        ]
+      ]
+    },
+    "Line Detected?": {
+      "main": [
+        [
           {
-            "node": "Log Obstacle Alert",
+            "node": "Execute Following Movement",
             "type": "main",
             "index": 0
           }
         ],
         [
           {
-            "node": "Safe Distance - Continue",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Log Safe Status",
+            "node": "Line Search Pattern",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Trigger Emergency Stop": {
+    "Execute Following Movement": {
       "main": [
         [
           {
-            "node": "Continue Monitoring?",
+            "node": "Move Robot",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Obstacle Alert": {
+    "Move Robot": {
       "main": [
         [
           {
-            "node": "Continue Monitoring?",
+            "node": "Following Control Delay",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Safe Distance - Continue": {
+    "Line Search Pattern": {
       "main": [
         [
           {
-            "node": "Continue Monitoring?",
+            "node": "Execute Search Movement",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Log Safe Status": {
+    "Execute Search Movement": {
       "main": [
         [
           {
-            "node": "Continue Monitoring?",
+            "node": "Following Control Delay",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Continue Monitoring?": {
+    "Following Control Delay": {
       "main": [
         [
           {
-            "node": "Wait Before Next Check",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Log Monitoring Cycle",
-            "type": "main",
-            "index": 0
-          }
-        ],
-        [
-          {
-            "node": "Monitoring Complete",
+            "node": "Log Following Status",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Wait Before Next Check": {
-      "main": [
-        [
-          {
-            "node": "Get Sensor Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Log Monitoring Cycle": {
+    "Log Following Status": {
       "main": [
         [
           {
@@ -376,9 +331,22 @@
     "executionOrder": "v1"
   },
   "staticData": null,
-  "meta": {
-    "templateCredsSetupCompleted": true
-  },
   "pinData": {},
-  "versionId": "12345678-1234-1234-1234-123456789012"
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "individual-control",
+      "name": "Individual Control"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "sensor-control",
+      "name": "Sensor Control"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
 }

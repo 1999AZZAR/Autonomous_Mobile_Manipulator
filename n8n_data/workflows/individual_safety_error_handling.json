@@ -81,7 +81,7 @@
     {
       "parameters": {
         "httpMethod": "POST",
-        "path": "api/robot/emergency",
+        "path": "api/robot/emergency-stop",
         "bodyContentType": "raw",
         "sendBody": true,
         "body": "{}",

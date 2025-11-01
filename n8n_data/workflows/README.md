@@ -206,73 +206,73 @@ These workflows provide comprehensive, modular control of individual robot syste
 #### **2. IR Proximity Sensor Monitoring** (`individual_sensor_ir_proximity.json`)
 **Purpose**: Short-range proximity detection for close obstacle avoidance
 **Operations**:
-- ✅ Continuous IR proximity monitoring
-- ✅ Configurable proximity thresholds (default: 0.3m)
-- ✅ Automatic robot stop on proximity alerts
+- ✅ Continuous IR proximity monitoring (currently simulated)
+- ✅ Configurable proximity thresholds (default: 0.5m)
+- ✅ Automatic emergency stop on proximity detection
 - ✅ Configurable monitoring intervals
-- ✅ Proximity warning system
-- ✅ Safe distance verification
+- ✅ Proximity warning and safety alerts
+- ✅ Real-time distance verification
 
 **Use Case**: Close-range safety monitoring and precision navigation
 
 ---
 
 #### **3. Line Sensor Following** (`individual_sensor_line_following.json`)
-**Purpose**: Autonomous line following with pattern recognition
+**Purpose**: Autonomous line following with PID control and pattern recognition
 **Operations**:
-- ✅ Real-time line sensor pattern detection
-- ✅ Automatic course correction (left/right deviations)
-- ✅ Configurable following speed and sensitivity
-- ✅ Line loss detection and emergency stop
-- ✅ Pattern recognition for straight/curved lines
-- ✅ Continuous position correction
+- ✅ Real-time line sensor simulation and pattern detection
+- ✅ PID-based course correction with configurable sensitivity
+- ✅ Automatic direction changes (left/right turns)
+- ✅ Line loss detection with spiral search recovery
+- ✅ Configurable following speed and correction limits
+- ✅ Continuous position monitoring and adjustment
 
-**Use Case**: Automated guided navigation and path following
+**Use Case**: Automated guided navigation and path following with intelligent recovery
 
 ---
 
 #### **4. Distance-Based Movement Control** (`individual_movement_distance_control.json`)
-**Purpose**: Precise distance-based robot navigation
+**Purpose**: Precise distance-based robot navigation with real-time feedback
 **Operations**:
-- ✅ Configurable target distance and direction
-- ✅ Real-time position tracking and distance calculation
-- ✅ Automatic movement execution with speed control
-- ✅ Distance tolerance checking (configurable)
-- ✅ Progress monitoring and accuracy reporting
-- ✅ Automatic stop at target distance
-- ✅ Movement completion verification
+- ✅ Configurable target distance, direction, speed, and tolerance
+- ✅ Real-time position tracking using odometry data
+- ✅ Automatic movement execution with progress monitoring
+- ✅ Distance tolerance checking with configurable accuracy
+- ✅ Progress percentage reporting and status updates
+- ✅ Automatic stop at target distance with verification
+- ✅ Movement completion confirmation and error reporting
 
-**Use Case**: Precise positioning and distance-based navigation tasks
+**Use Case**: Precise positioning and distance-based navigation tasks with feedback
 
 ---
 
 #### **5. Angle-Based Rotation Control** (`individual_movement_angle_rotation.json`)
-**Purpose**: Precise angular rotation with position feedback
+**Purpose**: Precise angular rotation with quaternion-based orientation tracking
 **Operations**:
-- ✅ Configurable target angle and rotation direction
-- ✅ Automatic direction calculation (shortest path)
-- ✅ Real-time angle tracking and progress monitoring
-- ✅ Configurable rotation speed and tolerance
-- ✅ Angle accuracy verification
-- ✅ Rotation completion confirmation
-- ✅ Automatic stop at target angle
+- ✅ Configurable target angle, rotation direction, speed, and tolerance
+- ✅ Automatic optimal direction calculation (shortest path)
+- ✅ Real-time orientation tracking using quaternion math
+- ✅ Configurable rotation speed and angle tolerance
+- ✅ Progress monitoring with percentage completion
+- ✅ Angle accuracy verification and error reporting
+- ✅ Automatic stop at target angle with final verification
 
-**Use Case**: Precise orientation control and angular positioning
+**Use Case**: Precise orientation control and angular positioning with IMU feedback
 
 ---
 
 #### **6. Advanced Servo Control** (`individual_servo_advanced_control.json`)
-**Purpose**: Comprehensive servo control with safety limits and verification
+**Purpose**: Advanced servo control with individual component access and safety verification
 **Operations**:
-- ✅ Individual servo position control (1-5)
-- ✅ Safety limit enforcement per servo
-- ✅ Movement parameter calculation (speed, time)
-- ✅ Real-time position verification
-- ✅ Accuracy checking with configurable tolerance
-- ✅ Movement success confirmation
-- ✅ Error detection and reporting
+- ✅ Individual servo selection (gripper, tilt, neck, base)
+- ✅ Direct API calls to picker system endpoints
+- ✅ Servo-specific parameter handling and validation
+- ✅ Real-time position verification after movement
+- ✅ Movement completion confirmation with delays
+- ✅ Safety monitoring and status verification
+- ✅ Error detection and proper API integration
 
-**Use Case**: Safe and precise servo positioning with feedback verification
+**Use Case**: Safe and precise servo positioning for picker system components
 
 ---
 
@@ -379,7 +379,7 @@ All workflows use the robot's REST API endpoints:
   - Parameters: `{"servo": 1-5, "angle": 0-180}`
 - `POST /api/robot/servos` - Control all servo motors
   - Parameters: `{"action": "home"}`
-- `POST /api/robot/emergency` - Emergency stop (stops all actuators)
+- `POST /api/robot/emergency-stop` - Emergency stop (stops all actuators)
 
 ---
 
@@ -498,7 +498,7 @@ The workflow system now provides:
 - **Hexagonal robot shape** with 3x omni wheels (Back, Front Left, Front Right)
 - **Servo-based picker system** with 4 components controlled via `/api/robot/servo`
 - **Movement control** via `/api/robot/move` and `/api/robot/turn` endpoints
-- **Emergency safety** via `/api/robot/emergency` endpoint
+- **Emergency safety** via `/api/robot/emergency-stop` endpoint
 - **Real-time status** monitoring via `/api/robot/status`
 - **Advanced sensors** (distance, RPLIDAR A1, Microsoft camera, line sensor, IMU)
 - **Container system framework** (ready for future implementation)
@@ -524,11 +524,11 @@ The system now supports **25 comprehensive workflows** with enhanced individual 
 **Combination Workflows (6)**: Advanced multi-system coordination for complex tasks
 **Legacy Individual Workflows (9)**: Maintained for compatibility and basic operations
 
-#### **New Enhanced Control Categories:**
-- **🛡️ Sensor Monitoring**: Ultrasonic, IR proximity, line following with safety integration
-- **🎯 Precise Movement**: Distance-based navigation and angle-based rotation control
-- **🔧 Advanced Servo Control**: Safety-limited servo positioning with verification
-- **⚙️ Servo Sequences**: Pre-programmed manipulation patterns for complex operations
+#### **Enhanced Control Categories:**
+- **🛡️ Sensor Monitoring**: Ultrasonic, IR proximity, line following with PID control and safety integration
+- **🎯 Precise Movement**: Distance-based navigation and angle-based rotation with quaternion tracking
+- **🔧 Advanced Servo Control**: Individual picker component control with API integration
+- **⚙️ Servo Sequences**: Pre-programmed manipulation patterns with safety monitoring
 - **🛡️ Safety Systems**: Multi-level emergency response and continuous monitoring
 - **📊 State Management**: Comprehensive robot state tracking and health monitoring
 - **📦 Container Framework**: Ready-for-implementation container management system
