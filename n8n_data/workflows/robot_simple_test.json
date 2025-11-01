@@ -27,13 +27,10 @@
         "url": "http://127.0.0.1:5000/api/robot/move",
         "method": "POST",
         "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
+          "bodyContentType": "json"
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}"
       },
       "id": "move-forward",
       "name": "Move Forward",
@@ -46,13 +43,10 @@
         "url": "http://127.0.0.1:5000/api/robot/turn",
         "method": "POST",
         "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
+          "bodyContentType": "json"
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"left\",\n  \"speed\": 0.3\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"left\",\n  \"speed\": 0.3\n}"
       },
       "id": "turn-left",
       "name": "Turn Left",

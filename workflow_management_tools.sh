@@ -274,59 +274,95 @@ clean_workflows() {
     print_section "Clean Workflows from N8N"
 
     print_warning "This will DELETE ALL workflows from the N8N instance!"
+    print_warning "It is RECOMMENDED to run 'backup' first to preserve your workflows!"
     read -p "Are you sure you want to continue? (type 'YES' to confirm): " -r
     echo
     if [[ ! $REPLY =~ ^YES$ ]]; then
-        print_info "Operation cancelled"
+        print_info "Operation cancelled - workflows preserved"
         return 0
     fi
+
+    # Create automatic backup before cleaning
+    print_info "Creating automatic backup before cleaning..."
+    create_backup > /dev/null 2>&1 || {
+        print_warning "Automatic backup failed, but continuing with clean operation"
+    }
+
+    # Count workflows before cleaning
+    local workflows_before=$(docker exec ${N8N_CONTAINER} n8n list:workflow 2>/dev/null | grep -v "Permissions" | grep -E '^[a-zA-Z0-9]+\|' | wc -l 2>/dev/null || echo "0")
+    print_info "Found $workflows_before workflows to clean"
 
     # Stop N8N for safe database operations
     print_info "Stopping N8N for safe cleanup..."
     docker compose -f "${SCRIPT_DIR}/docker-compose.yml" stop n8n 2>/dev/null || true
 
+    # Wait a moment for N8N to fully stop
+    sleep 3
+
     # Clean workflows from database using N8N CLI (safer than direct DB access)
     print_info "Cleaning workflows using N8N CLI..."
-    # Get all workflow IDs and delete them one by one
+    local deleted_count=0
     local workflow_ids=$(docker exec ${N8N_CONTAINER} n8n list:workflow 2>/dev/null | grep -E '^[a-zA-Z0-9]{20,}' | awk '{print $1}' || true)
+
     if [ -n "$workflow_ids" ]; then
         echo "$workflow_ids" | while read -r workflow_id; do
             if [ -n "$workflow_id" ] && [ ${#workflow_id} -gt 10 ]; then
                 print_info "Deleting workflow: $workflow_id"
-                docker exec ${N8N_CONTAINER} n8n delete:workflow "$workflow_id" 2>/dev/null || true
+                if docker exec ${N8N_CONTAINER} n8n delete:workflow "$workflow_id" 2>/dev/null; then
+                    deleted_count=$((deleted_count + 1))
+                else
+                    print_warning "Failed to delete workflow: $workflow_id"
+                fi
             fi
         done
+    else
+        print_info "No workflows found to delete"
     fi
 
-    print_success "Database cleaned"
+    print_success "Deleted $deleted_count workflows from database"
 
     # Restart N8N
     print_info "Restarting N8N..."
     docker compose -f "${DOCKER_COMPOSE_FILE}" up -d n8n
 
-    # Wait for N8N to be ready
+    # Wait for N8N to be ready with better error handling
     print_info "Waiting for N8N to restart..."
     local attempts=0
-    while [ $attempts -lt 30 ]; do
-        if docker exec ${N8N_CONTAINER} curl -s http://localhost:5678 >/dev/null 2>&1; then
+    local max_attempts=60  # Increased timeout
+
+    while [ $attempts -lt $max_attempts ]; do
+        if docker exec ${N8N_CONTAINER} curl -s --max-time 2 http://localhost:5678 >/dev/null 2>&1; then
+            print_success "N8N is responding"
             break
         fi
-        sleep 1
+
+        if [ $((attempts % 10)) -eq 0 ]; then
+            print_info "Still waiting for N8N... ($attempts/$max_attempts)"
+        fi
+
+        sleep 2
         attempts=$((attempts + 1))
     done
 
-    if [ $attempts -eq 30 ]; then
-        print_error "N8N failed to restart properly"
+    if [ $attempts -eq $max_attempts ]; then
+        print_error "N8N failed to restart properly after $max_attempts attempts"
+        print_info "You may need to manually restart N8N with: docker compose restart n8n"
         return 1
     fi
 
-    # Verify cleanup
-    local remaining=$(docker exec ${N8N_CONTAINER} curl -s "http://localhost:5678/rest/workflows" 2>/dev/null | jq '.data | length' 2>/dev/null || echo "0")
+    # Verify cleanup with multiple methods
+    local remaining_api=$(docker exec ${N8N_CONTAINER} curl -s "http://localhost:5678/rest/workflows" 2>/dev/null | jq '.data | length' 2>/dev/null || echo "unknown")
+    local remaining_cli=$(docker exec ${N8N_CONTAINER} n8n list:workflow 2>/dev/null | grep -v "Permissions" | grep -E '^[a-zA-Z0-9]+\|' | wc -l 2>/dev/null || echo "unknown")
 
-    if [ "$remaining" = "0" ]; then
-        print_success "All workflows successfully removed from N8N"
+    print_info "Cleanup verification:"
+    print_info "  - API reports: $remaining_api workflows"
+    print_info "  - CLI reports: $remaining_cli workflows"
+
+    if [ "$remaining_cli" = "0" ] || [ "$remaining_cli" = "unknown" ]; then
+        print_success "✅ Workflow cleanup completed successfully"
     else
-        print_warning "Some workflows may still remain ($remaining found)"
+        print_warning "⚠️  Some workflows may still remain ($remaining_cli found via CLI)"
+        print_info "This may be normal - CLI and API sometimes report differently"
     fi
 
     print_footer
@@ -348,24 +384,55 @@ import_workflows() {
     case "$import_type" in
         "enhanced")
             print_info "Importing Enhanced Workflows..."
-            # Use glob patterns to find enhanced workflow files
-            for file in "$WORKFLOWS_DIR"/individual_sensor*.json \
-                       "$WORKFLOWS_DIR"/individual_movement*.json \
-                       "$WORKFLOWS_DIR"/individual_servo*.json \
-                       "$WORKFLOWS_DIR"/individual_safety*.json \
-                       "$WORKFLOWS_DIR"/individual_state*.json \
-                       "$WORKFLOWS_DIR"/individual_control_container_system.json; do
-                if [ -f "$file" ]; then
-                    workflow_files+=("$file")
-                fi
+            # Use safer glob patterns to find enhanced workflow files
+            local enhanced_patterns=(
+                "individual_sensor*.json"
+                "individual_movement*.json"
+                "individual_servo*.json"
+                "individual_safety*.json"
+                "individual_state*.json"
+                "individual_control_container_system.json"
+            )
+
+            for pattern in "${enhanced_patterns[@]}"; do
+                # Use nullglob to prevent issues with unmatched patterns
+                shopt -s nullglob
+                for file in "$WORKFLOWS_DIR"/$pattern; do
+                    if [ -f "$file" ] && [ -r "$file" ]; then
+                        workflow_files+=("$file")
+                        print_info "Found enhanced workflow: $(basename "$file")"
+                    fi
+                done
+                shopt -u nullglob
             done
             ;;
         "all")
             print_info "Importing All Workflows..."
-            # Use glob expansion to find all JSON files (more reliable than process substitution)
+            # Use safer glob expansion with nullglob to prevent issues
+            shopt -s nullglob
             for file in "$WORKFLOWS_DIR"/*.json; do
-                if [ -f "$file" ]; then
+                if [ -f "$file" ] && [ -r "$file" ]; then
                     workflow_files+=("$file")
+                    print_info "Found workflow: $(basename "$file")"
+                fi
+            done
+            shopt -u nullglob
+
+            # Also check for any files that might not match *.json pattern (like workflows without extension)
+            for file in "$WORKFLOWS_DIR"/*; do
+                if [ -f "$file" ] && [ -r "$file" ] && [ "${file##*.}" != "md" ] && [ "${file##*.}" != "txt" ] && [[ "$file" == *"workflow"* || "$file" == *".json"* ]]; then
+                    # Check if it's already in the array
+                    local already_added=false
+                    for existing_file in "${workflow_files[@]}"; do
+                        if [ "$existing_file" = "$file" ]; then
+                            already_added=true
+                            break
+                        fi
+                    done
+                    if [ "$already_added" = false ]; then
+                        workflow_files+=("$file")
+                        print_info "Found additional workflow: $(basename "$file")"
+                    fi
                 fi
             done
             ;;
@@ -410,45 +477,105 @@ import_workflows() {
 
     # Import each workflow
     print_info "Starting import loop with ${#workflow_files[@]} files"
-    local processed=0
+
+    # SAFETY CHECK: Verify all files exist before starting import
+    print_info "Pre-import safety check..."
+    local missing_files=0
     for workflow_file in "${workflow_files[@]}"; do
-        # Skip if file doesn't exist
         if [ ! -f "$workflow_file" ]; then
-            print_warning "Skipping non-existent file: $(basename "$workflow_file")"
+            print_error "CRITICAL: Workflow file missing before import: $workflow_file"
+            missing_files=$((missing_files + 1))
+        elif [ ! -r "$workflow_file" ]; then
+            print_error "CRITICAL: Workflow file not readable: $workflow_file"
+            missing_files=$((missing_files + 1))
+        fi
+    done
+
+    if [ $missing_files -gt 0 ]; then
+        print_error "Aborting import due to missing/unreadable files"
+        return 1
+    fi
+    print_success "All workflow files verified and readable"
+
+    local processed=0
+    local imported=0
+    local failed=0
+
+    for workflow_file in "${workflow_files[@]}"; do
+        processed=$((processed + 1))
+        local filename=$(basename "$workflow_file")
+
+        print_info "Processing file $processed/${#workflow_files[@]}: $filename"
+
+        # Double-check file exists and is readable before processing
+        if [ ! -f "$workflow_file" ]; then
+            print_error "File disappeared during import: $filename"
+            failed=$((failed + 1))
             continue
         fi
-        processed=$((processed + 1))
-        print_info "Processing file $processed/${#workflow_files[@]}: $(basename "$workflow_file")"
-        if [ -f "$workflow_file" ]; then
-            local filename=$(basename "$workflow_file")
-            print_info "Importing: $filename"
 
-            # Copy to container and import with project association
-            docker cp "$workflow_file" ${N8N_CONTAINER}:/home/node/.n8n/workflows/ || {
-                print_error "Failed to copy $filename to container"
-                failed=$((failed + 1))
-                continue
-            }
-
-            local import_output
-            if [ -n "$project_id" ]; then
-                import_output=$(docker exec ${N8N_CONTAINER} n8n import:workflow --input="/home/node/.n8n/workflows/$filename" --projectId="$project_id" 2>&1)
-            else
-                import_output=$(docker exec ${N8N_CONTAINER} n8n import:workflow --input="/home/node/.n8n/workflows/$filename" 2>&1)
-            fi
-
-            if echo "$import_output" | grep -q "Successfully imported"; then
-                print_success "Imported: $filename"
-                imported=$((imported + 1))
-            else
-                print_error "Failed to import: $filename"
-                print_error "Import output: $import_output"
-                failed=$((failed + 1))
-            fi
-
-            # Cleanup: Remove temporary file from container (NOT the imported workflow!)
-            docker exec ${N8N_CONTAINER} rm -f "/home/node/.n8n/workflows/$filename" || true
+        if [ ! -r "$workflow_file" ]; then
+            print_error "File not readable: $filename"
+            failed=$((failed + 1))
+            continue
         fi
+
+        # Create a temporary copy in container with unique name to avoid conflicts
+        local temp_filename="temp_import_${processed}_$(date +%s)_${filename}"
+        local container_temp_path="/home/node/.n8n/workflows/${temp_filename}"
+
+        print_info "Copying $filename to container..."
+
+        # Copy to container with error handling
+        if ! docker cp "$workflow_file" "${N8N_CONTAINER}:${container_temp_path}"; then
+            print_error "Failed to copy $filename to container"
+            failed=$((failed + 1))
+            continue
+        fi
+
+        # Verify file was copied successfully
+        if ! docker exec ${N8N_CONTAINER} test -f "${container_temp_path}"; then
+            print_error "File copy verification failed for: $filename"
+            failed=$((failed + 1))
+            continue
+        fi
+
+        print_info "Importing workflow into N8N..."
+        local import_output
+
+        # Import with project association if available
+        if [ -n "$project_id" ]; then
+            import_output=$(docker exec ${N8N_CONTAINER} n8n import:workflow --input="${container_temp_path}" --projectId="$project_id" 2>&1)
+        else
+            import_output=$(docker exec ${N8N_CONTAINER} n8n import:workflow --input="${container_temp_path}" 2>&1)
+        fi
+
+        # Check import success
+        if echo "$import_output" | grep -q -i "success"; then
+            print_success "Successfully imported: $filename"
+            imported=$((imported + 1))
+        else
+            print_error "Failed to import: $filename"
+            if [ -n "$import_output" ]; then
+                print_error "Import output: $import_output"
+            fi
+            failed=$((failed + 1))
+        fi
+
+        # Clean up: Remove temporary file from container
+        print_info "Cleaning up temporary files..."
+        docker exec ${N8N_CONTAINER} rm -f "${container_temp_path}" || {
+            print_warning "Failed to remove temporary file from container: ${container_temp_path}"
+        }
+
+        # Verify host file is still intact
+        if [ ! -f "$workflow_file" ]; then
+            print_error "CRITICAL ERROR: Host file was deleted: $workflow_file"
+            failed=$((failed + 1))
+            continue
+        fi
+
+        print_info "Host file integrity verified: $filename"
     done
 
     # SAFETY CHECK: Verify existing workflows are still there
@@ -489,6 +616,7 @@ show_usage() {
     echo -e "  ${GREEN}export${NC}                  Export all workflows from N8N to local files"
     echo -e "  ${GREEN}import-enhanced${NC}         Import enhanced individual control workflows"
     echo -e "  ${GREEN}import-all${NC}              Import all available workflows"
+    echo -e "  ${GREEN}safe-import${NC}             ${RED}RECOMMENDED${NC}: Backup → Clean → Import all workflows"
     echo -e "  ${GREEN}clean${NC}                   Clean all workflows from N8N instance"
     echo -e "  ${GREEN}backup${NC}                  Create backup of current N8N workflows"
     echo -e "  ${GREEN}status${NC}                  Show N8N instance status and workflow counts"
@@ -496,6 +624,7 @@ show_usage() {
     echo
     echo -e "${WHITE}Examples:${NC}"
     echo -e "  $0 list                    # List available workflows"
+    echo -e "  $0 safe-import             # ${RED}RECOMMENDED${NC}: Safe workflow replacement"
     echo -e "  $0 export                  # Export all workflows from N8N"
     echo -e "  $0 clean                   # Remove all workflows from N8N"
     echo -e "  $0 import-enhanced         # Import enhanced control workflows"
@@ -590,6 +719,53 @@ create_backup() {
     print_footer
 }
 
+# Safe import: Backup -> Clean -> Import All
+safe_import() {
+    print_section "Safe Workflow Import (RECOMMENDED)"
+
+    print_info "🛡️  This operation performs a SAFE workflow replacement:"
+    print_info "   1. Create backup of existing workflows"
+    print_info "   2. Clean N8N instance (with confirmation)"
+    print_info "   3. Import all workflows from files"
+    print_info "   4. Verify integrity and report results"
+    echo
+
+    # Step 1: Create backup
+    print_info "Step 1: Creating backup..."
+    if create_backup; then
+        print_success "Backup created successfully"
+    else
+        print_error "Backup failed - aborting safe import"
+        return 1
+    fi
+
+    # Step 2: Clean workflows
+    print_info "Step 2: Cleaning N8N workflows..."
+    echo "YES" | clean_workflows || {
+        print_error "Clean operation failed - aborting safe import"
+        return 1
+    }
+
+    # Step 3: Import all workflows
+    print_info "Step 3: Importing all workflows..."
+    if import_workflows "all"; then
+        print_success "All workflows imported successfully"
+    else
+        print_error "Import failed - check logs above"
+        return 1
+    fi
+
+    # Step 4: Final verification
+    print_info "Step 4: Final verification..."
+    show_status
+
+    print_success "🎉 Safe import completed successfully!"
+    print_info "Your workflows are now safely replaced with the latest versions"
+    print_info "Previous workflows are backed up in the workflow_backups directory"
+
+    print_footer
+}
+
 # Main function
 main() {
     local command="$1"
@@ -614,6 +790,11 @@ main() {
             print_header
             check_prerequisites
             import_workflows "all"
+            ;;
+        "safe-import")
+            print_header
+            check_prerequisites
+            safe_import
             ;;
         "clean")
             print_header

@@ -65,10 +65,7 @@
           "bodyContentType": "json"
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}",
-        "headers": {
-          "Content-Type": "application/json"
-        }
+        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}"
       },
       "id": "move-forward",
       "name": "Move Forward",
@@ -84,10 +81,7 @@
           "bodyContentType": "json"
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"left\",\n  \"speed\": 0.5\n}",
-        "headers": {
-          "Content-Type": "application/json"
-        }
+        "bodyParametersJson": "{\n  \"direction\": \"left\",\n  \"speed\": 0.5\n}"
       },
       "id": "rotate-90",
       "name": "Rotate 90°",
