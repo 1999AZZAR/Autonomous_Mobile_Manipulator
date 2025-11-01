@@ -30,7 +30,10 @@
           "bodyContentType": "json"
         },
         "sendBody": true,
-        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}"
+        "jsonBody": "{\"direction\": \"forward\", \"speed\": 0.5}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
       },
       "id": "move-forward",
       "name": "Move Forward",
@@ -46,7 +49,10 @@
           "bodyContentType": "json"
         },
         "sendBody": true,
-        "bodyParametersJson": "{\n  \"direction\": \"left\",\n  \"speed\": 0.3\n}"
+        "jsonBody": "{\"direction\": \"left\", \"speed\": 0.3}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
       },
       "id": "turn-left",
       "name": "Turn Left",
