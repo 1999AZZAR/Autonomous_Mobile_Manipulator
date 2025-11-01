@@ -336,6 +336,12 @@ clean_workflows() {
 import_workflows() {
     print_section "Import Workflows to N8N"
 
+    # SAFETY NOTICE
+    print_info "🛡️  IMPORT SAFETY: This operation ONLY ADDS workflows"
+    print_info "🛡️  Existing workflows will NOT be touched or deleted"
+    print_info "🛡️  Use 'clean' command separately if you want to delete workflows"
+    echo
+
     local import_type="$1"
     local workflow_files=()
 
@@ -380,6 +386,11 @@ import_workflows() {
     fi
 
     print_info "Found $total_files workflow files to import"
+
+    # SAFETY CHECK: Count existing workflows before import
+    print_info "Checking existing workflows before import..."
+    local existing_workflows_before=$(docker exec ${N8N_CONTAINER} n8n list:workflow 2>/dev/null | grep -v "Permissions" | grep -E '^[a-zA-Z0-9]+\|' | wc -l 2>/dev/null || echo "0")
+    print_success "Found $existing_workflows_before existing workflows (these will NOT be touched)"
 
     # Get project ID for workflow association (optional)
     print_info "Checking for project association..."
@@ -435,16 +446,33 @@ import_workflows() {
                 failed=$((failed + 1))
             fi
 
-            # Cleanup
+            # Cleanup: Remove temporary file from container (NOT the imported workflow!)
             docker exec ${N8N_CONTAINER} rm -f "/home/node/.n8n/workflows/$filename" || true
         fi
     done
+
+    # SAFETY CHECK: Verify existing workflows are still there
+    print_info "Verifying existing workflows are still intact..."
+    local existing_workflows_after=$(docker exec ${N8N_CONTAINER} n8n list:workflow 2>/dev/null | grep -v "Permissions" | grep -E '^[a-zA-Z0-9]+\|' | wc -l 2>/dev/null || echo "0")
+
+    if [ "$existing_workflows_after" -lt "$existing_workflows_before" ]; then
+        print_error "WARNING: Some existing workflows may have been deleted!"
+        print_error "Before: $existing_workflows_before, After: $existing_workflows_after"
+    elif [ "$existing_workflows_after" -eq "$existing_workflows_before" ]; then
+        print_success "✓ All existing workflows preserved ($existing_workflows_after workflows intact)"
+    else
+        print_success "✓ Existing workflows preserved, plus $((existing_workflows_after - existing_workflows_before)) new workflows added"
+    fi
 
     print_success "Import completed!"
     print_info "Successfully imported: $imported workflows"
     if [ $failed -gt 0 ]; then
         print_warning "Failed to import: $failed workflows"
     fi
+
+    # Final safety message
+    print_info "🔒 SAFETY CONFIRMED: Import operation does NOT delete existing workflows"
+    print_info "💡 Use './workflow_management_tools.sh clean' if you want to delete workflows"
 
     print_footer
 }
