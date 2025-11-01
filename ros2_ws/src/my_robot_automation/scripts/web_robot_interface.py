@@ -3,230 +3,1027 @@
 import rclpy
 from rclpy.node import Node
 from flask import Flask, render_template_string, jsonify, request
-from geometry_msgs.msg import Twist
-from std_msgs.msg import Bool, Float32
-from sensor_msgs.msg import JointState
 import threading
-import json
+import time
 
-# Web interface HTML template
+# Modern Professional Web Interface Template
 HTML_TEMPLATE = """
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>Robot Control Interface</title>
+    <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>LKS Robot Control Center</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f0f0f0; }
-        .container { max-width: 800px; margin: 0 auto; background: white; padding: 20px; border-radius: 10px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
-        .control-panel { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 20px 0; }
-        .control-btn { padding: 15px; font-size: 16px; border: none; border-radius: 5px; cursor: pointer; transition: all 0.3s; }
-        .move-btn { background: #4CAF50; color: white; }
-        .turn-btn { background: #2196F3; color: white; }
-        .gripper-btn { background: #FF9800; color: white; }
-        .emergency-btn { background: #f44336; color: white; }
-        .control-btn:hover { transform: translateY(-2px); box-shadow: 0 4px 8px rgba(0,0,0,0.2); }
-        .status-panel { background: #f5f5f5; padding: 15px; border-radius: 5px; margin: 20px 0; }
-        .status-item { display: flex; justify-content: space-between; margin: 5px 0; }
-        .log-panel { background: #000; color: #0f0; padding: 15px; border-radius: 5px; height: 200px; overflow-y: scroll; font-family: monospace; }
-        .speed-control { margin: 10px 0; }
-        .speed-slider { width: 100%; margin: 10px 0; }
+        :root {
+            --primary: #2563eb;
+            --secondary: #64748b;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --dark: #1e293b;
+            --light: #f8fafc;
+            --border: #e2e8f0;
+            --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: var(--dark);
+        }
+
+        .app-container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .header h1 {
+            color: var(--primary);
+            font-size: 2rem;
+            font-weight: 700;
+        }
+
+        .status-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.875rem;
+            font-weight: 500;
+        }
+
+        .status-online { background: var(--success); color: white; }
+        .status-offline { background: var(--danger); color: white; }
+
+        .main-grid {
+            display: grid;
+            grid-template-columns: 300px 1fr;
+            gap: 24px;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+            height: fit-content;
+        }
+
+        .nav-tabs {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .nav-tab {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            color: var(--secondary);
+            text-decoration: none;
+        }
+
+        .nav-tab:hover, .nav-tab.active {
+            background: var(--primary);
+            color: white;
+        }
+
+        .nav-tab i { font-size: 1.2rem; }
+
+        .content-area {
+            display: grid;
+            grid-template-rows: auto 1fr;
+            gap: 24px;
+        }
+
+        .control-panels {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+            gap: 24px;
+        }
+
+        .panel {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: var(--shadow-lg);
+        }
+
+        .panel-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+            padding-bottom: 16px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .panel-header i {
+            font-size: 1.5rem;
+            color: var(--primary);
+        }
+
+        .panel-header h3 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .control-group {
+            margin-bottom: 20px;
+        }
+
+        .control-group h4 {
+            font-size: 1rem;
+            font-weight: 500;
+            margin-bottom: 12px;
+            color: var(--dark);
+        }
+
+        .control-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 12px;
+        }
+
+        .btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            padding: 16px 12px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-size: 0.875rem;
+            font-weight: 500;
+            text-align: center;
+            min-height: 70px;
+            justify-content: center;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-warning { background: var(--warning); color: white; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-secondary { background: var(--secondary); color: white; }
+
+        .slider-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 8px;
+            border-radius: 4px;
+            background: var(--border);
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+        }
+
+        .slider::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--primary);
+            cursor: pointer;
+            border: none;
+        }
+
+        .value-display {
+            font-weight: 600;
+            color: var(--primary);
+        }
+
+        .status-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 16px;
+        }
+
+        .status-card {
+            background: var(--light);
+            border-radius: 8px;
+            padding: 16px;
+            border-left: 4px solid var(--primary);
+        }
+
+        .status-card h4 {
+            font-size: 0.875rem;
+            color: var(--secondary);
+            margin-bottom: 8px;
+        }
+
+        .status-card .value {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .log-panel {
+            background: var(--dark);
+            color: #10b981;
+            border-radius: 8px;
+            padding: 16px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.875rem;
+            max-height: 300px;
+            overflow-y: auto;
+            white-space: pre-wrap;
+        }
+
+        .log-entry {
+            margin-bottom: 4px;
+        }
+
+        .log-timestamp {
+            color: #64748b;
+        }
+
+        .automation-panel {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 16px;
+        }
+
+        .automation-card {
+            background: var(--light);
+            border-radius: 8px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .automation-card i {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 12px;
+        }
+
+        .automation-card h4 {
+            font-size: 1rem;
+            font-weight: 600;
+            margin-bottom: 8px;
+            color: var(--dark);
+        }
+
+        .automation-card p {
+            font-size: 0.875rem;
+            color: var(--secondary);
+            margin-bottom: 16px;
+        }
+
+        .form-group {
+            margin-bottom: 16px;
+        }
+
+        .form-group label {
+            display: block;
+            font-size: 0.875rem;
+            font-weight: 500;
+            color: var(--dark);
+            margin-bottom: 4px;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 2px solid var(--border);
+            border-radius: 6px;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        @media (max-width: 1024px) {
+            .main-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .control-panels {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .app-container {
+                padding: 16px;
+            }
+
+            .header {
+                flex-direction: column;
+                gap: 16px;
+                text-align: center;
+            }
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <h1>🤖 Robot Control Interface</h1>
-        
-        <div class="status-panel">
-            <h3>🤖 Real Robot Status</h3>
-            <div class="status-item">
-                <span>Position:</span>
-                <span id="position">x: 0, y: 0, θ: 0</span>
+    <div class="app-container">
+        <header class="header">
+            <h1><i class="fas fa-robot"></i> LKS Robot Control Center</h1>
+            <div class="status-indicator status-online" id="connection-status">
+                <i class="fas fa-circle"></i>
+                <span>System Online</span>
             </div>
-            <div class="status-item">
-                <span>Lifter:</span>
-                <span id="lifter">0.0 cm</span>
-            </div>
-            <div class="status-item">
-                <span>Servo 1:</span>
-                <span id="servo1">0°</span>
-            </div>
-            <div class="status-item">
-                <span>Servo 2:</span>
-                <span id="servo2">0°</span>
-            </div>
-            <div class="status-item">
-                <span>Front Ultrasonic:</span>
-                <span id="ultrasonic_front">-- cm</span>
-            </div>
-            <div class="status-item">
-                <span>Front IR:</span>
-                <span id="ir_front">-- cm</span>
-            </div>
-            <div class="status-item">
-                <span>Line Sensor:</span>
-                <span id="line_sensor">--</span>
-            </div>
-        </div>
-        
-        <div class="speed-control">
-            <label>Speed: <span id="speed-value">0.5</span></label>
-            <input type="range" class="speed-slider" id="speed-slider" min="0.1" max="1.0" step="0.1" value="0.5">
-        </div>
-        
-        <div class="control-panel">
-            <!-- Omni Wheel Movement -->
-            <button class="move-btn control-btn" onclick="moveRobot('forward')">⬆️ Forward</button>
-            <button class="move-btn control-btn" onclick="moveRobot('backward')">⬇️ Backward</button>
-            <button class="move-btn control-btn" onclick="stopRobot()">⏹️ Stop</button>
-            
-            <button class="turn-btn control-btn" onclick="turnRobot('left')">↩️ Turn Left</button>
-            <button class="turn-btn control-btn" onclick="turnRobot('right')">↪️ Turn Right</button>
-            <button class="turn-btn control-btn" onclick="moveRobot('strafe_left')">⬅️ Strafe Left</button>
-            
-            <!-- Lifter Control -->
-            <button class="gripper-btn control-btn" onclick="controlLifter('up')">⬆️ Lifter Up</button>
-            <button class="gripper-btn control-btn" onclick="controlLifter('down')">⬇️ Lifter Down</button>
-            
-            <!-- Servo Control -->
-            <button class="emergency-btn control-btn" onclick="controlServos('home')">🏠 Servo Home</button>
-        </div>
-        
-        <div class="control-panel">
-            <h3>🔧 Servo Control</h3>
-            <div style="display: grid; grid-template-columns: repeat(5, 1fr); gap: 10px;">
-                <div>
-                    <label>Servo 1:</label><br>
-                    <input type="range" min="0" max="180" value="90" id="servo1-slider" onchange="setServo(1, this.value)">
+        </header>
+
+        <div class="main-grid">
+            <aside class="sidebar">
+                <nav class="nav-tabs">
+                    <a href="#movement" class="nav-tab active" onclick="showTab('movement')">
+                        <i class="fas fa-arrows-alt"></i>
+                        <span>Movement</span>
+                    </a>
+                    <a href="#manipulation" class="nav-tab" onclick="showTab('manipulation')">
+                        <i class="fas fa-hand-paper"></i>
+                        <span>Manipulation</span>
+                    </a>
+                    <a href="#containers" class="nav-tab" onclick="showTab('containers')">
+                        <i class="fas fa-boxes"></i>
+                        <span>Containers</span>
+                    </a>
+                    <a href="#automation" class="nav-tab" onclick="showTab('automation')">
+                        <i class="fas fa-cogs"></i>
+                        <span>Automation</span>
+                    </a>
+                    <a href="#safety" class="nav-tab" onclick="showTab('safety')">
+                        <i class="fas fa-shield-alt"></i>
+                        <span>Safety</span>
+                    </a>
+                    <a href="#status" class="nav-tab" onclick="showTab('status')">
+                        <i class="fas fa-chart-line"></i>
+                        <span>Status</span>
+                    </a>
+                </nav>
+            </aside>
+
+            <main class="content-area">
+                <!-- Movement Tab -->
+                <div id="movement" class="tab-content active">
+                    <div class="control-panels">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-gamepad"></i>
+                                <h3>Basic Movement Control</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Speed Control</h4>
+                                <div class="slider-group">
+                                    <input type="range" class="slider" id="speed-slider" min="0.1" max="1.0" step="0.1" value="0.5">
+                                    <div class="value-display">Speed: <span id="speed-value">0.5</span></div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Directional Movement</h4>
+                                <div class="control-grid">
+                                    <button class="btn btn-primary" onclick="moveRobot('forward')">
+                                        <i class="fas fa-arrow-up"></i>
+                                        <span>Forward</span>
+                                    </button>
+                                    <button class="btn btn-primary" onclick="moveRobot('backward')">
+                                        <i class="fas fa-arrow-down"></i>
+                                        <span>Backward</span>
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="moveRobot('strafe_left')">
+                                        <i class="fas fa-arrow-left"></i>
+                                        <span>Left</span>
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="moveRobot('strafe_right')">
+                                        <i class="fas fa-arrow-right"></i>
+                                        <span>Right</span>
+                                    </button>
+                                    <button class="btn btn-warning" onclick="stopRobot()">
+                                        <i class="fas fa-stop"></i>
+                                        <span>Stop</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Rotation</h4>
+                                <div class="control-grid">
+                                    <button class="btn btn-primary" onclick="turnRobot('left')">
+                                        <i class="fas fa-undo"></i>
+                                        <span>Turn Left</span>
+                                    </button>
+                                    <button class="btn btn-primary" onclick="turnRobot('right')">
+                                        <i class="fas fa-redo"></i>
+                                        <span>Turn Right</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-cog"></i>
+                                <h3>Robot Mode Control</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Operating Modes</h4>
+                                <div class="control-grid">
+                                    <button class="btn btn-success" onclick="setRobotMode('AUTONOMOUS')">
+                                        <i class="fas fa-robot"></i>
+                                        <span>Autonomous</span>
+                                    </button>
+                                    <button class="btn btn-primary" onclick="setRobotMode('MANUAL')">
+                                        <i class="fas fa-hand-paper"></i>
+                                        <span>Manual</span>
+                                    </button>
+                                    <button class="btn btn-warning" onclick="setRobotMode('MAINTENANCE')">
+                                        <i class="fas fa-wrench"></i>
+                                        <span>Maintenance</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <div class="value-display" id="current-mode">Current Mode: <span id="mode-display">UNKNOWN</span></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label>Servo 2:</label><br>
-                    <input type="range" min="0" max="180" value="90" id="servo2-slider" onchange="setServo(2, this.value)">
+
+                <!-- Manipulation Tab -->
+                <div id="manipulation" class="tab-content">
+                    <div class="control-panels">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-hand-paper"></i>
+                                <h3>Picker System Control</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Gripper Control</h4>
+                                <div class="control-grid">
+                                    <button class="btn btn-success" onclick="controlGripper('open')">
+                                        <i class="fas fa-hand-peace"></i>
+                                        <span>Open</span>
+                                    </button>
+                                    <button class="btn btn-warning" onclick="controlGripper('close')">
+                                        <i class="fas fa-hand-rock"></i>
+                                        <span>Close</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Gripper Tilt Angle</h4>
+                                <div class="slider-group">
+                                    <input type="range" class="slider" id="tilt-slider" min="0" max="180" value="90">
+                                    <div class="value-display">Angle: <span id="tilt-value">90</span>°</div>
+                                    <button class="btn btn-secondary" onclick="setGripperTilt()" style="margin-top: 8px;">
+                                        <i class="fas fa-check"></i>
+                                        <span>Set Angle</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Gripper Neck Position</h4>
+                                <div class="slider-group">
+                                    <input type="range" class="slider" id="neck-slider" min="-1" max="1" step="0.1" value="0">
+                                    <div class="value-display">Position: <span id="neck-value">0.0</span></div>
+                                    <button class="btn btn-secondary" onclick="setGripperNeck()" style="margin-top: 8px;">
+                                        <i class="fas fa-check"></i>
+                                        <span>Set Position</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Gripper Base Height</h4>
+                                <div class="slider-group">
+                                    <input type="range" class="slider" id="base-slider" min="0" max="1" step="0.1" value="0.5">
+                                    <div class="value-display">Height: <span id="base-value">0.5</span></div>
+                                    <button class="btn btn-secondary" onclick="setGripperBase()" style="margin-top: 8px;">
+                                        <i class="fas fa-check"></i>
+                                        <span>Set Height</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-home"></i>
+                                <h3>Picker System Actions</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Quick Actions</h4>
+                                <div class="control-grid">
+                                    <button class="btn btn-primary" onclick="homePickerSystem()">
+                                        <i class="fas fa-home"></i>
+                                        <span>Home All</span>
+                                    </button>
+                                    <button class="btn btn-success" onclick="preparePickup()">
+                                        <i class="fas fa-hand-holding"></i>
+                                        <span>Pickup Ready</span>
+                                    </button>
+                                    <button class="btn btn-warning" onclick="preparePlace()">
+                                        <i class="fas fa-hand-holding-heart"></i>
+                                        <span>Place Ready</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label>Servo 3:</label><br>
-                    <input type="range" min="0" max="180" value="90" id="servo3-slider" onchange="setServo(3, this.value)">
+
+                <!-- Containers Tab -->
+                <div id="containers" class="tab-content">
+                    <div class="control-panels">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-boxes"></i>
+                                <h3>Container Management</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Left Side Containers</h4>
+                                <div class="control-grid">
+                                    <button class="btn btn-primary" onclick="controlContainer('left_front', 'load')">
+                                        <i class="fas fa-arrow-up"></i>
+                                        <span>Front Load</span>
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="controlContainer('left_front', 'unload')">
+                                        <i class="fas fa-arrow-down"></i>
+                                        <span>Front Unload</span>
+                                    </button>
+                                    <button class="btn btn-primary" onclick="controlContainer('left_back', 'load')">
+                                        <i class="fas fa-arrow-up"></i>
+                                        <span>Back Load</span>
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="controlContainer('left_back', 'unload')">
+                                        <i class="fas fa-arrow-down"></i>
+                                        <span>Back Unload</span>
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Right Side Containers</h4>
+                                <div class="control-grid">
+                                    <button class="btn btn-success" onclick="controlContainer('right_front', 'load')">
+                                        <i class="fas fa-arrow-up"></i>
+                                        <span>Front Load</span>
+                                    </button>
+                                    <button class="btn btn-warning" onclick="controlContainer('right_front', 'unload')">
+                                        <i class="fas fa-arrow-down"></i>
+                                        <span>Front Unload</span>
+                                    </button>
+                                    <button class="btn btn-success" onclick="controlContainer('right_back', 'load')">
+                                        <i class="fas fa-arrow-up"></i>
+                                        <span>Back Load</span>
+                                    </button>
+                                    <button class="btn btn-warning" onclick="controlContainer('right_back', 'unload')">
+                                        <i class="fas fa-arrow-down"></i>
+                                        <span>Back Unload</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label>Servo 4:</label><br>
-                    <input type="range" min="0" max="180" value="90" id="servo4-slider" onchange="setServo(4, this.value)">
+
+                <!-- Automation Tab -->
+                <div id="automation" class="tab-content">
+                    <div class="automation-panel">
+                        <div class="automation-card">
+                            <i class="fas fa-route"></i>
+                            <h4>Autonomous Patrol</h4>
+                            <p>Execute multi-waypoint autonomous navigation</p>
+                            <div class="form-group">
+                                <label>Waypoints (JSON format):</label>
+                                <textarea id="patrol-waypoints" class="form-input" rows="3" placeholder='[{"position": {"x": 0, "y": 0, "z": 0}}, {"position": {"x": 2, "y": 0, "z": 0}}]'></textarea>
+                            </div>
+                            <div class="form-group">
+                                <label>Speed:</label>
+                                <input type="number" id="patrol-speed" class="form-input" value="0.5" step="0.1" min="0.1" max="1.0">
+                            </div>
+                            <button class="btn btn-primary" onclick="executePatrol()">
+                                <i class="fas fa-play"></i>
+                                <span>Start Patrol</span>
+                            </button>
+                        </div>
+
+                        <div class="automation-card">
+                            <i class="fas fa-eye"></i>
+                            <h4>Obstacle Avoidance</h4>
+                            <p>Navigate to target while avoiding obstacles</p>
+                            <div class="form-group">
+                                <label>Target X:</label>
+                                <input type="number" id="target-x" class="form-input" value="3.0" step="0.5">
+                            </div>
+                            <div class="form-group">
+                                <label>Target Y:</label>
+                                <input type="number" id="target-y" class="form-input" value="1.0" step="0.5">
+                            </div>
+                            <button class="btn btn-success" onclick="executeObstacleAvoidance()">
+                                <i class="fas fa-route"></i>
+                                <span>Navigate</span>
+                            </button>
+                        </div>
+
+                        <div class="automation-card">
+                            <i class="fas fa-hand-holding-heart"></i>
+                            <h4>Pick & Place</h4>
+                            <p>Complete manipulation sequence</p>
+                            <div class="form-group">
+                                <label>Pickup Location:</label>
+                                <input type="text" id="pickup-location" class="form-input" placeholder='{"position": {"x": 1, "y": 0, "z": 0}}'>
+                            </div>
+                            <div class="form-group">
+                                <label>Place Location:</label>
+                                <input type="text" id="place-location" class="form-input" placeholder='{"position": {"x": -1, "y": 0, "z": 0}}'>
+                            </div>
+                            <button class="btn btn-warning" onclick="executePickPlace()">
+                                <i class="fas fa-exchange-alt"></i>
+                                <span>Execute</span>
+                            </button>
+                        </div>
+
+                        <div class="automation-card">
+                            <i class="fas fa-brain"></i>
+                            <h4>n8n Integration</h4>
+                            <p>Trigger workflow automation</p>
+                            <div class="form-group">
+                                <label>Command:</label>
+                                <input type="text" id="n8n-command" class="form-input" placeholder="forward">
+                            </div>
+                            <button class="btn btn-secondary" onclick="triggerN8nWorkflow()">
+                                <i class="fas fa-play-circle"></i>
+                                <span>Trigger Workflow</span>
+                            </button>
+                        </div>
+                    </div>
                 </div>
-                <div>
-                    <label>Servo 5:</label><br>
-                    <input type="range" min="0" max="180" value="90" id="servo5-slider" onchange="setServo(5, this.value)">
+
+                <!-- Safety Tab -->
+                <div id="safety" class="tab-content">
+                    <div class="control-panels">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-shield-alt"></i>
+                                <h3>Emergency Controls</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Emergency Actions</h4>
+                                <div class="control-grid">
+                                    <button class="btn btn-danger" onclick="emergencyStop()" style="grid-column: span 2;">
+                                        <i class="fas fa-exclamation-triangle"></i>
+                                        <span>EMERGENCY STOP</span>
+                                    </button>
+                                    <button class="btn btn-warning" onclick="emergencyStopActivate()">
+                                        <i class="fas fa-stop-circle"></i>
+                                        <span>Activate Stop</span>
+                                    </button>
+                                    <button class="btn btn-success" onclick="emergencyStopDeactivate()">
+                                        <i class="fas fa-play-circle"></i>
+                                        <span>Deactivate Stop</span>
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-            </div>
-        </div>
-        
-        <div class="status-panel">
-            <h3>System Log</h3>
-            <div class="log-panel" id="log-panel"></div>
+
+                <!-- Status Tab -->
+                <div id="status" class="tab-content">
+                    <div class="control-panels">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-chart-line"></i>
+                                <h3>System Status</h3>
+                            </div>
+
+                            <div class="status-grid" id="status-grid">
+                                <!-- Status will be populated by JavaScript -->
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-terminal"></i>
+                                <h3>System Log</h3>
+                            </div>
+
+                            <div class="log-panel" id="log-panel"></div>
+                        </div>
+                    </div>
+                </div>
+            </main>
         </div>
     </div>
 
     <script>
+        // Configuration
+        const API_BASE = 'http://localhost:5000';
         let currentSpeed = 0.5;
-        
-        // Speed control
-        document.getElementById('speed-slider').oninput = function() {
-            currentSpeed = parseFloat(this.value);
-            document.getElementById('speed-value').textContent = currentSpeed.toFixed(1);
-        };
-        
-        // Robot control functions
+        let systemStatus = {};
+
+        // Tab switching
+        function showTab(tabName) {
+            document.querySelectorAll('.tab-content').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.nav-tab').forEach(tab => tab.classList.remove('active'));
+
+            document.getElementById(tabName).classList.add('active');
+            event.target.classList.add('active');
+        }
+
+        // API call helper
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            try {
+                const config = {
+                    method: method,
+                    headers: {
+                        'Content-Type': 'application/json'
+                    }
+                };
+
+                if (data) {
+                    config.body = JSON.stringify(data);
+                }
+
+                const response = await fetch(`${API_BASE}${endpoint}`, config);
+                const result = await response.json();
+
+                addLog(`${method} ${endpoint}: ${result.message || result.success ? 'Success' : 'Failed'}`);
+                return result;
+            } catch (error) {
+                addLog(`ERROR ${endpoint}: ${error.message}`);
+                return { success: false, error: error.message };
+            }
+        }
+
+        // Movement controls
         async function moveRobot(direction) {
-            const response = await fetch('/api/robot/move', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({direction: direction, speed: currentSpeed})
-            });
-            const result = await response.json();
-            addLog(`Move ${direction}: ${result.message}`);
+            await apiCall('/api/robot/move', 'POST', { direction, speed: currentSpeed });
         }
-        
+
         async function turnRobot(direction) {
-            const response = await fetch('/api/robot/turn', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({direction: direction, speed: currentSpeed})
-            });
-            const result = await response.json();
-            addLog(`Turn ${direction}: ${result.message}`);
+            await apiCall('/api/robot/turn', 'POST', { direction, speed: currentSpeed });
         }
-        
+
         async function stopRobot() {
-            const response = await fetch('/api/robot/stop', {method: 'POST'});
-            const result = await response.json();
-            addLog(`Stop: ${result.message}`);
+            await apiCall('/api/robot/stop', 'POST');
         }
-        
-        async function controlLifter(action) {
-            const response = await fetch('/api/robot/lifter', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({action: action, speed: currentSpeed})
+
+        // Mode control
+        async function setRobotMode(mode) {
+            const result = await apiCall('/api/robot/mode', 'POST', { mode, reason: 'Web interface request' });
+            if (result.success) {
+                document.getElementById('mode-display').textContent = mode;
+            }
+        }
+
+        // Picker system controls
+        async function controlGripper(command) {
+            await apiCall('/api/robot/picker/gripper', 'POST', { command });
+        }
+
+        async function setGripperTilt() {
+            const angle = parseInt(document.getElementById('tilt-slider').value);
+            await apiCall('/api/robot/picker/gripper_tilt', 'POST', { angle });
+        }
+
+        async function setGripperNeck() {
+            const position = parseFloat(document.getElementById('neck-slider').value);
+            await apiCall('/api/robot/picker/gripper_neck', 'POST', { position });
+        }
+
+        async function setGripperBase() {
+            const height = parseFloat(document.getElementById('base-slider').value);
+            await apiCall('/api/robot/picker/gripper_base', 'POST', { height });
+        }
+
+        async function homePickerSystem() {
+            await apiCall('/api/robot/servos', 'POST', { action: 'home' });
+        }
+
+        async function preparePickup() {
+            await controlGripper('open');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await setGripperBase();
+        }
+
+        async function preparePlace() {
+            await controlGripper('close');
+            await new Promise(resolve => setTimeout(resolve, 500));
+            await setGripperBase();
+        }
+
+        // Container controls
+        async function controlContainer(containerId, action) {
+            await apiCall(`/api/robot/containers/${containerId}`, 'POST', { action });
+        }
+
+        // Automation controls
+        async function executePatrol() {
+            try {
+                const waypoints = JSON.parse(document.getElementById('patrol-waypoints').value);
+                const speed = parseFloat(document.getElementById('patrol-speed').value);
+                await apiCall('/api/robot/patrol', 'POST', { waypoints, patrol_speed: speed });
+            } catch (error) {
+                addLog('ERROR: Invalid waypoints JSON');
+            }
+        }
+
+        async function executeObstacleAvoidance() {
+            const targetX = parseFloat(document.getElementById('target-x').value);
+            const targetY = parseFloat(document.getElementById('target-y').value);
+            await apiCall('/api/robot/obstacle-avoidance', 'POST', {
+                target_location: { position: { x: targetX, y: targetY, z: 0 } }
             });
-            const result = await response.json();
-            addLog(`Lifter ${action}: ${result.message}`);
         }
-        
-        async function setServo(servoNum, angle) {
-            const response = await fetch('/api/robot/servo', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({servo: servoNum, angle: parseFloat(angle)})
-            });
-            const result = await response.json();
-            addLog(`Servo ${servoNum} to ${angle}°: ${result.message}`);
+
+        async function executePickPlace() {
+            try {
+                const pickup = JSON.parse(document.getElementById('pickup-location').value);
+                const place = JSON.parse(document.getElementById('place-location').value);
+                await apiCall('/api/robot/pick-place', 'POST', { pickup_location: pickup, place_location: place });
+            } catch (error) {
+                addLog('ERROR: Invalid location JSON');
+            }
         }
-        
-        async function controlServos(action) {
-            const response = await fetch('/api/robot/servos', {
-                method: 'POST',
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({action: action})
-            });
-            const result = await response.json();
-            addLog(`Servos ${action}: ${result.message}`);
+
+        async function triggerN8nWorkflow() {
+            const command = document.getElementById('n8n-command').value;
+            await apiCall('/webhook/robot-control', 'POST', { command });
         }
-        
+
+        // Safety controls
         async function emergencyStop() {
-            const response = await fetch('/api/robot/emergency', {method: 'POST'});
-            const result = await response.json();
-            addLog(`EMERGENCY STOP: ${result.message}`);
+            await apiCall('/api/robot/emergency-stop', 'POST', { activate: true, reason: 'Web interface emergency stop' });
         }
-        
+
+        async function emergencyStopActivate() {
+            await apiCall('/api/robot/emergency-stop', 'POST', { activate: true, reason: 'Emergency stop activated' });
+        }
+
+        async function emergencyStopDeactivate() {
+            await apiCall('/api/robot/emergency-stop', 'POST', { activate: false, reason: 'Emergency stop deactivated' });
+        }
+
         // Status updates
         async function updateStatus() {
             try {
-                const response = await fetch('/api/robot/status');
-                const status = await response.json();
-                
-                document.getElementById('position').textContent = `x: ${status.x.toFixed(1)}, y: ${status.y.toFixed(1)}, θ: ${status.theta.toFixed(1)}`;
-                document.getElementById('lifter').textContent = `${status.lifter.toFixed(1)} cm`;
-                document.getElementById('servo1').textContent = `${status.servo1.toFixed(0)}°`;
-                document.getElementById('servo2').textContent = `${status.servo2.toFixed(0)}°`;
-                document.getElementById('ultrasonic_front').textContent = `${status.ultrasonic_front.toFixed(1)} cm`;
-                document.getElementById('ir_front').textContent = `${status.ir_front.toFixed(1)} cm`;
-                document.getElementById('line_sensor').textContent = `0x${status.line_sensor.toString(16).toUpperCase()}`;
+                const response = await fetch(`${API_BASE}/api/robot/status`);
+                systemStatus = await response.json();
+
+                if (systemStatus.success) {
+                    updateStatusDisplay();
+                }
             } catch (error) {
                 console.error('Status update failed:', error);
+                document.getElementById('connection-status').className = 'status-indicator status-offline';
+                document.getElementById('connection-status').innerHTML = '<i class="fas fa-circle"></i><span>Connection Lost</span>';
             }
         }
-        
+
+        function updateStatusDisplay() {
+            const statusGrid = document.getElementById('status-grid');
+            const data = systemStatus.data || {};
+
+            statusGrid.innerHTML = `
+                <div class="status-card">
+                    <h4>Robot Mode</h4>
+                    <div class="value">${data.mode || 'UNKNOWN'}</div>
+                </div>
+                <div class="status-card">
+                    <h4>Position</h4>
+                    <div class="value">X: ${(data.current_pose?.position?.x || 0).toFixed(2)}, Y: ${(data.current_pose?.position?.y || 0).toFixed(2)}</div>
+                </div>
+                <div class="status-card">
+                    <h4>Velocity</h4>
+                    <div class="value">${(data.current_velocity?.linear?.x || 0).toFixed(2)} m/s</div>
+                </div>
+                <div class="status-card">
+                    <h4>Safety Status</h4>
+                    <div class="value">${data.emergency_stop_active ? 'EMERGENCY' : 'NORMAL'}</div>
+                </div>
+                <div class="status-card">
+                    <h4>System Health</h4>
+                    <div class="value">${data.safety_systems_ok ? 'OK' : 'ERROR'}</div>
+                </div>
+                <div class="status-card">
+                    <h4>Battery</h4>
+                    <div class="value">${data.battery_level || 0}%</div>
+                </div>
+            `;
+
+            // Update connection status
+            document.getElementById('connection-status').className = 'status-indicator status-online';
+            document.getElementById('connection-status').innerHTML = '<i class="fas fa-circle"></i><span>System Online</span>';
+
+            // Update current mode display
+            document.getElementById('mode-display').textContent = data.mode || 'UNKNOWN';
+        }
+
+        // Slider value updates
+        document.getElementById('speed-slider').addEventListener('input', function() {
+            currentSpeed = parseFloat(this.value);
+            document.getElementById('speed-value').textContent = currentSpeed.toFixed(1);
+        });
+
+        document.getElementById('tilt-slider').addEventListener('input', function() {
+            document.getElementById('tilt-value').textContent = this.value;
+        });
+
+        document.getElementById('neck-slider').addEventListener('input', function() {
+            document.getElementById('neck-value').textContent = parseFloat(this.value).toFixed(1);
+        });
+
+        document.getElementById('base-slider').addEventListener('input', function() {
+            document.getElementById('base-value').textContent = parseFloat(this.value).toFixed(1);
+        });
+
+        // Logging
         function addLog(message) {
             const logPanel = document.getElementById('log-panel');
             const timestamp = new Date().toLocaleTimeString();
-            logPanel.innerHTML += `[${timestamp}] ${message}<br>`;
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+            logPanel.appendChild(logEntry);
             logPanel.scrollTop = logPanel.scrollHeight;
         }
-        
-        // Update status every second
-        setInterval(updateStatus, 1000);
-        
-        // Initial status update
+
+        // Initialize
+        addLog('LKS Robot Control Center initialized');
         updateStatus();
-        addLog('Robot Control Interface initialized');
+
+        // Update status every 2 seconds
+        setInterval(updateStatus, 2000);
     </script>
 </body>
 </html>
@@ -235,185 +1032,47 @@ HTML_TEMPLATE = """
 class WebRobotInterface(Node):
     def __init__(self):
         super().__init__('web_robot_interface')
-        
-        # ROS2 publishers for real hardware
-        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)  # Omni wheels
-        self.lifter_pub = self.create_publisher(Float32, '/lifter/position', 10)  # Lifter
-        self.servo_pub = self.create_publisher(JointState, '/servo/command', 10)  # Servos
-        
-        # Robot state
-        self.robot_x = 0.0
-        self.robot_y = 0.0
-        self.robot_theta = 0.0
-        self.lifter_position = 0.0
-        self.servo_positions = [90.0, 90.0, 90.0, 90.0, 90.0]  # 5 servos at 90 degrees
-        self.ultrasonic_front = 2.0
-        self.ir_front = 0.3
-        self.line_sensor = 0xAA
-        
-        # Flask web server
+
+        # Flask app for the professional web interface
         self.app = Flask(__name__)
-        self.setup_routes()
-        
-        self.get_logger().info('Web Robot Interface started')
-        self.get_logger().info('Access the interface at: http://localhost:5000')
-    
-    def setup_routes(self):
-        """Setup Flask routes"""
-        
+
+        # Setup routes
         @self.app.route('/')
         def index():
             return render_template_string(HTML_TEMPLATE)
-        
-        @self.app.route('/api/robot/move', methods=['POST'])
-        def move_robot():
-            data = request.get_json()
-            direction = data.get('direction', 'stop')
-            speed = data.get('speed', 0.5)
-            
-            cmd = Twist()
-            if direction == 'forward':
-                cmd.linear.x = speed
-            elif direction == 'backward':
-                cmd.linear.x = -speed
-            elif direction == 'strafe_left':
-                cmd.linear.y = speed
-            elif direction == 'strafe_right':
-                cmd.linear.y = -speed
-            
-            self.cmd_vel_pub.publish(cmd)
-            return jsonify({'success': True, 'message': f'Moving {direction} at {speed} m/s'})
-        
-        @self.app.route('/api/robot/turn', methods=['POST'])
-        def turn_robot():
-            data = request.get_json()
-            direction = data.get('direction', 'left')
-            speed = data.get('speed', 0.5)
-            
-            cmd = Twist()
-            if direction == 'left':
-                cmd.angular.z = speed
-            elif direction == 'right':
-                cmd.angular.z = -speed
-            
-            self.cmd_vel_pub.publish(cmd)
-            return jsonify({'success': True, 'message': f'Turning {direction} at {speed} rad/s'})
-        
-        @self.app.route('/api/robot/stop', methods=['POST'])
-        def stop_robot():
-            cmd = Twist()
-            self.cmd_vel_pub.publish(cmd)
-            return jsonify({'success': True, 'message': 'Robot stopped'})
-        
-        @self.app.route('/api/robot/lifter', methods=['POST'])
-        def control_lifter():
-            data = request.get_json()
-            action = data.get('action', 'up')
-            speed = data.get('speed', 0.5)
-            
-            if action == 'up':
-                self.lifter_position += speed * 0.1  # Move up
-            elif action == 'down':
-                self.lifter_position -= speed * 0.1  # Move down
-            
-            # Clamp position
-            self.lifter_position = max(0.0, min(10.0, self.lifter_position))
-            
-            cmd = Float32()
-            cmd.data = self.lifter_position
-            self.lifter_pub.publish(cmd)
-            
-            return jsonify({'success': True, 'message': f'Lifter moved {action} to {self.lifter_position:.1f} cm'})
-        
-        @self.app.route('/api/robot/servo', methods=['POST'])
-        def set_servo():
-            data = request.get_json()
-            servo_num = data.get('servo', 1)
-            angle = data.get('angle', 90.0)
-            
-            # Clamp angle
-            angle = max(0.0, min(180.0, angle))
-            
-            # Update servo position
-            if 1 <= servo_num <= 5:
-                self.servo_positions[servo_num - 1] = angle
-            
-            # Publish servo command
-            cmd = JointState()
-            cmd.name = [f'servo_{i}' for i in range(1, 6)]
-            cmd.position = self.servo_positions
-            self.servo_pub.publish(cmd)
-            
-            return jsonify({'success': True, 'message': f'Servo {servo_num} set to {angle:.0f}°'})
-        
-        @self.app.route('/api/robot/servos', methods=['POST'])
-        def control_servos():
-            data = request.get_json()
-            action = data.get('action', 'home')
-            
-            if action == 'home':
-                self.servo_positions = [90.0, 90.0, 90.0, 90.0, 90.0]
-            
-            # Publish servo command
-            cmd = JointState()
-            cmd.name = [f'servo_{i}' for i in range(1, 6)]
-            cmd.position = self.servo_positions
-            self.servo_pub.publish(cmd)
-            
-            return jsonify({'success': True, 'message': f'All servos moved to {action} position'})
-        
-        @self.app.route('/api/robot/emergency', methods=['POST'])
-        def emergency_stop():
-            # Stop all movement
-            cmd = Twist()
-            self.cmd_vel_pub.publish(cmd)
-            
-            # Move lifter to safe position
-            lifter_cmd = Float32()
-            lifter_cmd.data = 0.0  # Lower lifter
-            self.lifter_pub.publish(lifter_cmd)
-            
-            # Move servos to safe position
-            servo_cmd = JointState()
-            servo_cmd.name = [f'servo_{i}' for i in range(1, 6)]
-            servo_cmd.position = [90.0, 90.0, 90.0, 90.0, 90.0]  # Safe position
-            self.servo_pub.publish(servo_cmd)
-            
-            return jsonify({'success': True, 'message': 'EMERGENCY STOP ACTIVATED - All actuators moved to safe position'})
-        
-        @self.app.route('/api/robot/status')
-        def get_robot_status():
+
+        @self.app.route('/health')
+        def health():
             return jsonify({
-                'x': self.robot_x,
-                'y': self.robot_y,
-                'theta': self.robot_theta,
-                'lifter': self.lifter_position,
-                'servo1': self.servo_positions[0],
-                'servo2': self.servo_positions[1],
-                'ultrasonic_front': self.ultrasonic_front,
-                'ir_front': self.ir_front,
-                'line_sensor': self.line_sensor
+                'status': 'healthy',
+                'service': 'robot_web_interface',
+                'timestamp': time.time()
             })
-    
-    def run_web_server(self):
-        """Run Flask web server in a separate thread"""
-        self.app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False)
+
+        self.get_logger().info('Professional Robot Web Interface initialized')
+        self.get_logger().info('Access the interface at: http://localhost:8000')
+
+    def run_web_interface(self):
+        """Run the web interface in a separate thread"""
+        def run_server():
+            self.app.run(host='0.0.0.0', port=8000, debug=False, threaded=True)
+
+        server_thread = threading.Thread(target=run_server, daemon=True)
+        server_thread.start()
 
 def main(args=None):
     rclpy.init(args=args)
-    interface = WebRobotInterface()
-    
-    # Start web server in a separate thread
-    web_thread = threading.Thread(target=interface.run_web_server)
-    web_thread.daemon = True
-    web_thread.start()
-    
+
     try:
-        rclpy.spin(interface)
+        web_interface = WebRobotInterface()
+        web_interface.run_web_interface()
+
+        # Keep the node alive
+        rclpy.spin(web_interface)
+
     except KeyboardInterrupt:
         pass
     finally:
-        interface.destroy_node()
         rclpy.shutdown()
 
 if __name__ == '__main__':

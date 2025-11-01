@@ -116,12 +116,17 @@
     },
     {
       "parameters": {
-        "message": "🔧 HARDWARE MODE: Container system not yet implemented in ROS2 API. This is a framework for future hardware integration.",
-        "level": "warning"
+        "url": "http://10.0.3.1:5000/api/robot/containers/{{ $json.container_position }}",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"action\": \"{{ $json.container_action }}\"\n}"
       },
-      "name": "Log Hardware Mode Warning",
-      "type": "n8n-nodes-base.log",
-      "typeVersion": 1,
+      "name": "Execute Container Operation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
       "position": [
         680,
         440
@@ -130,33 +135,55 @@
     },
     {
       "parameters": {
-        "values": {
-          "boolean": [
-            {
-              "name": "hardware_available",
-              "value": false
-            }
-          ],
-          "string": [
-            {
-              "name": "operation_status",
-              "value": "hardware_not_available"
-            },
-            {
-              "name": "framework_status",
-              "value": "ready_for_implementation"
-            }
-          ]
-        }
+        "message": "🔧 HARDWARE MODE: Container {{ $json.container_position }} - {{ $json.container_action }} operation completed",
+        "level": "info"
       },
-      "name": "Set Hardware Framework Status",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.2,
+      "name": "Log Hardware Operation Result",
+      "type": "n8n-nodes-base.log",
+      "typeVersion": 1,
       "position": [
         900,
         440
       ],
       "id": "container_007"
+    },
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "hardware_available",
+              "value": true
+            },
+            {
+              "name": "operation_completed",
+              "value": "={{ $json.success }}"
+            }
+          ],
+          "string": [
+            {
+              "name": "operation_status",
+              "value": "hardware_operation_completed"
+            },
+            {
+              "name": "framework_status",
+              "value": "fully_implemented"
+            },
+            {
+              "name": "result_message",
+              "value": "={{ $json.message }}"
+            }
+          ]
+        }
+      },
+      "name": "Set Hardware Operation Results",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        440
+      ],
+      "id": "container_008"
     },
     {
       "parameters": {
@@ -265,10 +292,10 @@
     },
     {
       "parameters": {
-        "message": "🏗️ Container System Framework Status: {{ $json.operation_status }} | Ready Actions: {{ $json.framework_ready_actions }} | Positions: {{ $json.supported_positions }}",
+        "message": "🏗️ Container System Status: {{ $json.operation_status }} | Hardware Available: {{ $json.hardware_available }} | Framework: {{ $json.framework_status }}",
         "level": "info"
       },
-      "name": "Log Framework Status",
+      "name": "Log Final Status",
       "type": "n8n-nodes-base.log",
       "typeVersion": 1,
       "position": [
@@ -306,12 +333,7 @@
         ],
         [
           {
-            "node": "Log Hardware Mode Warning",
-            "type": "main",
-            "index": 0
-          },
-          {
-            "node": "Set Hardware Framework Status",
+            "node": "Execute Container Operation",
             "type": "main",
             "index": 0
           }
@@ -351,18 +373,34 @@
         ]
       ]
     },
-    "Log Hardware Mode Warning": {
+    "Execute Container Operation": {
       "main": [
         [
           {
-            "node": "Set Hardware Framework Status",
+            "node": "Log Hardware Operation Result",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Set Hardware Operation Results",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Set Hardware Framework Status": {
+    "Log Hardware Operation Result": {
+      "main": [
+        [
+          {
+            "node": "Set Hardware Operation Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Hardware Operation Results": {
       "main": [
         [
           {

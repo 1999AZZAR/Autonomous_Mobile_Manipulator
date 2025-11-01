@@ -1,5 +1,5 @@
 {
-  "name": "Control Picker System (Servo Control)",
+  "name": "Control Advanced Picker System",
   "active": false,
   "nodes": [
     {
@@ -27,20 +27,20 @@
         "values": {
           "string": [
             {
-              "name": "gripper_angle",
-              "value": "={{ $json.body.gripper_angle || 90 }}"
+              "name": "gripper_command",
+              "value": "={{ $json.body.gripper_command || 'open' }}"
             },
             {
               "name": "gripper_tilt_angle",
               "value": "={{ $json.body.gripper_tilt_angle || 90 }}"
             },
             {
-              "name": "gripper_neck_angle",
-              "value": "={{ $json.body.gripper_neck_angle || 90 }}"
+              "name": "gripper_neck_position",
+              "value": "={{ $json.body.gripper_neck_position || 0 }}"
             },
             {
-              "name": "gripper_base_angle",
-              "value": "={{ $json.body.gripper_base_angle || 90 }}"
+              "name": "gripper_base_height",
+              "value": "={{ $json.body.gripper_base_height || 0.5 }}"
             }
           ]
         }
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "url": "http://10.0.3.1:5000/api/robot/picker/gripper",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -62,17 +62,17 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": {{ $json.gripper_angle }}\n}"
+        "jsonBody": "{\n  \"command\": \"{{ $json.gripper_command }}\"\n}"
       },
       "id": "control-gripper",
-      "name": "Control Gripper (Servo 1)",
+      "name": "Control Gripper (Open/Close)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [680, 150]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "url": "http://10.0.3.1:5000/api/robot/picker/gripper_tilt",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -81,17 +81,17 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 2,\n  \"angle\": {{ $json.gripper_tilt_angle }}\n}"
+        "jsonBody": "{\n  \"angle\": {{ $json.gripper_tilt_angle }}\n}"
       },
       "id": "control-gripper-tilt",
-      "name": "Control Gripper Tilt (Servo 2)",
+      "name": "Control Gripper Tilt (Angle)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [680, 250]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "url": "http://10.0.3.1:5000/api/robot/picker/gripper_neck",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -100,17 +100,17 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 3,\n  \"angle\": {{ $json.gripper_neck_angle }}\n}"
+        "jsonBody": "{\n  \"position\": {{ $json.gripper_neck_position }}\n}"
       },
       "id": "control-gripper-neck",
-      "name": "Control Gripper Neck (Servo 3)",
+      "name": "Control Gripper Neck (Position)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [680, 350]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/servo",
+        "url": "http://10.0.3.1:5000/api/robot/picker/gripper_base",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -119,10 +119,10 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": {{ $json.gripper_base_angle }}\n}"
+        "jsonBody": "{\n  \"height\": {{ $json.gripper_base_height }}\n}"
       },
       "id": "control-gripper-base",
-      "name": "Control Gripper Base (Servo 4)",
+      "name": "Control Gripper Base (Height)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [680, 450]
@@ -141,7 +141,7 @@
         "jsonBody": "{\n  \"action\": \"home\"\n}"
       },
       "id": "home-all-servos",
-      "name": "Home All Servos",
+      "name": "Home Picker System",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [680, 550]

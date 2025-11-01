@@ -18,6 +18,7 @@ This project provides a complete production-ready robotics platform featuring:
 
 - [Hardware Specifications](#hardware-specifications)
 - [System Architecture](#system-architecture)
+- [API Capabilities Overview](#api-capabilities-overview)
 - [Quick Start](#quick-start)
 - [Project Structure](#project-structure)
 - [Workflow Automation](#workflow-automation)
@@ -71,15 +72,62 @@ The system consists of two main components:
 ### ROS 2 Container
 - **Robot control**: Hardware interface and low-level control
 - **Navigation**: Path planning and obstacle avoidance
-- **Manipulation**: Arm control and manipulation tasks
-- **API server**: REST API for external control
-- **WebSocket server**: Real-time communication
+- **Manipulation**: Advanced 4-component picker system control
+- **Container management**: 4-container load/unload operations
+- **REST API server**: Comprehensive HTTP API (5000) with 20+ endpoints
+- **WebSocket server**: Real-time communication (8765)
+- **ROS 2 services**: Modular automation services (patrol, pick-place, obstacle avoidance)
+
+### Professional Web Interface
+- **User-friendly control center**: Modern web-based robot control interface
+- **Real-time status monitoring**: Live system status and diagnostics
+- **Tabbed control panels**: Organized access to all robot functions
+- **Professional UI/UX**: Responsive design with intuitive controls
+- **API integration**: Frontend for all ROS2 REST API endpoints
 
 ### n8n Workflow Engine
 - **Workflow automation**: High-level task orchestration
-- **HTTP API integration**: Control robot via REST endpoints
+- **HTTP API integration**: Direct control via REST endpoints
 - **Visual workflow designer**: Drag-and-drop automation
-- **Scheduled tasks**: Automated patrol and monitoring
+- **Webhook integration**: Real-time workflow triggers
+- **Scheduled automation**: Patrol, monitoring, and maintenance tasks
+- **Pre-configured workflows**: 33+ robot control workflows
+
+## API Capabilities Overview
+
+The LKS Robot Project provides a comprehensive API ecosystem supporting full robotic automation:
+
+### 🤖 **Robot Control APIs (6 endpoints)**
+- **Basic Movement**: Forward/backward, turning, strafing, emergency stop
+- **Mode Management**: AUTONOMOUS, MANUAL, EMERGENCY, MAINTENANCE modes
+- **Status Monitoring**: Real-time robot state, safety systems, diagnostics
+
+### 🦾 **Advanced Manipulation APIs (4 endpoints)**
+- **Picker System**: 4-component gripper control (open/close, tilt, neck, base height)
+- **Precision Control**: Angle and position control with validation
+- **Force Management**: Configurable gripper force for different objects
+
+### 📦 **Container Management APIs (4 endpoints)**
+- **Load/Unload Operations**: Individual container control
+- **Multi-container Support**: Left/right, front/back positioning
+- **State Management**: Load status tracking and validation
+
+### 🚀 **Automation APIs (3 endpoints)**
+- **Pick & Place**: Complete manipulation sequences with object handling
+- **Autonomous Patrol**: Multi-waypoint navigation with cycle control
+- **Obstacle Avoidance**: Intelligent navigation with dynamic path planning
+
+### 🛡️ **Safety & Emergency APIs (1 endpoint)**
+- **Emergency Stop**: Immediate halt with reason logging
+- **Safety Monitoring**: Collision detection and system health
+- **Force Stop**: Override capabilities for critical situations
+
+### 🔗 **Integration APIs (3 webhooks)**
+- **n8n Workflow Integration**: Direct workflow triggers
+- **Webhook Support**: HTTP callbacks for external systems
+- **Event-driven Automation**: Real-time response capabilities
+
+**Total: 21 API endpoints** providing complete robotic control and automation capabilities.
 
 ## Quick Start
 
@@ -107,9 +155,10 @@ docker compose ps
 ```
 
 ### Access Points
-- **n8n Web Interface**: http://localhost:5678
-- **Robot Web Interface**: http://localhost:5000
-- **ROS 2 Development**: `docker exec -it ros2_sim_container bash`
+- **Professional Web Interface**: http://localhost:8000 *(Recommended for users)*
+- **n8n Workflow Automation**: http://localhost:5678 *(Advanced workflow design)*
+- **Robot REST API**: http://localhost:5000 *(Direct API access)*
+- **ROS 2 Development Environment**: `docker exec -it ros2_sim_container bash`
 
 ### Startup Scripts
 
@@ -196,15 +245,37 @@ The system includes comprehensive n8n workflows matching the actual robot hardwa
 - **Control Servo**: Individual servo positioning (legacy)
 - **Get Robot Status**: Comprehensive status monitoring and reporting
 
-All workflows use HTTP API calls to the robot's REST interface at `http://10.0.3.1:5000`.
+All workflows use HTTP API calls to the robot's comprehensive REST interface at `http://10.0.3.1:5000`, providing full integration between n8n automation and ROS2 robotic control.
 
 ## API Documentation
 
-The robot provides a REST API for external control:
+The robot provides a comprehensive REST API on port 5000 for external control, featuring both direct control and advanced automation capabilities.
 
-### Movement Control
+### System Health & Status
+
 ```bash
-# Move robot forward/backward
+# Health check
+curl http://localhost:5000/health
+
+# Get comprehensive robot status
+curl http://localhost:5000/api/robot/status
+```
+
+### Robot Mode Management
+
+```bash
+# Set robot operating mode
+curl -X POST http://localhost:5000/api/robot/mode \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "AUTONOMOUS", "reason": "Starting automated operation"}'
+
+# Available modes: AUTONOMOUS, MANUAL, EMERGENCY, MAINTENANCE
+```
+
+### Basic Movement Control
+
+```bash
+# Move robot in cardinal directions
 curl -X POST http://localhost:5000/api/robot/move \
   -H "Content-Type: application/json" \
   -d '{"direction": "forward", "speed": 0.5}'
@@ -214,7 +285,12 @@ curl -X POST http://localhost:5000/api/robot/turn \
   -H "Content-Type: application/json" \
   -d '{"direction": "left", "speed": 0.3}'
 
-# Stop robot
+# Strafe movement (omni-directional)
+curl -X POST http://localhost:5000/api/robot/move \
+  -H "Content-Type: application/json" \
+  -d '{"direction": "strafe_left", "speed": 0.4}'
+
+# Stop all movement
 curl -X POST http://localhost:5000/api/robot/stop
 ```
 
@@ -295,9 +371,93 @@ curl -X POST http://localhost:5000/api/robot/servo \
   -d '{"servo": 1, "angle": 90}'
 ```
 
-### Status Monitoring
+### Advanced Automation Operations
+
 ```bash
-# Get robot status
+# Execute pick and place operation
+curl -X POST http://localhost:5000/api/robot/pick-place \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pickup_location": {
+      "position": {"x": 1.0, "y": 0.0, "z": 0.0}
+    },
+    "place_location": {
+      "position": {"x": -1.0, "y": 0.0, "z": 0.0}
+    },
+    "object_type": "box",
+    "gripper_force": 15.0
+  }'
+
+# Execute autonomous patrol
+curl -X POST http://localhost:5000/api/robot/patrol \
+  -H "Content-Type: application/json" \
+  -d '{
+    "waypoints": [
+      {"position": {"x": 0.0, "y": 0.0, "z": 0.0}},
+      {"position": {"x": 2.0, "y": 0.0, "z": 0.0}},
+      {"position": {"x": 2.0, "y": 2.0, "z": 0.0}}
+    ],
+    "patrol_speed": 0.5,
+    "patrol_cycles": 2
+  }'
+
+# Execute obstacle avoidance navigation
+curl -X POST http://localhost:5000/api/robot/obstacle-avoidance \
+  -H "Content-Type: application/json" \
+  -d '{
+    "target_location": {
+      "position": {"x": 3.0, "y": 1.0, "z": 0.0}
+    },
+    "avoidance_distance": 0.5,
+    "max_speed": 0.6
+  }'
+```
+
+### Emergency & Safety Systems
+
+```bash
+# Emergency stop (immediate halt)
+curl -X POST http://localhost:5000/api/robot/emergency-stop \
+  -H "Content-Type: application/json" \
+  -d '{"activate": true, "reason": "Safety emergency"}'
+
+# Activate emergency stop
+curl -X POST http://localhost:5000/api/robot/emergency-stop \
+  -H "Content-Type: application/json" \
+  -d '{"activate": true, "reason": "Manual emergency stop", "force": true}'
+
+# Deactivate emergency stop
+curl -X POST http://localhost:5000/api/robot/emergency-stop \
+  -H "Content-Type: application/json" \
+  -d '{"activate": false, "reason": "Emergency resolved"}'
+```
+
+### n8n Webhook Integration
+
+```bash
+# Robot control webhook (for n8n workflows)
+curl -X POST http://localhost:5000/webhook/robot-control \
+  -H "Content-Type: application/json" \
+  -d '{"command": "forward"}'
+
+# Emergency stop webhook
+curl -X POST http://localhost:5000/webhook/emergency-stop \
+  -H "Content-Type: application/json" \
+  -d '{"activate": true, "reason": "Workflow emergency"}'
+
+# Pick and place webhook
+curl -X POST http://localhost:5000/webhook/robot/pick_place \
+  -H "Content-Type: application/json" \
+  -d '{
+    "pickup_location": {"position": {"x": 1.0, "y": 0.0, "z": 0.0}},
+    "place_location": {"position": {"x": -1.0, "y": 0.0, "z": 0.0}}
+  }'
+```
+
+### Status Monitoring
+
+```bash
+# Get comprehensive robot status (includes safety systems)
 curl http://localhost:5000/api/robot/status
 ```
 
@@ -332,7 +492,43 @@ ros2 launch my_robot_bringup robot.launch.py
 5. Export updated workflows back to files
 
 ### API Development
-The robot API is implemented in `ros2_ws/src/my_robot_automation/scripts/web_robot_interface.py` and can be extended for additional endpoints.
+The robot API is implemented in `ros2_ws/src/my_robot_automation/scripts/rest_api_server.py` and provides comprehensive REST endpoints for robot control and automation.
+
+#### Complete API Endpoint Reference
+
+| Endpoint | Method | Description | Parameters |
+|----------|--------|-------------|------------|
+| `/health` | GET | System health check | None |
+| `/api/robot/status` | GET | Get comprehensive robot status | None |
+| `/api/robot/mode` | POST | Set robot operating mode | `mode`, `reason`, `force` |
+| `/api/robot/move` | POST | Basic movement control | `direction`, `speed` |
+| `/api/robot/turn` | POST | Rotation control | `direction`, `speed` |
+| `/api/robot/stop` | POST | Stop all movement | None |
+| `/api/robot/picker/gripper` | POST | Control gripper open/close | `command` ("open"/"close") |
+| `/api/robot/picker/gripper_tilt` | POST | Control gripper tilt angle | `angle` (0-180°) |
+| `/api/robot/picker/gripper_neck` | POST | Control gripper neck position | `position` (-1.0 to 1.0) |
+| `/api/robot/picker/gripper_base` | POST | Control gripper base height | `height` (0.0 to 1.0) |
+| `/api/robot/containers/{id}` | POST | Control container operations | `action` ("load"/"unload") |
+| `/api/robot/pick-place` | POST | Execute pick and place operation | `pickup_location`, `place_location`, ... |
+| `/api/robot/patrol` | POST | Execute autonomous patrol | `waypoints`, `patrol_speed`, ... |
+| `/api/robot/obstacle-avoidance` | POST | Navigate with obstacle avoidance | `target_location`, `avoidance_distance`, ... |
+| `/api/robot/emergency-stop` | POST | Emergency stop control | `activate`, `reason`, `force` |
+| `/webhook/robot-control` | POST | n8n workflow integration | `command` |
+| `/webhook/emergency-stop` | POST | n8n emergency stop webhook | `activate`, `reason` |
+| `/webhook/robot/pick_place` | POST | n8n pick and place webhook | `pickup_location`, `place_location` |
+
+*Container IDs: `left_front`, `left_back`, `right_front`, `right_back`*
+
+#### Response Format
+All API endpoints return JSON responses with consistent structure:
+```json
+{
+  "success": true|false,
+  "message": "Description of the result",
+  "data": { /* Response data */ },
+  "...": "Additional response fields"
+}
+```
 
 ## Deployment
 

@@ -13,7 +13,7 @@ import uuid
 
 # ROS2 imports
 from geometry_msgs.msg import PoseStamped, Point, Quaternion
-from std_msgs.msg import String, Bool
+from std_msgs.msg import String, Bool, Float32
 
 # Custom imports
 from my_robot_automation.srv import (
@@ -44,6 +44,18 @@ class RESTAPIServer(Node):
         self.robot_status_client = self.create_client(GetRobotStatus, 'get_robot_status')
         self.emergency_stop_client = self.create_client(EmergencyStop, 'emergency_stop')
         self.set_mode_client = self.create_client(SetRobotMode, 'set_robot_mode')
+
+        # Picker system publishers (matching pick_place_server.py)
+        self.gripper_pub = self.create_publisher(Bool, '/picker/gripper', 10)
+        self.gripper_tilt_pub = self.create_publisher(Float32, '/picker/gripper_tilt', 10)
+        self.gripper_neck_pub = self.create_publisher(Float32, '/picker/gripper_neck', 10)
+        self.gripper_base_pub = self.create_publisher(Float32, '/picker/gripper_base', 10)
+
+        # Container system publishers
+        self.container_left_front_pub = self.create_publisher(String, '/containers/left_front', 10)
+        self.container_left_back_pub = self.create_publisher(String, '/containers/left_back', 10)
+        self.container_right_front_pub = self.create_publisher(String, '/containers/right_front', 10)
+        self.container_right_back_pub = self.create_publisher(String, '/containers/right_back', 10)
         
         # Wait for services
         self.wait_for_services()
@@ -305,6 +317,144 @@ class RESTAPIServer(Node):
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
                 
+        # Picker system endpoints
+        @self.app.route('/api/robot/picker/gripper', methods=['POST'])
+        def control_gripper():
+            """Control gripper open/close"""
+            try:
+                data = request.get_json()
+                command = data.get('command', '').lower()
+
+                if command not in ['open', 'close']:
+                    return jsonify({'success': False, 'error': 'Command must be "open" or "close"'}), 400
+
+                # Publish gripper command
+                gripper_cmd = Bool()
+                gripper_cmd.data = (command == 'open')
+                self.gripper_pub.publish(gripper_cmd)
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Gripper {command}ed',
+                    'command': command
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/picker/gripper_tilt', methods=['POST'])
+        def control_gripper_tilt():
+            """Control gripper tilt angle"""
+            try:
+                data = request.get_json()
+                angle = data.get('angle', 90.0)
+
+                # Validate angle range
+                if not (0.0 <= angle <= 180.0):
+                    return jsonify({'success': False, 'error': 'Angle must be between 0 and 180 degrees'}), 400
+
+                # Publish gripper tilt command
+                tilt_cmd = Float32()
+                tilt_cmd.data = float(angle)
+                self.gripper_tilt_pub.publish(tilt_cmd)
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Gripper tilt set to {angle}°',
+                    'angle': angle
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/picker/gripper_neck', methods=['POST'])
+        def control_gripper_neck():
+            """Control gripper neck position"""
+            try:
+                data = request.get_json()
+                position = data.get('position', 0.0)
+
+                # Validate position range (assuming -1.0 to 1.0 for forward/backward)
+                if not (-1.0 <= position <= 1.0):
+                    return jsonify({'success': False, 'error': 'Position must be between -1.0 and 1.0'}), 400
+
+                # Publish gripper neck command
+                neck_cmd = Float32()
+                neck_cmd.data = float(position)
+                self.gripper_neck_pub.publish(neck_cmd)
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Gripper neck position set to {position}',
+                    'position': position
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/picker/gripper_base', methods=['POST'])
+        def control_gripper_base():
+            """Control gripper base height"""
+            try:
+                data = request.get_json()
+                height = data.get('height', 0.0)
+
+                # Validate height range (assuming 0.0 to 1.0 for height)
+                if not (0.0 <= height <= 1.0):
+                    return jsonify({'success': False, 'error': 'Height must be between 0.0 and 1.0'}), 400
+
+                # Publish gripper base command
+                base_cmd = Float32()
+                base_cmd.data = float(height)
+                self.gripper_base_pub.publish(base_cmd)
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Gripper base height set to {height}',
+                    'height': height
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        # Container system endpoints
+        @self.app.route('/api/robot/containers/<container_id>', methods=['POST'])
+        def control_container(container_id):
+            """Control container operations"""
+            try:
+                valid_containers = ['left_front', 'left_back', 'right_front', 'right_back']
+                if container_id not in valid_containers:
+                    return jsonify({'success': False, 'error': f'Invalid container ID. Must be one of: {valid_containers}'}), 400
+
+                data = request.get_json()
+                action = data.get('action', '').lower()
+
+                if action not in ['load', 'unload']:
+                    return jsonify({'success': False, 'error': 'Action must be "load" or "unload"'}), 400
+
+                # Publish container command
+                container_cmd = String()
+                container_cmd.data = action
+
+                if container_id == 'left_front':
+                    self.container_left_front_pub.publish(container_cmd)
+                elif container_id == 'left_back':
+                    self.container_left_back_pub.publish(container_cmd)
+                elif container_id == 'right_front':
+                    self.container_right_front_pub.publish(container_cmd)
+                elif container_id == 'right_back':
+                    self.container_right_back_pub.publish(container_cmd)
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Container {container_id}: {action}',
+                    'container_id': container_id,
+                    'action': action
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
         # n8n webhook endpoints for compatibility
         @self.app.route('/webhook/robot-control', methods=['POST'])
         def robot_control_webhook():
@@ -312,7 +462,7 @@ class RESTAPIServer(Node):
             try:
                 data = request.get_json()
                 command = data.get('command', '').lower()
-                
+
                 if command == 'forward':
                     # Simple movement command
                     return jsonify({
@@ -331,15 +481,15 @@ class RESTAPIServer(Node):
                         'success': False,
                         'error': f'Unknown command: {command}'
                     }), 400
-                    
+
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
-                
+
         @self.app.route('/webhook/emergency-stop', methods=['POST'])
         def emergency_stop_webhook():
             """n8n webhook for emergency stop"""
             return self.emergency_stop()
-            
+
         @self.app.route('/webhook/robot/pick_place', methods=['POST'])
         def pick_place_webhook():
             """n8n webhook for pick and place"""
@@ -352,6 +502,9 @@ class RESTAPIServer(Node):
             
         server_thread = threading.Thread(target=run_server, daemon=True)
         server_thread.start()
+
+        self.get_logger().info('REST API Server started on port 5000 (advanced API)')
+        self.get_logger().info('Access the interface at: http://localhost:5000')
         
     def dict_to_pose_stamped(self, pose_dict):
         """Convert dictionary to PoseStamped message"""

@@ -33,9 +33,10 @@ services:
     privileged: true
     network_mode: "host" # Simplifies GUI forwarding for Gazebo/RViz
     ports:
-      - "5678:5678" # REST API server port
+      - "5678:5678" # n8n workflow interface
+      - "5000:5000" # Advanced REST API server port
+      - "8000:8000" # Professional web interface port
       - "8765:8765" # WebSocket server port
-      - "5000:5000" # Web Robot Interface port
 
   # The n8n Workflow Automation Service
   n8n:

@@ -41,6 +41,57 @@ def generate_launch_description():
         }]
     )
 
+    # Individual service servers
+    pick_place_server = Node(
+        package='my_robot_automation',
+        executable='pick_place_server.py',
+        name='pick_place_server',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time
+        }]
+    )
+
+    patrol_server = Node(
+        package='my_robot_automation',
+        executable='patrol_server.py',
+        name='patrol_server',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time
+        }]
+    )
+
+    obstacle_avoidance_server = Node(
+        package='my_robot_automation',
+        executable='obstacle_avoidance_server.py',
+        name='obstacle_avoidance_server',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time
+        }]
+    )
+
+    emergency_stop_server = Node(
+        package='my_robot_automation',
+        executable='emergency_stop_server.py',
+        name='emergency_stop_server',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time
+        }]
+    )
+
+    robot_status_server = Node(
+        package='my_robot_automation',
+        executable='robot_status_server.py',
+        name='robot_status_server',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time
+        }]
+    )
+
     # REST API server
     rest_api_server = Node(
         package='my_robot_automation',
@@ -50,7 +101,10 @@ def generate_launch_description():
         parameters=[{
             'use_sim_time': use_sim_time
         }],
-        condition=IfCondition(enable_rest_api)
+        condition=IfCondition(enable_rest_api),
+        remappings=[
+            ('/rest_api_server', '/rest_api_server_alt')  # Avoid conflicts
+        ]
     )
 
     # WebSocket server
@@ -77,7 +131,7 @@ def generate_launch_description():
         condition=IfCondition(enable_n8n_bridge)
     )
 
-    # Web robot interface
+    # Professional web interface (frontend for REST API)
     web_robot_interface = Node(
         package='my_robot_automation',
         executable='web_robot_interface.py',
@@ -95,12 +149,21 @@ def generate_launch_description():
         DeclareLaunchArgument('enable_rest_api', default_value='true'),
         DeclareLaunchArgument('enable_websocket', default_value='true'),
         DeclareLaunchArgument('enable_n8n_bridge', default_value='true'),
-        
+
         # Launch robot system
         robot_launch,
-        
+
         # Launch automation services
         automation_server,
+
+        # Launch individual service servers
+        pick_place_server,
+        patrol_server,
+        obstacle_avoidance_server,
+        emergency_stop_server,
+        robot_status_server,
+
+        # Launch API and communication services
         rest_api_server,
         websocket_server,
         n8n_bridge,
