@@ -357,19 +357,31 @@ curl http://localhost:5000  # robot API
 ./workflow_management_tools.sh status           # Check N8N status
 ./workflow_management_tools.sh list             # List available workflows
 
-# Complete workflow management guide: WORKFLOW_MANAGEMENT_README.md
+# Complete workflow management guide: docs/workflows/WORKFLOW_MANAGEMENT_README.md
 ```
 
 ### Raspberry Pi Deployment
 1. Install Ubuntu Server 22.04 on Raspberry Pi 5
 2. Install Docker and Docker Compose
-3. Transfer project files to Raspberry Pi
-4. Build ARM64 compatible images
-5. Start services with production configuration
+3. Follow hardware assembly guide: `docs/hardware/HARDWARE_ASSEMBLY_GUIDE.md`
+4. Configure GPIO pinouts: `docs/hardware/RASPBERRY_PI_PINOUTS.md`
+5. Test hardware connections: `python3 docs/hardware/gpio_test.py`
+6. Transfer project files to Raspberry Pi
+7. Build ARM64 compatible images
+8. Start services with production configuration
 
 ## Documentation
 
-Comprehensive documentation is available in the `docs/` directory:
+Comprehensive documentation is available:
+
+### Hardware Setup
+- `docs/hardware/RASPBERRY_PI_PINOUTS.md` - Complete GPIO pinout configuration
+- `docs/hardware/HARDWARE_ASSEMBLY_GUIDE.md` - Step-by-step hardware assembly
+- `docs/hardware/gpio_test.py` - GPIO testing and validation script
+
+### Software & Workflows
+- `docs/workflows/WORKFLOW_MANAGEMENT_README.md` - Complete workflow management guide
+- `docs/` directory - Additional technical documentation
 
 - **[API Documentation](docs/api/)** - Complete API reference and examples
 - **[Hardware Guide](docs/hardware/)** - Hardware specifications and connections
