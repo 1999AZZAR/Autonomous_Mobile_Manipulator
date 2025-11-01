@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -49,19 +49,12 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/servos",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
+        "url": "http://127.0.0.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
       },
       "id": "home-servos-start",
-      "name": "Home Servos (Start)",
+      "name": "Check System Status (Start)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [680, 200]
@@ -208,7 +201,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/move",
+        "url": "http://127.0.0.1:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -227,7 +220,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/stop",
+        "url": "http://127.0.0.1:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -396,7 +389,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/move",
+        "url": "http://127.0.0.1:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -415,7 +408,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/stop",
+        "url": "http://127.0.0.1:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -444,26 +437,19 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/servos",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
+        "url": "http://127.0.0.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
       },
       "id": "home-servos-final",
-      "name": "Home Servos (Final)",
+      "name": "Check System Status (Final)",
       "type": "n8n-nodes-base.httpRequest",
       "typeVersion": 4.2,
       "position": [3100, 300]
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

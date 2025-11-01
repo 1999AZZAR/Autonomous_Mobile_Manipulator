@@ -3,15 +3,25 @@
 # N8N Workflow Management Tools
 # Comprehensive tool for importing, exporting, and cleaning N8N workflows
 # Supports: import all, export all, clean all, and enhanced workflow management
+#
+# Environment Variables (optional):
+#   N8N_DATA_DIR        - Path to n8n data directory (default: ./n8n_data)
+#   WORKFLOWS_DIR       - Path to workflows directory (default: ./n8n_data/workflows)
+#   EXPORT_DIR          - Path to export directory (default: ./workflow_exports)
+#   BACKUP_DIR          - Path to backup directory (default: ./workflow_backups)
+#   N8N_CONTAINER       - Docker container name for N8N (default: n8n_container)
+#   DOCKER_COMPOSE_FILE - Path to docker-compose.yml file (default: ./docker-compose.yml)
 
 set -e
 
-# Configuration
+# Configuration - can be overridden with environment variables
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-N8N_DATA_DIR="${SCRIPT_DIR}/n8n_data"
-WORKFLOWS_DIR="${N8N_DATA_DIR}/workflows"
-EXPORT_DIR="${SCRIPT_DIR}/workflow_exports"
-BACKUP_DIR="${SCRIPT_DIR}/workflow_backups"
+N8N_DATA_DIR="${N8N_DATA_DIR:-${SCRIPT_DIR}/n8n_data}"
+WORKFLOWS_DIR="${WORKFLOWS_DIR:-${N8N_DATA_DIR}/workflows}"
+EXPORT_DIR="${EXPORT_DIR:-${SCRIPT_DIR}/workflow_exports}"
+BACKUP_DIR="${BACKUP_DIR:-${SCRIPT_DIR}/workflow_backups}"
+N8N_CONTAINER="${N8N_CONTAINER:-n8n_container}"
+DOCKER_COMPOSE_FILE="${DOCKER_COMPOSE_FILE:-${SCRIPT_DIR}/docker-compose.yml}"
 
 # Colors and formatting
 RED='\033[0;31m'
@@ -88,8 +98,8 @@ check_prerequisites() {
     print_success "Docker is accessible"
 
     # Check if n8n container is running
-    if ! docker ps -q -f name=n8n_container | grep -q .; then
-        print_error "N8N container (n8n_container) is not running"
+    if ! docker ps -q -f name=${N8N_CONTAINER} | grep -q .; then
+        print_error "N8N container (${N8N_CONTAINER}) is not running"
         print_info "Start N8N first with: docker compose up -d n8n"
         exit 1
     fi
@@ -197,7 +207,7 @@ export_workflows() {
     print_info "Fetching workflows from N8N..."
 
     # Get all workflows via API
-    local workflows_json=$(docker exec n8n_container curl -s "http://localhost:5678/rest/workflows" 2>/dev/null || echo '{"data": []}')
+    local workflows_json=$(docker exec ${N8N_CONTAINER} curl -s "http://localhost:5678/rest/workflows" 2>/dev/null || echo '{"data": []}')
 
     if ! echo "$workflows_json" | jq -e '.data' >/dev/null 2>&1; then
         print_error "Failed to fetch workflows from N8N API"
@@ -223,7 +233,7 @@ export_workflows() {
             print_info "Exporting: $workflow_name (ID: $workflow_id)"
 
             # Get full workflow data
-            local workflow_data=$(docker exec n8n_container curl -s "http://localhost:5678/rest/workflows/$workflow_id" 2>/dev/null)
+            local workflow_data=$(docker exec ${N8N_CONTAINER} curl -s "http://localhost:5678/rest/workflows/$workflow_id" 2>/dev/null)
 
             if [ -n "$workflow_data" ]; then
                 echo "$workflow_data" > "$export_path/${workflow_name}_${workflow_id}.json"
@@ -241,7 +251,7 @@ export_workflows() {
   \"export_path\": \"$export_path\",
   \"total_workflows\": $workflow_count,
   \"exported_workflows\": $exported,
-  \"n8n_instance\": \"n8n_container\"
+  \"n8n_instance\": \"${N8N_CONTAINER}\"
 }" > "$export_path/export_summary.json"
 
     print_success "Export completed!"
@@ -276,13 +286,13 @@ clean_workflows() {
 
     # Restart N8N
     print_info "Restarting N8N..."
-    docker compose -f "${SCRIPT_DIR}/docker-compose.yml" up -d n8n
+    docker compose -f "${DOCKER_COMPOSE_FILE}" up -d n8n
 
     # Wait for N8N to be ready
     print_info "Waiting for N8N to restart..."
     local attempts=0
     while [ $attempts -lt 30 ]; do
-        if docker exec n8n_container curl -s http://localhost:5678 >/dev/null 2>&1; then
+        if docker exec ${N8N_CONTAINER} curl -s http://localhost:5678 >/dev/null 2>&1; then
             break
         fi
         sleep 1
@@ -295,7 +305,7 @@ clean_workflows() {
     fi
 
     # Verify cleanup
-    local remaining=$(docker exec n8n_container curl -s "http://localhost:5678/rest/workflows" 2>/dev/null | jq '.data | length' 2>/dev/null || echo "0")
+    local remaining=$(docker exec ${N8N_CONTAINER} curl -s "http://localhost:5678/rest/workflows" 2>/dev/null | jq '.data | length' 2>/dev/null || echo "0")
 
     if [ "$remaining" = "0" ]; then
         print_success "All workflows successfully removed from N8N"
@@ -316,26 +326,26 @@ import_workflows() {
     case "$import_type" in
         "enhanced")
             print_info "Importing Enhanced Workflows..."
-            # Dynamically find enhanced workflow files using find command
-            while IFS= read -r file; do
+            # Use glob patterns to find enhanced workflow files
+            for file in "$WORKFLOWS_DIR"/individual_sensor*.json \
+                       "$WORKFLOWS_DIR"/individual_movement*.json \
+                       "$WORKFLOWS_DIR"/individual_servo*.json \
+                       "$WORKFLOWS_DIR"/individual_safety*.json \
+                       "$WORKFLOWS_DIR"/individual_state*.json \
+                       "$WORKFLOWS_DIR"/individual_control_container_system.json; do
                 if [ -f "$file" ]; then
                     workflow_files+=("$file")
                 fi
-            done < <(find "$WORKFLOWS_DIR" -maxdepth 1 \( -name "individual_sensor*.json" \
-                                                         -o -name "individual_movement*.json" \
-                                                         -o -name "individual_servo*.json" \
-                                                         -o -name "individual_safety*.json" \
-                                                         -o -name "individual_state*.json" \
-                                                         -o -name "individual_control_container_system.json" \) 2>/dev/null || true)
+            done
             ;;
         "all")
             print_info "Importing All Workflows..."
-            # Find all JSON files in workflows directory using find command
-            while IFS= read -r file; do
+            # Use glob expansion to find all JSON files (more reliable than process substitution)
+            for file in "$WORKFLOWS_DIR"/*.json; do
                 if [ -f "$file" ]; then
                     workflow_files+=("$file")
                 fi
-            done < <(find "$WORKFLOWS_DIR" -maxdepth 1 -name "*.json" 2>/dev/null || true)
+            done
             ;;
         *)
             print_error "Invalid import type. Use 'enhanced' or 'all'"
@@ -355,15 +365,30 @@ import_workflows() {
 
     print_info "Found $total_files workflow files to import"
 
+    # Get project ID for workflow association
+    print_info "Getting project ID for workflow association..."
+    local project_id=$(docker cp ${N8N_CONTAINER}:/home/node/.n8n/database.sqlite /tmp/n8n_import.db 2>/dev/null && sqlite3 /tmp/n8n_import.db "SELECT id FROM project LIMIT 1;" 2>/dev/null && rm -f /tmp/n8n_import.db)
+
+    if [ -n "$project_id" ]; then
+        print_info "Using project ID: $project_id"
+    else
+        print_warning "Could not get project ID - workflows may not be visible in UI"
+        project_id=""
+    fi
+
     # Import each workflow
     for workflow_file in "${workflow_files[@]}"; do
         if [ -f "$workflow_file" ]; then
             local filename=$(basename "$workflow_file")
             print_info "Importing: $filename"
 
-            # Copy to container and import
-            docker cp "$workflow_file" n8n_container:/home/node/.n8n/workflows/ 2>/dev/null || true
-            docker exec n8n_container n8n import:workflow --input="/home/node/.n8n/workflows/$filename" >/dev/null 2>&1
+            # Copy to container and import with project association
+            docker cp "$workflow_file" ${N8N_CONTAINER}:/home/node/.n8n/workflows/ || true
+            if [ -n "$project_id" ]; then
+                docker exec ${N8N_CONTAINER} n8n import:workflow --input="/home/node/.n8n/workflows/$filename" --projectId="$project_id"
+            else
+                docker exec ${N8N_CONTAINER} n8n import:workflow --input="/home/node/.n8n/workflows/$filename"
+            fi
 
             if [ $? -eq 0 ]; then
                 print_success "Imported: $filename"
@@ -374,25 +399,9 @@ import_workflows() {
             fi
 
             # Cleanup
-            docker exec n8n_container rm -f "/home/node/.n8n/workflows/$filename" 2>/dev/null || true
+            docker exec ${N8N_CONTAINER} rm -f "/home/node/.n8n/workflows/$filename" || true
         fi
     done
-
-    # Associate workflows with project
-    print_info "Associating workflows with project..."
-    local project_id=$(docker exec n8n_container sqlite3 /home/node/.n8n/database.sqlite "SELECT id FROM project LIMIT 1;" 2>/dev/null)
-
-    if [ -n "$project_id" ]; then
-        docker exec n8n_container sqlite3 /home/node/.n8n/database.sqlite << EOF >/dev/null 2>&1
-INSERT OR IGNORE INTO shared_workflow (workflowId, projectId, role, createdAt, updatedAt)
-SELECT id, '${project_id}', 'workflow:owner', datetime('now'), datetime('now')
-FROM workflow_entity
-WHERE id NOT IN (SELECT workflowId FROM shared_workflow);
-EOF
-        print_success "Workflows associated with project"
-    else
-        print_warning "Could not associate workflows with project"
-    fi
 
     print_success "Import completed!"
     print_info "Successfully imported: $imported workflows"
@@ -441,7 +450,7 @@ show_status() {
     print_section "N8N Instance Status"
 
     # Check N8N container
-    if docker ps -q -f name=n8n_container | grep -q .; then
+    if docker ps -q -f name=${N8N_CONTAINER} | grep -q .; then
         print_success "N8N container is running"
     else
         print_error "N8N container is not running"
@@ -449,7 +458,7 @@ show_status() {
     fi
 
     # Check N8N web interface
-    if docker exec n8n_container curl -s http://localhost:5678 >/dev/null 2>&1; then
+    if docker exec ${N8N_CONTAINER} curl -s http://localhost:5678 >/dev/null 2>&1; then
         print_success "N8N web interface is accessible"
     else
         print_error "N8N web interface is not accessible"
@@ -458,7 +467,7 @@ show_status() {
 
     # Get workflow counts
     local db_workflows=$(sqlite3 "${N8N_DATA_DIR}/database.sqlite" "SELECT COUNT(*) FROM workflow_entity;" 2>/dev/null || echo "0")
-    local api_workflows=$(docker exec n8n_container curl -s "http://localhost:5678/rest/workflows" 2>/dev/null | jq '.data | length' 2>/dev/null || echo "0")
+    local api_workflows=$(docker exec ${N8N_CONTAINER} curl -s "http://localhost:5678/rest/workflows" 2>/dev/null | jq '.data | length' 2>/dev/null || echo "0")
 
     print_info "Database workflows: $db_workflows"
     print_info "API accessible workflows: $api_workflows"
@@ -492,7 +501,7 @@ create_backup() {
     fi
 
     # Also export current N8N state if running
-    if docker ps -q -f name=n8n_container | grep -q .; then
+    if docker ps -q -f name=${N8N_CONTAINER} | grep -q .; then
         print_info "Exporting current N8N workflows..."
         export_workflows > /dev/null 2>&1
         if [ -d "$EXPORT_DIR" ]; then
@@ -504,7 +513,7 @@ create_backup() {
     echo "{
   \"backup_timestamp\": \"$timestamp\",
   \"backup_path\": \"$backup_path\",
-  \"n8n_status\": \"$(docker ps -q -f name=n8n_container | wc -l) container(s) running\",
+  \"n8n_status\": \"$(docker ps -q -f name=${N8N_CONTAINER} | wc -l) container(s) running\",
   \"local_workflows\": $(find "$WORKFLOWS_DIR" -name "*.json" 2>/dev/null | wc -l),
   \"description\": \"Complete workflow backup including local files and N8N exports\"
 }" > "$backup_path/backup_summary.json"

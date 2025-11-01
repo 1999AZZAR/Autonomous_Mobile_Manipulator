@@ -1,0 +1,139 @@
+{
+  "name": "Obstacle Avoidance (API-Based)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-initial-status",
+      "name": "Get Initial Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "target_x",
+              "value": "={{ $json.body.target_x || 3.0 }}"
+            },
+            {
+              "name": "target_y",
+              "value": "={{ $json.body.target_y || 0.0 }}"
+            },
+            {
+              "name": "target_z",
+              "value": "={{ $json.body.target_z || 0.0 }}"
+            },
+            {
+              "name": "avoidance_distance",
+              "value": "={{ $json.body.avoidance_distance || 0.5 }}"
+            },
+            {
+              "name": "max_speed",
+              "value": "={{ $json.body.max_speed || 0.5 }}"
+            }
+          ],
+          "boolean": [
+            {
+              "name": "enable_dynamic_avoidance",
+              "value": "={{ $json.body.enable_dynamic_avoidance }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-avoidance-params",
+      "name": "Extract Avoidance Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/obstacle-avoidance",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"target_location\": {\n    \"position\": {\n      \"x\": {{ $json.target_x || 3.0 }},\n      \"y\": {{ $json.target_y || 0.0 }},\n      \"z\": {{ $json.target_z || 0.0 }}\n    }\n  },\n  \"avoidance_distance\": {{ $json.avoidance_distance || 0.5 }},\n  \"max_speed\": {{ $json.max_speed || 0.5 }},\n  \"enable_dynamic_avoidance\": {{ $json.enable_dynamic_avoidance || true }}\n}"
+      },
+      "id": "execute-obstacle-avoidance",
+      "name": "Execute Obstacle Avoidance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://127.0.0.1:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-final-status",
+      "name": "Get Final Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Initial Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Initial Status": {
+      "main": [
+        [
+          {
+            "node": "Extract Avoidance Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Avoidance Parameters": {
+      "main": [
+        [
+          {
+            "node": "Execute Obstacle Avoidance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Obstacle Avoidance": {
+      "main": [
+        [
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  }
+}

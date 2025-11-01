@@ -12,7 +12,7 @@ from flask_cors import CORS
 import uuid
 
 # ROS2 imports
-from geometry_msgs.msg import PoseStamped, Point, Quaternion
+from geometry_msgs.msg import PoseStamped, Point, Quaternion, Twist
 from std_msgs.msg import String, Bool, Float32
 
 # Custom imports
@@ -56,6 +56,9 @@ class RESTAPIServer(Node):
         self.container_left_back_pub = self.create_publisher(String, '/containers/left_back', 10)
         self.container_right_front_pub = self.create_publisher(String, '/containers/right_front', 10)
         self.container_right_back_pub = self.create_publisher(String, '/containers/right_back', 10)
+
+        # Movement control publisher
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
         
         # Wait for services
         self.wait_for_services()
@@ -186,7 +189,182 @@ class RESTAPIServer(Node):
                     
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
-                
+
+        @self.app.route('/api/robot/move', methods=['POST'])
+        def move_robot():
+            """Move robot in specified direction"""
+            try:
+                data = request.get_json()
+                direction = data.get('direction', '').lower()
+                speed = float(data.get('speed', 0.5))
+
+                if direction not in ['forward', 'backward', 'strafe_left', 'strafe_right']:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Invalid direction. Must be forward, backward, strafe_left, or strafe_right'
+                    }), 400
+
+                twist = Twist()
+                if direction == 'forward':
+                    twist.linear.x = speed
+                elif direction == 'backward':
+                    twist.linear.x = -speed
+                elif direction == 'strafe_left':
+                    twist.linear.y = speed
+                elif direction == 'strafe_right':
+                    twist.linear.y = -speed
+
+                self.cmd_vel_pub.publish(twist)
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Robot moving {direction} at speed {speed}',
+                    'direction': direction,
+                    'speed': speed
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/turn', methods=['POST'])
+        def turn_robot():
+            """Turn robot left or right"""
+            try:
+                data = request.get_json()
+                direction = data.get('direction', '').lower()
+                speed = float(data.get('speed', 0.5))
+
+                if direction not in ['left', 'right']:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Invalid direction. Must be left or right'
+                    }), 400
+
+                twist = Twist()
+                if direction == 'left':
+                    twist.angular.z = speed
+                elif direction == 'right':
+                    twist.angular.z = -speed
+
+                self.cmd_vel_pub.publish(twist)
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Robot turning {direction} at speed {speed}',
+                    'direction': direction,
+                    'speed': speed
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/stop', methods=['POST'])
+        def stop_robot():
+            """Stop robot movement"""
+            try:
+                twist = Twist()  # All zeros = stop
+                self.cmd_vel_pub.publish(twist)
+
+                return jsonify({
+                    'success': True,
+                    'message': 'Robot stopped'
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/servo', methods=['POST'])
+        def control_servo():
+            """Control individual servo motor (legacy endpoint)"""
+            try:
+                data = request.get_json()
+                servo_id = data.get('servo', data.get('servo_id'))
+                angle = data.get('angle')
+
+                if servo_id is None or angle is None:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Missing servo_id/servo and angle parameters'
+                    }), 400
+
+                # Map servo IDs to picker components
+                if servo_id == 1:  # Gripper
+                    command = 'open' if angle < 90 else 'close'
+                    self.gripper_pub.publish(Bool(data=command == 'open'))
+                elif servo_id == 2:  # Gripper tilt
+                    self.gripper_tilt_pub.publish(Float32(data=float(angle)))
+                elif servo_id == 3:  # Gripper neck
+                    self.gripper_neck_pub.publish(Float32(data=float(angle)))
+                elif servo_id == 4:  # Gripper base
+                    self.gripper_base_pub.publish(Float32(data=float(angle)))
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Servo {servo_id} set to angle {angle}',
+                    'servo_id': servo_id,
+                    'angle': angle
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/servos', methods=['POST'])
+        def control_servos():
+            """Control all servo motors (legacy endpoint)"""
+            try:
+                data = request.get_json()
+                action = data.get('action', '').lower()
+
+                if action == 'home':
+                    # Home all servos to default positions
+                    self.gripper_pub.publish(Bool(data=True))  # Open gripper
+                    self.gripper_tilt_pub.publish(Float32(data=90.0))  # Center tilt
+                    self.gripper_neck_pub.publish(Float32(data=90.0))  # Center neck
+                    self.gripper_base_pub.publish(Float32(data=90.0))  # Center base
+
+                    return jsonify({
+                        'success': True,
+                        'message': 'All servos homed to default positions',
+                        'action': 'home'
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Unsupported action. Only "home" is supported'
+                    }), 400
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/lifter', methods=['POST'])
+        def control_lifter():
+            """Control lifter mechanism (legacy endpoint)"""
+            try:
+                data = request.get_json()
+                action = data.get('action', '').lower()
+                speed = float(data.get('speed', 0.5))
+
+                # Map lifter actions to gripper base height
+                if action == 'up':
+                    self.gripper_base_pub.publish(Float32(data=180.0))  # Raise to max
+                elif action == 'down':
+                    self.gripper_base_pub.publish(Float32(data=0.0))    # Lower to min
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'Invalid action. Must be "up" or "down"'
+                    }), 400
+
+                return jsonify({
+                    'success': True,
+                    'message': f'Lifter moved {action} at speed {speed}',
+                    'action': action,
+                    'speed': speed
+                })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
         @self.app.route('/api/robot/pick-place', methods=['POST'])
         def execute_pick_place():
             """Execute pick and place operation"""
@@ -488,12 +666,79 @@ class RESTAPIServer(Node):
         @self.app.route('/webhook/emergency-stop', methods=['POST'])
         def emergency_stop_webhook():
             """n8n webhook for emergency stop"""
-            return self.emergency_stop()
+            try:
+                data = request.get_json() or {}
+                activate = data.get('activate', True)
+                reason = data.get('reason', 'Emergency stop via webhook')
+                force = data.get('force', False)
+
+                request_msg = EmergencyStop.Request()
+                request_msg.activate = activate
+                request_msg.reason = reason
+                request_msg.force_stop = force
+
+                future = self.emergency_stop_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+                if future.result() is not None:
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'emergency_stop_active': response.emergency_stop_active,
+                        'stop_reason': response.stop_reason
+                    })
+                else:
+                    return jsonify({'success': False, 'error': 'Service call failed'}), 500
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
 
         @self.app.route('/webhook/robot/pick_place', methods=['POST'])
         def pick_place_webhook():
             """n8n webhook for pick and place"""
-            return self.execute_pick_place()
+            try:
+                data = request.get_json()
+
+                # Validate required fields
+                required_fields = ['pickup_location', 'place_location']
+                for field in required_fields:
+                    if field not in data:
+                        return jsonify({'success': False, 'error': f'Missing required field: {field}'}), 400
+
+                request_msg = ExecutePickPlace.Request()
+
+                # Set pickup location
+                pickup = data['pickup_location']
+                request_msg.pickup_location = self.dict_to_pose_stamped(pickup)
+
+                # Set place location
+                place = data['place_location']
+                request_msg.place_location = self.dict_to_pose_stamped(place)
+
+                # Set optional parameters
+                request_msg.object_type = data.get('object_type', 'unknown')
+                request_msg.object_height = data.get('object_height', 0.05)
+                request_msg.gripper_force = data.get('gripper_force', 10.0)
+                request_msg.timeout_seconds = data.get('timeout_seconds', 60.0)
+
+                future = self.pick_place_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=request_msg.timeout_seconds + 10)
+
+                if future.result() is not None:
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'execution_time': response.execution_time,
+                        'task_id': response.task_id,
+                        'final_pose': self.pose_stamped_to_dict(response.final_pose)
+                    })
+                else:
+                    return jsonify({'success': False, 'error': 'Service call failed'}), 500
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
             
     def start_flask_server(self):
         """Start Flask server in separate thread"""
@@ -513,15 +758,15 @@ class RESTAPIServer(Node):
         pose.header.frame_id = pose_dict.get('frame_id', 'map')
         
         position = pose_dict.get('position', {})
-        pose.pose.position.x = position.get('x', 0.0)
-        pose.pose.position.y = position.get('y', 0.0)
-        pose.pose.position.z = position.get('z', 0.0)
-        
+        pose.pose.position.x = float(position.get('x', 0.0))
+        pose.pose.position.y = float(position.get('y', 0.0))
+        pose.pose.position.z = float(position.get('z', 0.0))
+
         orientation = pose_dict.get('orientation', {})
-        pose.pose.orientation.x = orientation.get('x', 0.0)
-        pose.pose.orientation.y = orientation.get('y', 0.0)
-        pose.pose.orientation.z = orientation.get('z', 0.0)
-        pose.pose.orientation.w = orientation.get('w', 1.0)
+        pose.pose.orientation.x = float(orientation.get('x', 0.0))
+        pose.pose.orientation.y = float(orientation.get('y', 0.0))
+        pose.pose.orientation.z = float(orientation.get('z', 0.0))
+        pose.pose.orientation.w = float(orientation.get('w', 1.0))
         
         return pose
         

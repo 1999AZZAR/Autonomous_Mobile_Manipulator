@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/picker/gripper",
+        "url": "http://127.0.0.1:5000/api/robot/picker/gripper",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/picker/gripper_tilt",
+        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_tilt",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -91,7 +91,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/picker/gripper_neck",
+        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_neck",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -110,7 +110,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/picker/gripper_base",
+        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_base",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -129,26 +129,7 @@
     },
     {
       "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/servos",
-        "method": "POST",
-        "options": {
-          "bodyContentType": "json",
-          "headers": {
-            "Content-Type": "application/json"
-          }
-        },
-        "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
-      },
-      "id": "home-all-servos",
-      "name": "Home Picker System",
-      "type": "n8n-nodes-base.httpRequest",
-      "typeVersion": 4.2,
-      "position": [680, 550]
-    },
-    {
-      "parameters": {
-        "url": "http://10.0.3.1:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -204,11 +185,6 @@
             "node": "Control Gripper Base (Servo 4)",
             "type": "main",
             "index": 0
-          },
-          {
-            "node": "Home All Servos",
-            "type": "main",
-            "index": 0
           }
         ]
       ]
@@ -247,17 +223,6 @@
       ]
     },
     "Control Gripper Base (Servo 4)": {
-      "main": [
-        [
-          {
-            "node": "Get Final Status",
-            "type": "main",
-            "index": 0
-          }
-        ]
-      ]
-    },
-    "Home All Servos": {
       "main": [
         [
           {
