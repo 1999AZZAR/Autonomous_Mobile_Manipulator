@@ -150,7 +150,9 @@ The LKS Robot Project provides a comprehensive API ecosystem supporting full rob
 - Docker and Docker Compose
 - Git
 
-### Installation
+### Installation Options
+
+#### Option 1: Development Setup (Ubuntu/Debian)
 ```bash
 # Clone the repository
 git clone <repository-url>
@@ -167,6 +169,18 @@ docker compose up --build -d
 
 # Verify services are running
 docker compose ps
+```
+
+#### Option 2: Raspberry Pi Production Setup
+For Raspberry Pi deployment, follow the comprehensive setup guide:
+
+```bash
+# On Raspberry Pi 5 with Ubuntu Server 22.04
+# Run the automated setup script
+./setup_raspberry_pi.sh
+
+# Or follow the detailed guide
+# See: docs/deployment/raspberry_pi_setup.md
 ```
 
 ### Access Points
@@ -565,7 +579,7 @@ All API endpoints return JSON responses with consistent structure:
 
 ## Deployment
 
-### Production Deployment
+### Production Deployment (Ubuntu/Debian)
 ```bash
 # Stop development containers
 docker compose down
@@ -590,14 +604,37 @@ curl http://localhost:5000  # robot API
 ```
 
 ### Raspberry Pi Deployment
-1. Install Ubuntu Server 22.04 on Raspberry Pi 5
-2. Install Docker and Docker Compose
-3. Follow hardware assembly guide: `docs/hardware/HARDWARE_ASSEMBLY_GUIDE.md`
-4. Configure GPIO pinouts: `docs/hardware/RASPBERRY_PI_PINOUTS.md`
-5. Test hardware connections: `python3 docs/hardware/gpio_test.py`
-6. Transfer project files to Raspberry Pi
-7. Build ARM64 compatible images
-8. Start services with production configuration
+For comprehensive Raspberry Pi setup, see the dedicated guide:
+
+**📖 [Complete Raspberry Pi Setup Guide](docs/deployment/raspberry_pi_setup.md)**
+
+#### Quick Raspberry Pi Setup
+```bash
+# On Raspberry Pi 5 with Ubuntu Server 22.04
+# Run the automated setup script
+./setup_raspberry_pi.sh
+
+# Follow the prompts and reboot when instructed
+sudo reboot
+
+# After reboot, deploy the robot
+cd LKS_Robot_Project
+docker compose -f docker-compose.prod.yml up -d
+
+# Access the robot
+# n8n: http://raspberrypi:5678
+# API: http://raspberrypi:5000
+```
+
+#### Manual Raspberry Pi Setup Steps
+1. **OS Installation**: Ubuntu Server 22.04 LTS (64-bit) on Raspberry Pi 5
+2. **Hardware Configuration**: GPIO, I2C, SPI, UART setup
+3. **System Optimization**: Performance tuning for ARM64
+4. **Docker Setup**: ARM64-compatible container deployment
+5. **Project Deployment**: Automated service startup
+6. **Hardware Testing**: GPIO, motors, sensors verification
+
+**🔗 See: [docs/deployment/raspberry_pi_setup.md](docs/deployment/raspberry_pi_setup.md)**
 
 ## Documentation
 
@@ -608,12 +645,17 @@ Comprehensive documentation is available:
 - `docs/hardware/HARDWARE_ASSEMBLY_GUIDE.md` - Step-by-step hardware assembly
 - `docs/hardware/gpio_test.py` - GPIO testing and validation script
 
+### Raspberry Pi Deployment
+- `docs/deployment/raspberry_pi_setup.md` - Complete Raspberry Pi ARM64 setup guide
+- `setup_raspberry_pi.sh` - Automated Raspberry Pi configuration script
+
 ### Software & Workflows
 - `docs/workflows/WORKFLOW_MANAGEMENT_README.md` - Complete workflow management guide
 - `docs/` directory - Additional technical documentation
 
 - **[API Documentation](docs/api/)** - Complete API reference and examples
 - **[Hardware Guide](docs/hardware/)** - Hardware specifications and connections
+- **[Raspberry Pi Setup](docs/deployment/raspberry_pi_setup.md)** - ARM64 deployment guide
 - **[Installation Guide](docs/installation/)** - Detailed installation instructions
 - **[Development Guide](docs/development/)** - Development workflow and best practices
 - **[Deployment Guide](docs/deployment/)** - Production deployment procedures
