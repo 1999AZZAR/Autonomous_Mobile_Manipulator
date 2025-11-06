@@ -714,15 +714,67 @@ Comprehensive documentation is available:
 
 ### Software & Workflows
 
-- `docs/workflows/WORKFLOW_MANAGEMENT_README.md` - Complete workflow management guide
-- `docs/` directory - Additional technical documentation
-- **[API Documentation](docs/api/)** - Complete API reference and examples
-- **[Hardware Guide](docs/hardware/)** - Hardware specifications and connections
-- **[Raspberry Pi Setup](docs/deployment/raspberry_pi_setup.md)** - ARM64 deployment guide
-- **[Installation Guide](docs/installation/)** - Detailed installation instructions
-- **[Development Guide](docs/development/)** - Development workflow and best practices
-- **[Deployment Guide](docs/deployment/)** - Production deployment procedures
-- **[Troubleshooting](docs/troubleshooting/)** - Common issues and solutions
+#### **Core Documentation**
+
+- **[Control Systems Documentation](docs/software/CONTROL_SYSTEMS.md)** - Complete PID control, motion control, navigation, and safety systems
+- **[Software Configuration Guide](docs/software/README.md)** - Comprehensive software setup, ROS2 configuration, and system architecture
+- **[Workflow Management Guide](docs/workflows/WORKFLOW_MANAGEMENT_README.md)** - Complete n8n workflow automation guide
+
+#### **API & Development**
+
+- **[API Documentation](docs/api/)** - Complete REST API reference with 25+ endpoints for robot control
+- **[Development Guide](docs/development/)** - Development workflow, ROS2 programming, and best practices
+- **[Installation Guide](docs/installation/)** - Detailed installation instructions for all platforms
+
+#### **Hardware & Deployment**
+
+- **[Hardware Guide](docs/hardware/)** - Complete hardware specifications, pinouts, and assembly guides
+- **[Raspberry Pi Setup](docs/deployment/raspberry_pi_setup.md)** - ARM64 deployment guide for production hardware
+- **[Deployment Guide](docs/deployment/)** - Production deployment procedures and containerization
+- **[Troubleshooting Guide](docs/troubleshooting/)** - Common issues, solutions, and debugging procedures
+
+#### **Project Overview**
+
+- **[Project Overview](docs/project_overview.md)** - High-level project structure and component relationships
+- **[Workflows README](docs/README.md)** - Documentation overview and navigation guide
+
+#### **n8n Workflow Automation**
+
+The system includes **33+ pre-configured n8n workflows** covering:
+
+**Combination Workflows:**
+
+- Robot Simple Test, Emergency Stop, Pick & Place, Mobile Pick & Place
+- Inspection Patrol, Material Transport, Search & Retrieve, Emergency Response
+- System Calibration, Production Line, Object Recognition, Obstacle Avoidance
+- Path Planning with sensor integration
+
+**Individual Control Workflows:**
+
+- Control Omni Wheels (3-wheel system), Control Picker System (4 components)
+- Control Container System (4 containers), Hardware Controls, Sensor Monitoring
+- All workflows use HTTP API calls to `http://localhost:5000` for full ROS2 integration
+
+#### **Control System Features**
+
+**PID Control Implementation:**
+
+- **Wheel Motors**: Built-in PID velocity control with acceleration limiting
+- **Lifter Motor**: High-precision PID positioning (Kp=100, Ki=0.01, Kd=10)
+- **Servo Motors**: Precise angular control (Kp=50, Ki=0.01, Kd=5) for all 5 servos
+- **Anti-windup Protection**: Prevents integral accumulation during saturation
+
+**Motion Control:**
+
+- **Omni-directional Movement**: 3-wheel kinematic control with lateral capability
+- **Smooth Acceleration**: Velocity ramping prevents wheel slippage
+- **Real-time Response**: 100Hz control loops for responsive operation
+
+**Safety Systems:**
+
+- **Emergency Stop**: <100ms response time with multi-layer protection
+- **Obstacle Avoidance**: LIDAR-based reactive navigation
+- **Velocity Limiting**: Configurable speed and acceleration limits
 
 ## License
 
