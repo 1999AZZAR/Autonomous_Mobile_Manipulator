@@ -4,11 +4,12 @@ This guide provides comprehensive instructions for assembling and configuring th
 
 ## Robot Overview
 
-The Autonomous Mobile Manipulator consists of:
-- **Mobile Base**: 3-wheeled omnidirectional platform
-- **Manipulator Arm**: 6-DOF robotic arm with gripper
-- **Sensors**: LiDAR, IMU, camera, and contact sensors
-- **Computing**: Raspberry Pi 5 with Ubuntu Server
+The LKS Autonomous Mobile Manipulator consists of:
+- **Mobile Base**: 3-wheeled omnidirectional platform (hexagonal shape)
+- **Manipulator System**: Servo-based picker with 4 components (gripper, tilt, neck, base) plus lifter
+- **Sensors**: RPLIDAR A1 (380°), Microsoft USB camera, distance sensors (3x), line sensor, IMU
+- **Computing**: Raspberry Pi 5 with Ubuntu Server and Docker
+- **Container System**: 4-container material transport system
 - **Power System**: Battery management and distribution
 
 ## Bill of Materials
@@ -17,188 +18,253 @@ The Autonomous Mobile Manipulator consists of:
 
 | Component | Model/Specification | Quantity | Purpose |
 |-----------|-------------------|----------|---------|
-| Raspberry Pi 5 | 8GB RAM | 1 | Main computer |
-| Motor Driver | TB6600 or similar | 3 | Omni wheel control |
-| DC Motors | 12V, high torque | 3 | Wheel actuation |
-| Omni Wheels | 100mm diameter | 3 | Omnidirectional movement |
-| LiDAR Sensor | RPLidar A1/A2 | 1 | 360° scanning |
-| IMU Sensor | MPU6050/BNO055 | 1 | Orientation sensing |
-| Camera | Raspberry Pi Camera Module 3 | 1 | Computer vision |
-| Servo Motors | MG996R or similar | 6 | Arm joints |
-| Gripper | Robotic gripper kit | 1 | Object manipulation |
+| Raspberry Pi 5 | 8GB RAM, Ubuntu Server | 1 | Main computer and ROS2 processing |
+| Motor Driver | TB6600 or similar | 4 | 3x omni wheels + 1x lifter motor |
+| DC Motors | 12V, high torque | 4 | 3x wheels + 1x lifter actuation |
+| Omni Wheels | 75mm diameter | 3 | Omnidirectional movement (Back, Front Left, Front Right) |
+| RPLIDAR A1 | 380° scanning | 1 | Laser-based obstacle detection and mapping |
+| Microsoft USB Camera | Standard webcam | 1 | Object recognition and computer vision |
+| Distance Sensors | Laser-based (3x) | 3 | Front, Back Left, Back Right obstacle detection |
+| Line Sensor | IR-based line following | 1 | Line-based navigation |
+| IMU Sensor | MPU6050/BNO055 | 1 | Orientation and motion sensing |
+| Servo Motors | MG996R or similar | 5 | Picker system actuation |
+| Gripper Servo | Standard servo | 1 | Object grasping |
+| Lifter Motor | DC motor with encoder | 1 | Vertical lifting mechanism |
 | Battery | 12V LiPo 5000mAh | 1 | Power supply |
 | Voltage Regulator | 5V/12V buck converter | 2 | Power management |
+| Container System | 4-compartment | 1 | Material transport and storage |
 
 ### Mechanical Components
 
 | Component | Specification | Quantity | Purpose |
 |-----------|---------------|----------|---------|
-| Base Plate | 300mm x 300mm aluminum | 1 | Robot chassis |
-| Support Posts | M8 threaded rod, 200mm | 4 | Structure support |
-| Motor Mounts | 3D printed or aluminum | 3 | Motor attachment |
-| Wheel Hubs | Custom machined | 3 | Wheel attachment |
-| Arm Base | Servo bracket system | 1 | Arm mounting |
-| Gripper Mount | Custom bracket | 1 | End effector |
+| Base Plate | Hexagonal aluminum, 400mm diameter | 1 | Robot chassis |
+| Motor Mounts | Aluminum brackets | 4 | 3x wheel motors + 1x lifter motor |
+| Omni Wheel Hubs | Machined aluminum | 3 | Wheel attachment points |
+| Lifter Frame | Aluminum extrusion, 300mm height | 1 | Vertical lifting mechanism |
+| Picker Assembly | Servo bracket system | 1 | 5-servo manipulator mounting |
+| Container Frame | 4-compartment aluminum | 1 | Material storage system |
+| Sensor Mounts | Plastic/metal brackets | 8 | Sensor positioning (LiDAR, camera, IMU, distance sensors) |
+| Battery Strap | Velcro/metal bracket | 1 | Battery secure mounting |
 
 ### Electrical Components
 
 | Component | Specification | Quantity | Purpose |
 |-----------|---------------|----------|---------|
-| Power Distribution Board | Custom PCB or breadboard | 1 | Power management |
-| Wire Harness | 22AWG silicone wire | Various | Interconnections |
-| Connectors | JST-XH series | Various | Modular connections |
-| Fuse Holders | 10A automotive fuses | 3 | Circuit protection |
-| Heat Sinks | For motor drivers | 3 | Thermal management |
-| Cable Management | Zip ties, cable sleeves | Various | Organization |
+| Power Distribution Board | Custom PCB with fuse protection | 1 | Power routing and protection |
+| Wire Harness | 22AWG silicone wire | Various | Power and signal routing |
+| Connectors | JST-XH and XT series | Various | Modular electrical connections |
+| Fuse Holders | 10A automotive fuses | 4 | Circuit protection (3x motors + main) |
+| Heat Sinks | Aluminum, driver-sized | 4 | Thermal management for motor drivers |
+| Terminal Blocks | 5.08mm pitch | 8 | Power distribution connections |
+| GPIO Header | Raspberry Pi compatible | 1 | Hardware control interface |
+| I2C/SPI Interfaces | Standard bus | 2 | IMU and sensor communication |
 
 ## Assembly Instructions
 
 ### Step 1: Base Platform Assembly
 
 #### Materials Needed:
-- Base plate (300mm x 300mm)
-- 4x M8 threaded rods (200mm length)
-- 8x M8 nuts and washers
-- Motor mounting brackets
+- Hexagonal base plate (400mm diameter)
+- 3x omni wheel motor assemblies
+- 1x lifter motor assembly
+- Motor mounting brackets and hardware
 
 #### Assembly Procedure:
 
-1. **Mark Motor Positions**:
+1. **Position Motor Mounts on Hexagonal Base**:
    ```
-   Place motors at 120° intervals:
-   - Motor 1: (150mm, 86.6mm) from center
-   - Motor 2: (-150mm, 86.6mm) from center
-   - Motor 3: (0mm, -173.2mm) from center
+   Omni wheel motors positioned at 120° intervals on hexagon perimeter:
+   - Back Motor: Center rear position
+   - Front Left Motor: 120° from back motor
+   - Front Right Motor: 240° from back motor
+   - Lifter Motor: Center of base plate
    ```
 
 2. **Install Motor Mounts**:
    ```bash
-   # Secure each motor mount with M4 screws
-   # Ensure proper alignment for 120° spacing
-   # Verify motor shaft alignment
+   # Secure motor brackets to base plate with M4/M5 screws
+   # Ensure motors are oriented correctly for omni-directional movement
+   # Verify motor shaft heights are level
    ```
 
-3. **Mount Omni Wheels**:
+3. **Mount Omni Wheels and Lifter**:
    ```bash
-   # Attach wheels to motor shafts
-   # Ensure wheels are perpendicular to base
-   # Test rotation freedom
+   # Attach omni wheels to motor shafts with set screws
+   # Install lifter column at center position
+   # Test free rotation of all components
    ```
 
 ### Step 2: Electronics Installation
 
 #### Power System Setup:
 
-1. **Battery Installation**:
+1. **Power Distribution Board Installation**:
    ```bash
-   # Mount battery securely to base plate
-   # Connect to power distribution board
-   # Install fuse protection (10A)
+   # Mount power distribution board centrally on base plate
+   # Connect battery input with main fuse protection
+   # Wire 12V outputs to motor drivers (4 channels)
+   # Wire 5V outputs to Raspberry Pi and servo power
    ```
 
-2. **Voltage Regulation**:
+2. **Motor Driver Configuration**:
    ```bash
-   # Connect 12V battery to buck converter
-   # Output 5V for Raspberry Pi and sensors
-   # Output 12V for motor drivers
-   ```
-
-3. **Motor Driver Configuration**:
-   ```bash
-   # Set microstepping (1/16 recommended)
+   # Mount 4 motor drivers (3x omni wheels + 1x lifter)
+   # Set microstepping (1/16 recommended for precision)
    # Configure current limits (1.5A per phase)
-   # Connect enable, direction, and step pins
+   # Connect STEP, DIR, ENABLE pins to Raspberry Pi GPIO
+   ```
+
+3. **Servo Power Distribution**:
+   ```bash
+   # Install servo power regulator (6V for servos)
+   # Connect to 5 servo motors and gripper servo
+   # Ensure proper grounding and decoupling capacitors
    ```
 
 #### Sensor Integration:
 
-1. **LiDAR Mounting**:
+1. **RPLIDAR A1 Installation**:
    ```bash
-   # Mount RPLidar at 200mm height above base
-   # Connect USB to Raspberry Pi
-   # Ensure 360° clearance
+   # Mount RPLIDAR at 200mm height above base center
+   # Connect USB cable to Raspberry Pi USB port
+   # Ensure 380° scanning clearance around robot
    ```
 
-2. **IMU Installation**:
+2. **Microsoft USB Camera Setup**:
    ```bash
+   # Mount camera on front-facing bracket
+   # Connect USB cable to Raspberry Pi
+   # Position for optimal object recognition field of view
+   ```
+
+3. **Distance Sensors (3x Laser)**:
+   ```bash
+   # Mount front sensor at 0° (forward)
+   # Mount back-left sensor at 120° from front
+   # Mount back-right sensor at 240° from front
+   # Connect analog/digital interfaces to Raspberry Pi GPIO
+   ```
+
+4. **Line Sensor and IMU Installation**:
+   ```bash
+   # Mount line sensor at bottom center of base
    # Mount IMU at robot center of gravity
-   # Connect I2C interface to Raspberry Pi
-   # Calibrate orientation
+   # Connect I2C interfaces to Raspberry Pi
    ```
 
-3. **Camera Setup**:
+### Step 3: Picker System Assembly
+
+#### Picker Components (4 main components + lifter):
+
+1. **Lifter Installation**:
    ```bash
-   # Mount camera with forward-facing orientation
-   # Connect CSI ribbon cable to Raspberry Pi
-   # Configure camera parameters
+   # Mount lifter motor assembly to base center
+   # Install vertical guide rails (300mm travel)
+   # Attach picker bracket to lifter carriage
+   # Connect motor driver and encoder feedback
    ```
 
-### Step 3: Manipulator Arm Assembly
-
-#### Arm Structure:
-
-1. **Base Joint Installation**:
+2. **Gripper Servo Installation**:
    ```bash
-   # Mount base servo to arm bracket
-   # Connect to Raspberry Pi PWM pin
-   # Set servo limits (0-180°)
+   # Mount gripper servo to picker bracket
+   # Install gripper fingers with spring return
+   # Connect servo signal wire to Raspberry Pi PWM
+   # Test open/close operation (0-180° range)
    ```
 
-2. **Joint Assembly**:
+3. **Gripper Tilt Servo Installation**:
    ```bash
-   # Connect shoulder, elbow, wrist joints
-   # Install servo horns and linkages
-   # Verify joint movement range
+   # Mount tilt servo above gripper servo
+   # Connect tilt bracket for angle adjustment
+   # Wire PWM signal for tilt control
+   # Calibrate tilt range (±45° from vertical)
    ```
 
-3. **Gripper Installation**:
+4. **Gripper Neck Servo Installation**:
    ```bash
-   # Mount gripper to wrist joint
-   # Connect servo for gripper actuation
-   # Test grip and release functions
+   # Install continuous rotation servo for neck
+   # Mount on tilt bracket for forward/backward movement
+   # Connect PWM signal for position control
+   # Test extension/retraction movement
    ```
 
-### Step 4: Wiring and Connections
+5. **Gripper Base Servo Installation**:
+   ```bash
+   # Mount base servo at top of picker assembly
+   # Connect to neck servo for rotation
+   # Wire PWM for 360° rotation capability
+   # Verify smooth rotational movement
+   ```
+
+### Step 4: Container System Assembly
+
+#### Container Installation:
+
+1. **Container Frame Mounting**:
+   ```bash
+   # Mount 4-compartment container frame to base plate
+   # Position around lifter column (left front, left back, right front, right back)
+   # Secure with appropriate fasteners
+   ```
+
+2. **Container Mechanism Setup**:
+   ```bash
+   # Install load/unload mechanisms for each container
+   # Wire solenoid or servo actuators to Raspberry Pi GPIO
+   # Test load detection sensors
+   ```
+
+### Step 5: Wiring and Connections
 
 #### Power Wiring:
 
 ```
-Battery (+) → Fuse → Power Distribution Board → Buck Converters
-Battery (-) → Power Distribution Board → All Grounds
-
-Buck Converter 1 (12V) → Motor Driver Power
-Buck Converter 2 (5V) → Raspberry Pi, Sensors, Servos
+Battery (+) → Main Fuse (15A) → Power Distribution Board
+Power Distribution Board → Motor Drivers (12V, 4 channels)
+Power Distribution Board → Servo Power Regulator (6V)
+Power Distribution Board → Raspberry Pi (5V)
+Power Distribution Board → Sensors (5V)
+All Grounds → Common Ground Bus
 ```
 
-#### Signal Wiring:
+#### Motor Control Wiring:
 
 ```
-Raspberry Pi GPIO:
-- PWM Pins (18, 19, 21) → Motor Driver STEP inputs
-- GPIO Pins (22, 24, 26) → Motor Driver DIR inputs
-- GPIO Pin 17 → Motor Driver ENABLE (all)
-- I2C Pins (3, 5) → IMU sensor
-- UART Pins (8, 10) → Optional serial devices
-- CSI Port → Camera module
+Raspberry Pi GPIO → Motor Drivers:
+- GPIO 18 → Wheel 1 STEP
+- GPIO 22 → Wheel 1 DIR
+- GPIO 19 → Wheel 2 STEP
+- GPIO 24 → Wheel 2 DIR
+- GPIO 21 → Wheel 3 STEP
+- GPIO 26 → Wheel 3 DIR
+- GPIO 17 → All Wheel ENABLE
+- GPIO 27 → Lifter STEP
+- GPIO 23 → Lifter DIR
+- GPIO 25 → Lifter ENABLE
 ```
 
-#### Motor Driver Connections:
+#### Sensor Wiring:
 
 ```
-Motor Driver 1 (Wheel 1):
-- STEP → GPIO 18
-- DIR → GPIO 22
-- ENABLE → GPIO 17
+Raspberry Pi Interfaces:
+- USB Port 1 → RPLIDAR A1
+- USB Port 2 → Microsoft USB Camera
+- GPIO 12, 13, 16 → Distance Sensors (Front, Back Left, Back Right)
+- GPIO 20 → Line Sensor
+- I2C Bus (GPIO 3, 5) → IMU (MPU6050/BNO055)
+- GPIO 4, 5, 6, 7 → Container Load Sensors
+```
 
-Motor Driver 2 (Wheel 2):
-- STEP → GPIO 19
-- DIR → GPIO 24
-- ENABLE → GPIO 17
+#### Servo Control Wiring:
 
-Motor Driver 3 (Wheel 3):
-- STEP → GPIO 21
-- DIR → GPIO 26
-- ENABLE → GPIO 17
+```
+Raspberry Pi PWM Pins → Servo Motors:
+- GPIO 14 (PWM0) → Gripper Servo
+- GPIO 15 (PWM1) → Gripper Tilt Servo
+- GPIO 18 (PWM2) → Gripper Neck Servo (continuous)
+- GPIO 19 (PWM3) → Gripper Base Servo
+- GPIO 21 (PWM4) → Container Actuators
 ```
 
 ## Testing and Verification
@@ -206,26 +272,57 @@ Motor Driver 3 (Wheel 3):
 ### Motor Testing
 
 ```bash
-# Test individual motor control
-ros2 run my_robot_bringup motor_test
+# Test individual omni wheel motors
+ros2 run my_robot_automation motor_test --wheel 1
+ros2 run my_robot_automation motor_test --wheel 2
+ros2 run my_robot_automation motor_test --wheel 3
+
+# Test lifter motor
+ros2 run my_robot_automation motor_test --lifter
 
 # Expected behavior:
-# - Each motor rotates forward/backward
-# - Proper direction control
-# - Consistent speed across all motors
+# - Omni wheels rotate smoothly in both directions
+# - Lifter moves up/down with encoder feedback
+# - No unusual vibrations or resistance
 ```
 
 ### Sensor Verification
 
 ```bash
-# Test LiDAR functionality
+# Test RPLIDAR A1 scanning
 ros2 topic echo /scan
+
+# Test Microsoft USB camera
+ros2 topic echo /camera/image_raw
+
+# Test distance sensors
+ros2 topic echo /distance/front
+ros2 topic echo /distance/back_left
+ros2 topic echo /distance/back_right
 
 # Test IMU data
 ros2 topic echo /imu/data
 
-# Test camera stream
-ros2 run image_view image_view image:=/camera/image_raw
+# Test line sensor
+ros2 topic echo /line_sensor/raw
+```
+
+### Picker System Testing
+
+```bash
+# Test individual servo motors
+ros2 run my_robot_automation servo_test --gripper
+ros2 run my_robot_automation servo_test --tilt
+ros2 run my_robot_automation servo_test --neck
+ros2 run my_robot_automation servo_test --base
+
+# Test complete picker sequence
+ros2 run my_robot_automation picker_test
+
+# Expected behavior:
+# - All servos move smoothly within ranges
+# - Gripper opens/closes properly
+# - Lifter raises/lowers picker assembly
 ```
 
 ### Integration Testing
@@ -235,9 +332,11 @@ ros2 run image_view image_view image:=/camera/image_raw
 ros2 launch my_robot_bringup robot.launch.py
 
 # Verify:
-# - All sensors publishing data
-# - Motor controllers responding
-# - Robot maintains stable operation
+# - All sensors publishing data at correct rates
+# - Omni wheel movement in all directions
+# - Picker system responds to commands
+# - Container system functions properly
+# - Emergency stop halts all operations
 ```
 
 ## Safety Considerations
@@ -264,34 +363,62 @@ ros2 launch my_robot_bringup robot.launch.py
 
 ### Motor Control Problems
 
-**Issue**: Motors not responding
+**Issue**: Omni wheels not responding
 ```bash
-# Check motor driver power
-# Verify GPIO pin connections
-# Test with simple PWM script
+# Check motor driver power (12V supply)
+# Verify STEP/DIR/ENABLE GPIO connections
+# Test motor drivers individually with diagnostic script
+# Check motor driver configuration (microstepping, current limits)
 ```
 
-**Issue**: Motors running in wrong direction
+**Issue**: Wheels running in wrong direction
 ```bash
-# Reverse DIR pin logic in software
-# Swap motor phase connections
-# Update coordinate system mapping
+# Reverse DIR signal polarity in software configuration
+# Check motor wiring phase (A+/A-/B+/B-)
+# Verify omni wheel orientation on motor shafts
+# Update kinematic calculations if needed
+```
+
+**Issue**: Lifter motor not moving
+```bash
+# Check lifter motor driver power and connections
+# Verify encoder feedback wiring
+# Test limit switches and safety interlocks
+# Check mechanical binding in guide rails
 ```
 
 ### Sensor Issues
 
-**Issue**: LiDAR not detected
+**Issue**: RPLIDAR A1 not detected
 ```bash
-# Check USB connection and power
-# Verify /dev/ttyUSB0 exists
-# Test with lsusb command
+# Check USB connection and power supply
+# Verify /dev/ttyUSB* device creation
+# Test with lsusb and usb-devices commands
+# Check USB port functionality with other devices
+```
+
+**Issue**: Distance sensors inaccurate
+```bash
+# Verify sensor power supply (5V)
+# Check analog/digital signal connections to GPIO
+# Calibrate sensor thresholds and ranges
+# Test sensors individually away from robot
 ```
 
 **Issue**: IMU data incorrect
 ```bash
-# Check I2C bus connectivity
-# Verify sensor mounting orientation
-# Recalibrate sensor offsets
+# Check I2C bus connectivity (i2cdetect command)
+# Verify sensor mounting orientation and calibration
+# Test I2C communication with i2c-tools
+# Recalibrate IMU offsets and scaling
+```
+
+**Issue**: Camera not working
+```bash
+# Check USB connection and power
+# Verify camera device with v4l2-ctl --list-devices
+# Test camera with cheese or guvcview applications
+# Check USB bandwidth and interference
 ```
 
 ## Maintenance Procedures

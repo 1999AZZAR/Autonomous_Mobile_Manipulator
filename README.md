@@ -269,16 +269,17 @@ lks_robot_project/
 │   └── troubleshooting/           # Troubleshooting guides
 ├── n8n_data/                     # n8n workflow data
 │   └── workflows/                # Workflow definitions
-│       ├── robot_basic_control.json
-│       ├── robot_patrol.json
+│       ├── robot_simple_test.json
+│       ├── robot_pick_place.json
+│       ├── robot_mobile_pick_place.json
 │       ├── robot_emergency_stop.json
-│       ├── robot_path_planning.json
-│       ├── robot_line_follower.json
-│       ├── robot_object_recognition.json
-│       ├── individual_control_omni_wheels.json
+│       ├── robot_inspection_patrol.json
+│       ├── robot_material_transport.json
+│       ├── robot_system_calibration.json
+│       ├── individual_sensor_ultrasonic_monitoring.json
 │       ├── individual_control_picker_system.json
+│       ├── individual_control_omni_wheels.json
 │       ├── individual_control_container_system.json
-│       ├── individual_control_hardware_controls.json
 │       └── individual_control_*.json
 └── ros2_ws/                      # ROS 2 workspace
     └── src/                      # ROS 2 packages
@@ -295,14 +296,19 @@ The system includes comprehensive n8n workflows matching the actual robot hardwa
 
 ### Combination Workflows
 
-- **Robot Basic Control**: Manual movement commands for omni wheels
-- **Autonomous Patrol**: Automated patrol with obstacle avoidance
-- **Emergency Stop Monitor**: Safety monitoring and emergency response
-- **Obstacle Avoidance**: Reactive obstacle avoidance behavior
-- **Pick and Place**: Complete manipulation tasks using picker system
-- **Path Planning**: Advanced path planning with map data training
-- **Line Follower**: Line-based navigation with PID control
+- **Robot Simple Test**: Comprehensive system test of all robot capabilities
+- **Robot Emergency Stop**: Emergency safety system and monitoring
+- **Robot Pick and Place**: Basic servo-based pick and place automation
+- **Mobile Pick and Place**: Complete mobile manipulation with navigation
+- **Inspection Patrol**: Autonomous security and inspection patrols
+- **Material Transport**: Container-to-container material transport
+- **Search and Retrieve**: Sensor-based object detection and retrieval
+- **Emergency Response**: Comprehensive safety and emergency response
+- **System Calibration**: Complete system testing and calibration
+- **Production Line**: Manufacturing automation with multiple stations
 - **Object Recognition**: Computer vision for object detection
+- **Obstacle Avoidance**: Reactive obstacle avoidance behavior
+- **Path Planning**: Advanced path planning with sensor integration
 
 ### Individual Control Workflows
 
@@ -436,15 +442,13 @@ curl -X POST http://localhost:5000/api/robot/hardware/mode \
 ### Legacy Actuator Control (for compatibility)
 
 ```bash
-# Control lifter (legacy)
-curl -X POST http://localhost:5000/api/robot/lifter \
-  -H "Content-Type: application/json" \
-  -d '{"action": "up", "speed": 0.5}'
-
-# Control servos (legacy)
+# Legacy servo control (for compatibility)
 curl -X POST http://localhost:5000/api/robot/servo \
   -H "Content-Type: application/json" \
   -d '{"servo": 1, "angle": 90}'
+
+# Note: Lifter control is integrated into picker system
+# Use /api/robot/picker/gripper_base for height control
 ```
 
 ### Advanced Automation Operations

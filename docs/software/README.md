@@ -32,9 +32,11 @@ This guide provides comprehensive instructions for configuring the software comp
 ```
 ros2_ws/
 ├── src/                          # Source code packages
-│   ├── my_robot_bringup/        # Main bringup package
-│   ├── my_robot_description/    # Robot model package
-│   └── custom_packages/         # Additional packages
+│   ├── my_robot_automation/     # Core automation and control
+│   ├── my_robot_bringup/        # System bringup and launch files
+│   ├── my_robot_description/    # Robot URDF model and Gazebo
+│   ├── my_robot_manipulation/   # Servo-based manipulation (minimal)
+│   └── my_robot_navigation/     # Navigation services (minimal)
 ├── install/                      # Built packages (auto-generated)
 ├── build/                        # Build artifacts (auto-generated)
 └── log/                         # Log files (auto-generated)
@@ -42,62 +44,61 @@ ros2_ws/
 
 #### Package Dependencies
 
-**Core Dependencies** (already configured in package.xml):
+**Core Dependencies** (configured in package.xml files):
 ```xml
+<!-- ROS 2 Core -->
+<rclpy>
+<std_msgs>
+<geometry_msgs>
+<sensor_msgs>
+
 <!-- Navigation Stack -->
-<nav2_bringup>
-<nav2_map_server>
-<nav2_amcl>
-<nav2_bt_navigator>
-
-<!-- Manipulation -->
-<moveit_ros_planning_interface>
-<moveit_ros_move_group>
-<moveit_planners_ompl>
-
-<!-- Sensors -->
-<rplidar_ros>
-<imu_filter_madgwick>
-<realsense2_camera>
+<nav2_msgs>
+<tf2_ros>
+<tf2_geometry_msgs>
 
 <!-- Hardware Interface -->
-<ros2_control>
-<controller_manager>
-<diff_drive_controller>
+<rclpy>
+<std_srvs>
+<trajectory_msgs>
+
+<!-- Python Dependencies -->
+<python3-numpy>
+<python3-opencv>
+<python3-flask>
+<python3-websockets>
+<python3-paho-mqtt>
 ```
 
-### Controller Configuration
+### Control System Architecture
 
-#### ROS 2 Control Setup
+#### Direct Hardware Control
 
-**Controller Configuration File**: `ros2_ws/src/my_robot_description/config/controllers.yaml`
+The system uses direct hardware control rather than ROS2 Control framework for simplicity and real-time performance:
 
+**Motor Control**:
+- **Omni Wheels**: 3x DC motors controlled via TB6600 stepper drivers (GPIO-based PWM)
+- **Lifter**: DC motor with encoder feedback for vertical positioning
+- **Servos**: 5x servo motors for picker manipulation (direct PWM control)
+
+**Communication Interfaces**:
+- **GPIO**: Direct Raspberry Pi GPIO control for motors and sensors
+- **I2C**: IMU sensor communication
+- **USB**: RPLIDAR and camera interfaces
+- **Serial**: Optional serial device communication
+
+**Control Parameters**:
 ```yaml
-controller_manager:
-  ros__parameters:
-    update_rate: 100  # Hz
+# Motor control limits (configured in automation scripts)
+motor_limits:
+  max_speed: 1000      # steps/sec for stepper motors
+  acceleration: 500    # steps/sec²
+  microstepping: 16    # 1/16 microstepping
 
-    joint_state_broadcaster:
-      type: joint_state_broadcaster/JointStateBroadcaster
-
-    diff_drive_controller:
-      type: diff_drive_controller/DiffDriveController
-
-    arm_controller:
-      type: joint_trajectory_controller/JointTrajectoryController
-
-    gripper_controller:
-      type: position_controllers/GripperActionController
-```
-
-**Velocity Limits**:
-```yaml
-# Maximum velocities for safety
-linear:
-  x:
-    max_velocity: 1.0    # m/s
-    min_velocity: -1.0   # m/s
-    max_acceleration: 2.0  # m/s²
+servo_limits:
+  pwm_frequency: 50    # Hz
+  min_pulse: 500       # microseconds
+  max_pulse: 2500      # microseconds
 
 angular:
   z:
@@ -106,95 +107,41 @@ angular:
     max_acceleration: 4.0  # rad/s²
 ```
 
-### Navigation Configuration
+### Navigation Implementation
 
-#### Nav2 Parameters
+#### Simplified Navigation System
 
-**Navigation Configuration**: `ros2_ws/src/my_robot_bringup/config/nav2_params.yaml`
+The current implementation uses simplified navigation rather than the full Nav2 stack for easier deployment and maintenance:
 
-```yaml
-amcl:
-  ros__parameters:
-    use_sim_time: true
-    alpha1: 0.2
-    alpha2: 0.2
-    alpha3: 0.2
-    alpha4: 0.2
-    alpha5: 0.2
-    base_frame_id: "base_link"
-    beam_skip_distance: 0.5
-    beam_skip_error_threshold: 0.9
-    beam_skip_threshold: 0.3
-    do_beamskip: false
-    global_frame_id: "map"
-    lambda_short: 0.1
-    laser_likelihood_max_dist: 2.0
-    laser_max_range: 100.0
-    laser_min_range: -1.0
-    laser_model_type: "likelihood_field"
-    max_beams: 30
-    max_particles: 2000
-    min_particles: 500
-    odom_alpha1: 0.2
-    odom_alpha2: 0.2
-    odom_alpha3: 0.2
-    odom_alpha4: 0.2
-    odom_frame_id: "odom"
-    pf_err: 0.05
-    pf_z: 0.99
-    recovery_alpha_fast: 0.0
-    recovery_alpha_slow: 0.0
-    resample_interval: 1
-    robot_model_type: "nav2_amcl::DifferentialMotionModel"
-    save_pose_rate: 0.5
-    sigma_hit: 0.2
-    tf_broadcast: true
-    transform_tolerance: 1.0
-    update_min_a: 0.2
-    update_min_d: 0.25
-    z_hit: 0.5
-    z_max: 0.05
-    z_rand: 0.5
-    z_short: 0.05
+**Navigation Methods**:
+- **Direct Pose Navigation**: Simple waypoint navigation with obstacle avoidance
+- **Patrol Routes**: Pre-defined waypoint sequences with return-to-start capability
+- **Obstacle Avoidance**: Basic reactive obstacle avoidance using LIDAR data
 
-bt_navigator:
-  ros__parameters:
-    use_sim_time: true
-    global_frame: map
-    robot_base_frame: base_link
-    odom_topic: /odom
-    bt_loop_duration: 10
-    default_server_timeout: 20
-    action_server_result_timeout: 900.0
-    navigators: ["navigate_to_pose", "navigate_through_poses"]
-    navigate_to_pose:
-      plugin: "nav2_bt_navigator::NavigateToPoseNavigator"
-      transform_tolerance: 0.1
-      global_frame: map
-      robot_base_frame: base_link
+**Navigation Parameters** (configured in automation scripts):
+```python
+# Navigation settings in robot_automation_server.py
+navigation_params = {
+    'max_linear_speed': 0.5,      # m/s
+    'max_angular_speed': 1.0,     # rad/s
+    'waypoint_tolerance': 0.1,    # meters
+    'obstacle_distance': 0.3,     # meters
+    'patrol_pause_time': 1.0      # seconds at waypoints
+}
+```
 
-controller_server:
-  ros__parameters:
-    use_sim_time: true
-    controller_frequency: 20.0
-    min_x_velocity_threshold: 0.001
-    min_y_velocity_threshold: 0.5
-    min_theta_velocity_threshold: 0.001
-    failure_tolerance: 0.3
-    progress_checker_plugins: ["progress_checker"]
-    goal_checker_plugins: ["goal_checker"]
-    controller_plugins: ["FollowPath"]
+**Future Nav2 Integration**:
+The system is designed to be compatible with Nav2 for advanced navigation features including:
+- SLAM mapping
+- Global path planning
+- Local obstacle avoidance
+- Localization with AMCL
 
-    progress_checker:
-      plugin: "nav2_controller::SimpleProgressChecker"
-      required_movement_radius: 0.5
-      movement_time_allowance: 10.0
-
-    goal_checker:
-      plugin: "nav2_controller::SimpleGoalChecker"
-      xy_goal_tolerance: 0.25
-      yaw_goal_tolerance: 0.25
-      stateful: true
+**Current Limitations**:
+- No global path planning
+- Basic obstacle avoidance only
+- No SLAM or mapping capabilities
+- Simple waypoint navigation
 
     FollowPath:
       plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
@@ -224,56 +171,54 @@ controller_server:
 
 ### Sensor Configuration
 
-#### LiDAR Configuration
+#### Direct Sensor Publishing
 
-**RPLidar Setup**:
-```yaml
-# rplidar_ros configuration
-rplidar_ros:
-  ros__parameters:
-    serial_port: "/dev/ttyUSB0"
-    serial_baudrate: 115200
-    frame_id: "laser_frame"
-    inverted: false
-    angle_compensate: true
-    scan_mode: "Standard"  # Standard, Boost, Sensitivity
+The system uses direct sensor publishing without complex filtering pipelines for simplicity:
+
+**RPLIDAR A1 Configuration** (in `real_robot_sensor_actuator.py`):
+```python
+# RPLIDAR A1 380° scanning parameters
+lidar_config = {
+    'angle_min': -math.pi * 190/180,  # -190 degrees
+    'angle_max': math.pi * 190/180,   # +190 degrees
+    'angle_increment': math.pi / 180.0,  # 1 degree
+    'range_min': 0.1,
+    'range_max': 12.0,  # RPLIDAR A1 range
+    'frame_id': 'rplidar_a1'
+}
 ```
 
-**Laser Scan Processing**:
-```yaml
-# Laser scan filtering and processing
-laser_filters:
-  ros__parameters:
-    scan_filter_chain:
-    - name: range_filter
-      type: laser_filters/LaserScanRangeFilter
-      params:
-        lower_threshold: 0.1
-        upper_threshold: 10.0
-    - name: angular_filter
-      type: laser_filters/LaserScanAngularFilter
-      params:
-        lower_angle: -2.0
-        upper_angle: 2.0
+**Microsoft USB Camera Configuration**:
+```python
+# Camera publishing parameters
+camera_config = {
+    'width': 640,
+    'height': 480,
+    'encoding': 'rgb8',
+    'frame_rate': 30,
+    'frame_id': 'microsoft_camera'
+}
 ```
 
-#### IMU Configuration
+**IMU Configuration** (MPU6050/BNO055):
+```python
+# IMU publishing parameters
+imu_config = {
+    'frame_id': 'imu_link',
+    'publish_rate': 10,  # Hz
+    'use_magnetometer': False  # For MPU6050
+}
+```
 
-**IMU Filter Setup**:
-```yaml
-# IMU filter configuration for sensor fusion
-imu_filter_madgwick:
-  ros__parameters:
-    use_mag: false
-    publish_tf: false
-    world_frame: "enu"
-    frequency: 50.0
-    gain: 0.1
-    zeta: 0.0
-    mag_bias_x: 0.0
-    mag_bias_y: 0.0
-    mag_bias_z: 0.0
-    orientation_stddev: 0.1
+**Distance Sensors** (3x Laser-based):
+```python
+# Distance sensor parameters
+distance_config = {
+    'field_of_view': 0.1,  # ~5.7 degrees
+    'min_range': 0.02,
+    'max_range': 4.0,
+    'frame_ids': ['distance_front', 'distance_back_left', 'distance_back_right']
+}
 ```
 
 #### Camera Configuration

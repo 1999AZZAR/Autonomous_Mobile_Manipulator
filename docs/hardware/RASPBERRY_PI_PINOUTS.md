@@ -53,96 +53,77 @@ Raspberry Pi 5 GPIO Header (40-pin)
 
 ## GPIO Pin Assignments
 
-### **Servo Motors (5x MG996R or similar)**
+### **Motor Drivers (4x TB6600 or similar)**
 
 ```bash
-# PWM Pins for Servo Control (Hardware PWM capable)
-GPIO12 (32) - Servo 1: Gripper Open/Close        (PWM0)
-GPIO13 (33) - Servo 2: Gripper Tilt              (PWM1)
-GPIO18 (12) - Servo 3: Gripper Neck (Continuous) (PWM0)
-GPIO19 (35) - Servo 4: Gripper Base Up/Down      (PWM1)
+# Omni Wheel Motors (3x)
+GPIO17 (11) - All Motors ENABLE
+GPIO18 (12) - Wheel 1 STEP
+GPIO22 (15) - Wheel 1 DIR
+GPIO19 (35) - Wheel 2 STEP
+GPIO24 (18) - Wheel 2 DIR
+GPIO21 (40) - Wheel 3 STEP
+GPIO26 (37) - Wheel 3 DIR
 
-# Software PWM (if needed)
-GPIO21 (40) - Servo 5: Auxiliary Servo
+# Lifter Motor (1x)
+GPIO25 (22) - Lifter ENABLE
+GPIO27 (13) - Lifter STEP
+GPIO23 (16) - Lifter DIR
 ```
 
-### **Omni Wheel Motors (3x DC Motors with Encoders)**
+### **Servo Motors (5x)**
 
 ```bash
-# Motor 1: Back Wheel
-GPIO17 (11) - Direction Control
-GPIO27 (13) - PWM Speed Control (ENA)
-GPIO22 (15) - Encoder A (Interrupt)
-GPIO23 (16) - Encoder B
-
-# Motor 2: Front Left Wheel
-GPIO24 (18) - Direction Control
-GPIO25 (22) - PWM Speed Control (ENB)
-GPIO5  (29) - Encoder A (Interrupt)
-GPIO6  (31) - Encoder B
-
-# Motor 3: Front Right Wheel
-GPIO16 (36) - Direction Control
-GPIO26 (37) - PWM Speed Control (ENC)
-GPIO20 (38) - Encoder A (Interrupt)
-GPIO21 (40) - Encoder B (Alternative pin assignment needed)
+# Picker System Servos
+GPIO14 (8)  - Gripper Servo (Open/Close)
+GPIO15 (10) - Gripper Tilt Servo
+GPIO18 (12) - Gripper Neck Servo (Continuous)
+GPIO19 (35) - Gripper Base Servo (Rotation)
+GPIO21 (40) - Container Actuators
 ```
 
-### **Ultrasonic Sensors (3x HC-SR04)**
+### **Distance Sensors (3x Laser)**
 
 ```bash
-# Front Ultrasonic Sensor
-GPIO4  (7)  - TRIG (Trigger)
-GPIO14 (8)  - ECHO (Echo)
+# Front Distance Sensor
+GPIO12 (32) - Front Sensor Input
 
-# Back Left Ultrasonic Sensor
-GPIO15 (10) - TRIG
-GPIO17 (11) - ECHO (Alternative pin needed)
+# Back Left Distance Sensor
+GPIO13 (33) - Back Left Sensor Input
 
-# Back Right Ultrasonic Sensor
-GPIO18 (12) - TRIG (Alternative pin needed)
-GPIO27 (13) - ECHO (Alternative pin needed)
+# Back Right Distance Sensor
+GPIO16 (36) - Back Right Sensor Input
 ```
 
-### **IR Proximity Sensors (3x Sharp GP2Y0A21YK)**
+### **Line Sensor (Digital)**
 
 ```bash
-# Front IR Sensor (Analog)
-GPIO0 (27) - ADC Channel 0 (MCP3008)
-
-# Left IR Sensor (Analog)
-GPIO1 (28) - ADC Channel 1 (MCP3008)
-
-# Right IR Sensor (Analog)
-GPIO7 (26) - ADC Channel 2 (MCP3008)
+GPIO20 (38) - Line Sensor Raw Data
 ```
 
-### **Line Sensors (8x IR Line Sensors)**
+### **Container Load Sensors (4x)**
 
 ```bash
-# Digital Line Sensor Array (74HC165 Shift Register)
-GPIO8  (24) - SH/LD (Shift/Load)
-GPIO9  (21) - CLK (Clock)
-GPIO10 (19) - QH  (Serial Output)
-GPIO11 (23) - CLK_INH (Clock Inhibit)
+GPIO4  (7)  - Left Front Container
+GPIO5  (29) - Left Back Container
+GPIO6  (31) - Right Front Container
+GPIO7  (26) - Right Back Container
 ```
 
-### **IMU Sensor (MPU6050)**
+### **IMU Sensor (MPU6050/BNO055)**
 
 ```bash
-# I2C Interface
-GPIO2 (3)  - SDA (I2C Data)
-GPIO3 (5)  - SCL (I2C Clock)
+# I2C Interface (Bus 1)
+GPIO2  (3)  - SDA (I2C Data)
+GPIO3  (5)  - SCL (I2C Clock)
 ```
 
-### **Lifter Motor (DC Motor with Encoder)**
+### **USB Interfaces**
 
 ```bash
-# Lifter Motor Control
-GPIO12 (32) - Direction Control (Alternative PWM pin needed)
-GPIO13 (33) - PWM Speed Control (Alternative PWM pin needed)
-GPIO19 (35) - Encoder A (Interrupt) (Alternative pin needed)
-GPIO16 (36) - Encoder B (Alternative pin needed)
+# USB Ports (Hardware)
+USB1 - RPLIDAR A1 (380° LiDAR)
+USB2 - Microsoft USB Camera
 ```
 
 ## Hardware Connections
