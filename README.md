@@ -122,12 +122,27 @@ The LKS Robot Project provides a comprehensive API ecosystem supporting full rob
 - **Safety Monitoring**: Collision detection and system health
 - **Force Stop**: Override capabilities for critical situations
 
+### 📡 **Sensor Data APIs (1 endpoint)**
+- **Comprehensive Sensing**: Ultrasonic, IR, line sensor, IMU, battery monitoring
+- **Real-time Data**: Live sensor readings with health status
+- **Multi-sensor Fusion**: Integrated sensor data processing
+
+### ⚙️ **Task Management APIs (2 endpoints)**
+- **Task Monitoring**: Active task tracking with progress and status
+- **Task Control**: Cancel running tasks with reason logging
+- **Lifecycle Management**: Complete task state management
+
+### 🧭 **Navigation APIs (1 endpoint)**
+- **Localization Status**: Real-time position and confidence tracking
+- **Path Planning**: Current path and navigation state monitoring
+- **Map Integration**: Map availability and navigation performance metrics
+
 ### 🔗 **Integration APIs (3 webhooks)**
 - **n8n Workflow Integration**: Direct workflow triggers
 - **Webhook Support**: HTTP callbacks for external systems
 - **Event-driven Automation**: Real-time response capabilities
 
-**Total: 21 API endpoints** providing complete robotic control and automation capabilities.
+**Total: 25 API endpoints** providing complete robotic control, sensing, and automation capabilities.
 
 ## Quick Start
 
@@ -457,8 +472,22 @@ curl -X POST http://localhost:5000/webhook/robot/pick_place \
 ### Status Monitoring
 
 ```bash
-# Get comprehensive robot status (includes safety systems)
+# Get comprehensive robot status (includes safety systems and sensor data)
 curl http://localhost:5000/api/robot/status
+
+# Get detailed sensor data
+curl http://localhost:5000/api/robot/sensors
+
+# Get active tasks
+curl http://localhost:5000/api/robot/tasks
+
+# Cancel a running task
+curl -X POST http://localhost:5000/api/robot/tasks/task_123/cancel \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "User requested cancellation"}'
+
+# Get navigation status
+curl http://localhost:5000/api/robot/navigation/status
 ```
 
 ## Development Guide
@@ -500,6 +529,10 @@ The robot API is implemented in `ros2_ws/src/my_robot_automation/scripts/rest_ap
 |----------|--------|-------------|------------|
 | `/health` | GET | System health check | None |
 | `/api/robot/status` | GET | Get comprehensive robot status | None |
+| `/api/robot/sensors` | GET | Get detailed sensor data | None |
+| `/api/robot/tasks` | GET | Get active tasks | `task_id` (optional) |
+| `/api/robot/tasks/{task_id}/cancel` | POST | Cancel running task | `reason` |
+| `/api/robot/navigation/status` | GET | Get navigation status | `include_map`, `include_path` |
 | `/api/robot/mode` | POST | Set robot operating mode | `mode`, `reason`, `force` |
 | `/api/robot/move` | POST | Basic movement control | `direction`, `speed` |
 | `/api/robot/turn` | POST | Rotation control | `direction`, `speed` |

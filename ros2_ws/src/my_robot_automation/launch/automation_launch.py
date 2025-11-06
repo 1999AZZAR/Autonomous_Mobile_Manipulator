@@ -92,6 +92,37 @@ def generate_launch_description():
         }]
     )
 
+    # New sensor and management servers
+    sensor_data_server = Node(
+        package='my_robot_automation',
+        executable='sensor_data_server.py',
+        name='sensor_data_server',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time
+        }]
+    )
+
+    task_management_server = Node(
+        package='my_robot_automation',
+        executable='task_management_server.py',
+        name='task_management_server',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time
+        }]
+    )
+
+    navigation_status_server = Node(
+        package='my_robot_automation',
+        executable='navigation_status_server.py',
+        name='navigation_status_server',
+        output='screen',
+        parameters=[{
+            'use_sim_time': use_sim_time
+        }]
+    )
+
     # REST API server
     rest_api_server = Node(
         package='my_robot_automation',
@@ -162,6 +193,9 @@ def generate_launch_description():
         obstacle_avoidance_server,
         emergency_stop_server,
         robot_status_server,
+        sensor_data_server,
+        task_management_server,
+        navigation_status_server,
 
         # Launch API and communication services
         rest_api_server,

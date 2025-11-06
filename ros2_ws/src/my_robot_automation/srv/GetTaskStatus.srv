@@ -1,0 +1,7 @@
+# Get task status service request
+string task_id  # Empty string to get all tasks
+---
+# Get task status service response
+my_robot_automation/TaskStatus[] active_tasks
+bool success
+string message

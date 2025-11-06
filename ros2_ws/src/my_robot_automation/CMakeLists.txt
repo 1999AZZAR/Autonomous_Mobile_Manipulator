@@ -21,6 +21,7 @@ find_package(nav2_msgs REQUIRED)
 find_package(nav2_util REQUIRED)
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
+find_package(builtin_interfaces REQUIRED)
 find_package(rosidl_default_generators REQUIRED)
 
 # Generate custom interfaces
@@ -28,6 +29,9 @@ set(msg_files
   "msg/RobotStatus.msg"
   "msg/AutomationTask.msg"
   "msg/SafetyStatus.msg"
+  "msg/SensorData.msg"
+  "msg/TaskStatus.msg"
+  "msg/NavigationStatus.msg"
 )
 
 set(srv_files
@@ -37,12 +41,16 @@ set(srv_files
   "srv/GetRobotStatus.srv"
   "srv/EmergencyStop.srv"
   "srv/SetRobotMode.srv"
+  "srv/GetSensorData.srv"
+  "srv/GetTaskStatus.srv"
+  "srv/CancelTask.srv"
+  "srv/GetNavigationStatus.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}
   ${msg_files}
   ${srv_files}
-  DEPENDENCIES std_msgs geometry_msgs sensor_msgs nav_msgs
+  DEPENDENCIES std_msgs geometry_msgs sensor_msgs nav_msgs builtin_interfaces
 )
 
 # Install Python executables
@@ -60,6 +68,9 @@ install(PROGRAMS
   scripts/real_robot_sensor_actuator.py
   scripts/robot_controller.py
   scripts/web_robot_interface.py
+  scripts/sensor_data_server.py
+  scripts/task_management_server.py
+  scripts/navigation_status_server.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

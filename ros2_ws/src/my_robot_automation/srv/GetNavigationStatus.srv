@@ -1,0 +1,8 @@
+# Get navigation status service request
+bool include_map_data
+bool include_path_data
+---
+# Get navigation status service response
+my_robot_automation/NavigationStatus navigation_status
+bool success
+string message

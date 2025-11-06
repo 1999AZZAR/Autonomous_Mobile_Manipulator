@@ -1,0 +1,10 @@
+# Get sensor data service request
+bool include_distance_sensors
+bool include_line_sensor
+bool include_imu_data
+bool include_battery_status
+---
+# Get sensor data service response
+my_robot_automation/SensorData sensor_data
+bool success
+string message

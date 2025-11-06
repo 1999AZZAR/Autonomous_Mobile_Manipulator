@@ -18,9 +18,10 @@ from std_msgs.msg import String, Bool, Float32
 # Custom imports
 from my_robot_automation.srv import (
     ExecutePickPlace, ExecutePatrol, ExecuteObstacleAvoidance,
-    GetRobotStatus, EmergencyStop, SetRobotMode
+    GetRobotStatus, EmergencyStop, SetRobotMode,
+    GetSensorData, GetTaskStatus, CancelTask, GetNavigationStatus
 )
-from my_robot_automation.msg import RobotStatus, SafetyStatus
+from my_robot_automation.msg import RobotStatus, SafetyStatus, SensorData, TaskStatus, NavigationStatus
 
 class RESTAPIServer(Node):
     """REST API server for robot control via HTTP"""
@@ -44,6 +45,10 @@ class RESTAPIServer(Node):
         self.robot_status_client = self.create_client(GetRobotStatus, 'get_robot_status')
         self.emergency_stop_client = self.create_client(EmergencyStop, 'emergency_stop')
         self.set_mode_client = self.create_client(SetRobotMode, 'set_robot_mode')
+        self.sensor_data_client = self.create_client(GetSensorData, 'get_sensor_data')
+        self.task_status_client = self.create_client(GetTaskStatus, 'get_task_status')
+        self.cancel_task_client = self.create_client(CancelTask, 'cancel_task')
+        self.navigation_status_client = self.create_client(GetNavigationStatus, 'get_navigation_status')
 
         # Picker system publishers (matching pick_place_server.py)
         self.gripper_pub = self.create_publisher(Bool, '/picker/gripper', 10)
@@ -76,9 +81,13 @@ class RESTAPIServer(Node):
             self.obstacle_avoidance_client,
             self.robot_status_client,
             self.emergency_stop_client,
-            self.set_mode_client
+            self.set_mode_client,
+            self.sensor_data_client,
+            self.task_status_client,
+            self.cancel_task_client,
+            self.navigation_status_client
         ]
-        
+
         for service in services:
             self.get_logger().info(f'Waiting for service: {service.srv_name}')
             service.wait_for_service(timeout_sec=10.0)
@@ -100,26 +109,55 @@ class RESTAPIServer(Node):
         def get_robot_status():
             """Get robot status"""
             try:
-                request_msg = GetRobotStatus.Request()
-                request_msg.include_diagnostics = True
-                request_msg.include_safety_status = True
-                
-                future = self.robot_status_client.call_async(request_msg)
-                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
-                
-                if future.result() is not None:
-                    response = future.result()
-                    if response.success:
-                        return jsonify({
-                            'success': True,
-                            'data': self.robot_status_to_dict(response.robot_status),
-                            'safety_status': self.safety_status_to_dict(response.safety_status)
+                # Get robot status
+                robot_request_msg = GetRobotStatus.Request()
+                robot_request_msg.include_diagnostics = True
+                robot_request_msg.include_safety_status = True
+
+                robot_future = self.robot_status_client.call_async(robot_request_msg)
+                rclpy.spin_until_future_complete(self, robot_future, timeout_sec=5.0)
+
+                # Get sensor data
+                sensor_request_msg = GetSensorData.Request()
+                sensor_request_msg.include_distance_sensors = True
+                sensor_request_msg.include_line_sensor = True
+                sensor_request_msg.include_imu_data = True
+                sensor_request_msg.include_battery_status = True
+
+                sensor_future = self.sensor_data_client.call_async(sensor_request_msg)
+                rclpy.spin_until_future_complete(self, sensor_future, timeout_sec=5.0)
+
+                robot_response = robot_future.result()
+                sensor_response = sensor_future.result()
+
+                if robot_response is not None and robot_response.success:
+                    result = {
+                        'success': True,
+                        'data': self.robot_status_to_dict(robot_response.robot_status),
+                        'safety_status': self.safety_status_to_dict(robot_response.safety_status)
+                    }
+
+                    # Add sensor data if available
+                    if sensor_response is not None and sensor_response.success:
+                        # Merge sensor data into the main robot status for n8n compatibility
+                        sensor_dict = self.sensor_data_to_dict(sensor_response.sensor_data)
+                        result['data'].update({
+                            'ultrasonic_front': sensor_dict['ultrasonic_front'],
+                            'ultrasonic_back_left': sensor_dict['ultrasonic_back_left'],
+                            'ultrasonic_back_right': sensor_dict['ultrasonic_back_right'],
+                            'ir_front': sensor_dict['ir_front'],
+                            'ir_left': sensor_dict['ir_left'],
+                            'ir_right': sensor_dict['ir_right'],
+                            'line_sensor': sensor_dict['line_sensor_raw'],
+                            'battery_voltage': sensor_dict['battery_voltage'],
+                            'battery_percentage': sensor_dict['battery_percentage']
                         })
-                    else:
-                        return jsonify({'success': False, 'error': response.message}), 500
+
+                    return jsonify(result)
                 else:
-                    return jsonify({'success': False, 'error': 'Service call failed'}), 500
-                    
+                    error_msg = robot_response.message if robot_response else 'Service call failed'
+                    return jsonify({'success': False, 'error': error_msg}), 500
+
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
                 
@@ -269,6 +307,119 @@ class RESTAPIServer(Node):
                     'success': True,
                     'message': 'Robot stopped'
                 })
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/sensors', methods=['GET'])
+        def get_sensor_data():
+            """Get sensor data"""
+            try:
+                request_msg = GetSensorData.Request()
+                request_msg.include_distance_sensors = True
+                request_msg.include_line_sensor = True
+                request_msg.include_imu_data = True
+                request_msg.include_battery_status = True
+
+                future = self.sensor_data_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+                if future.result() is not None:
+                    response = future.result()
+                    if response.success:
+                        return jsonify({
+                            'success': True,
+                            'data': self.sensor_data_to_dict(response.sensor_data)
+                        })
+                    else:
+                        return jsonify({'success': False, 'error': response.message}), 500
+                else:
+                    return jsonify({'success': False, 'error': 'Service call failed'}), 500
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/tasks', methods=['GET'])
+        def get_task_status():
+            """Get task status"""
+            try:
+                task_id = request.args.get('task_id', '')
+
+                request_msg = GetTaskStatus.Request()
+                request_msg.task_id = task_id
+
+                future = self.task_status_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+                if future.result() is not None:
+                    response = future.result()
+                    if response.success:
+                        return jsonify({
+                            'success': True,
+                            'tasks': [self.task_status_to_dict(task) for task in response.active_tasks],
+                            'count': len(response.active_tasks)
+                        })
+                    else:
+                        return jsonify({'success': False, 'error': response.message}), 500
+                else:
+                    return jsonify({'success': False, 'error': 'Service call failed'}), 500
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/tasks/<task_id>/cancel', methods=['POST'])
+        def cancel_task(task_id):
+            """Cancel a running task"""
+            try:
+                data = request.get_json() or {}
+                reason = data.get('reason', 'Cancelled via API')
+
+                request_msg = CancelTask.Request()
+                request_msg.task_id = task_id
+                request_msg.reason = reason
+
+                future = self.cancel_task_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+                if future.result() is not None:
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'task_id': response.task_id,
+                        'previous_status': response.previous_status
+                    })
+                else:
+                    return jsonify({'success': False, 'error': 'Service call failed'}), 500
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
+        @self.app.route('/api/robot/navigation/status', methods=['GET'])
+        def get_navigation_status():
+            """Get navigation status"""
+            try:
+                include_map = request.args.get('include_map', 'false').lower() == 'true'
+                include_path = request.args.get('include_path', 'false').lower() == 'true'
+
+                request_msg = GetNavigationStatus.Request()
+                request_msg.include_map_data = include_map
+                request_msg.include_path_data = include_path
+
+                future = self.navigation_status_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+                if future.result() is not None:
+                    response = future.result()
+                    if response.success:
+                        return jsonify({
+                            'success': True,
+                            'data': self.navigation_status_to_dict(response.navigation_status)
+                        })
+                    else:
+                        return jsonify({'success': False, 'error': response.message}), 500
+                else:
+                    return jsonify({'success': False, 'error': 'Service call failed'}), 500
 
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
@@ -827,6 +978,131 @@ class RESTAPIServer(Node):
             'active_safety_warnings': list(safety_status.active_safety_warnings),
             'active_safety_errors': list(safety_status.active_safety_errors),
             'last_safe_pose': self.pose_stamped_to_dict(safety_status.last_safe_pose)
+        }
+
+    def sensor_data_to_dict(self, sensor_data):
+        """Convert SensorData message to dictionary"""
+        return {
+            'header': {
+                'stamp': sensor_data.header.stamp.sec + sensor_data.header.stamp.nanosec * 1e-9,
+                'frame_id': sensor_data.header.frame_id
+            },
+            'ultrasonic_front': sensor_data.ultrasonic_front,
+            'ultrasonic_back_left': sensor_data.ultrasonic_back_left,
+            'ultrasonic_back_right': sensor_data.ultrasonic_back_right,
+            'ir_front': sensor_data.ir_front,
+            'ir_left': sensor_data.ir_left,
+            'ir_right': sensor_data.ir_right,
+            'line_sensor_raw': sensor_data.line_sensor_raw,
+            'line_detected': sensor_data.line_detected,
+            'line_position': sensor_data.line_position,
+            'linear_acceleration': {
+                'x': sensor_data.linear_acceleration.x,
+                'y': sensor_data.linear_acceleration.y,
+                'z': sensor_data.linear_acceleration.z
+            },
+            'angular_velocity': {
+                'x': sensor_data.angular_velocity.x,
+                'y': sensor_data.angular_velocity.y,
+                'z': sensor_data.angular_velocity.z
+            },
+            'orientation': {
+                'x': sensor_data.orientation.x,
+                'y': sensor_data.orientation.y,
+                'z': sensor_data.orientation.z,
+                'w': sensor_data.orientation.w
+            },
+            'battery_voltage': sensor_data.battery_voltage,
+            'battery_percentage': sensor_data.battery_percentage,
+            'battery_low_warning': sensor_data.battery_low_warning,
+            'ultrasonic_healthy': sensor_data.ultrasonic_healthy,
+            'ir_healthy': sensor_data.ir_healthy,
+            'line_sensor_healthy': sensor_data.line_sensor_healthy,
+            'imu_healthy': sensor_data.imu_healthy,
+            'battery_healthy': sensor_data.battery_healthy
+        }
+
+    def task_status_to_dict(self, task_status):
+        """Convert TaskStatus message to dictionary"""
+        return {
+            'header': {
+                'stamp': task_status.header.stamp.sec + task_status.header.stamp.nanosec * 1e-9,
+                'frame_id': task_status.header.frame_id
+            },
+            'task_id': task_status.task_id,
+            'task_type': task_status.task_type,
+            'status': task_status.status,
+            'target_pose': self.pose_stamped_to_dict(task_status.target_pose),
+            'waypoints': [self.pose_stamped_to_dict(wp) for wp in task_status.waypoints],
+            'timeout_seconds': task_status.timeout_seconds,
+            'parameters': list(task_status.parameters),
+            'error_message': task_status.error_message,
+            'progress_percentage': task_status.progress_percentage,
+            'start_time': task_status.start_time.sec + task_status.start_time.nanosec * 1e-9,
+            'end_time': task_status.end_time.sec + task_status.end_time.nanosec * 1e-9,
+            'elapsed_time': task_status.elapsed_time.sec + task_status.elapsed_time.nanosec * 1e-9
+        }
+
+    def navigation_status_to_dict(self, navigation_status):
+        """Convert NavigationStatus message to dictionary"""
+        return {
+            'header': {
+                'stamp': navigation_status.header.stamp.sec + navigation_status.header.stamp.nanosec * 1e-9,
+                'frame_id': navigation_status.header.frame_id
+            },
+            'localization_active': navigation_status.localization_active,
+            'localization_confidence': navigation_status.localization_confidence,
+            'current_pose': {
+                'pose': {
+                    'position': {
+                        'x': navigation_status.current_pose.pose.pose.position.x,
+                        'y': navigation_status.current_pose.pose.pose.position.y,
+                        'z': navigation_status.current_pose.pose.pose.position.z
+                    },
+                    'orientation': {
+                        'x': navigation_status.current_pose.pose.pose.orientation.x,
+                        'y': navigation_status.current_pose.pose.pose.orientation.y,
+                        'z': navigation_status.current_pose.pose.pose.orientation.z,
+                        'w': navigation_status.current_pose.pose.pose.orientation.w
+                    }
+                },
+                'covariance': list(navigation_status.current_pose.pose.covariance)
+            } if navigation_status.current_pose else None,
+            'navigation_active': navigation_status.navigation_active,
+            'navigation_state': navigation_status.navigation_state,
+            'target_pose': self.pose_stamped_to_dict(navigation_status.target_pose) if navigation_status.target_pose else None,
+            'current_path': {
+                'poses': [self.pose_stamped_to_dict(pose) for pose in navigation_status.current_path.poses],
+                'header': {
+                    'frame_id': navigation_status.current_path.header.frame_id,
+                    'stamp': navigation_status.current_path.header.stamp.sec + navigation_status.current_path.header.stamp.nanosec * 1e-9
+                }
+            } if navigation_status.current_path else None,
+            'map_available': navigation_status.map_available,
+            'map_name': navigation_status.map_name,
+            'map_last_updated': navigation_status.map_last_updated.sec + navigation_status.map_last_updated.nanosec * 1e-9,
+            'map_origin': self.pose_to_dict(navigation_status.map_origin) if navigation_status.map_origin else None,
+            'safety_zones': [],  # Not implemented yet
+            'detected_obstacles': [self.pose_stamped_to_dict(obs) for obs in navigation_status.detected_obstacles],
+            'path_length': navigation_status.path_length,
+            'distance_to_goal': navigation_status.distance_to_goal,
+            'estimated_time_remaining': navigation_status.estimated_time_remaining.sec + navigation_status.estimated_time_remaining.nanosec * 1e-9
+        }
+
+    def pose_to_dict(self, pose):
+        """Convert Pose message to dictionary"""
+        return {
+            'position': {
+                'x': pose.position.x,
+                'y': pose.position.y,
+                'z': pose.position.z
+            },
+            'orientation': {
+                'x': pose.orientation.x,
+                'y': pose.orientation.y,
+                'z': pose.orientation.z,
+                'w': pose.orientation.w
+            }
         }
 
 def main(args=None):

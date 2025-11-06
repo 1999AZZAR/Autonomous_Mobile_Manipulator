@@ -4,17 +4,23 @@ services:
     build:
       context: ./ros2_ws  # Tells Docker Compose to use the Dockerfile in the ./ros2_ws folder
     container_name: ros2_sim_container
-    # Launch Gazebo simulation with robot and automation services
+    # Launch ROS2 automation services only (no Gazebo for faster testing)
     command: >
       bash -c "
       source /opt/ros/iron/setup.bash &&
       cd /root/ros2_ws &&
       echo 'Building robot packages...' &&
-      colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation &&
-      source install/setup.bash &&
-      echo 'Packages built successfully' &&
-      echo 'Starting Gazebo simulation with automation services...' &&
-      ros2 launch my_robot_automation automation_launch.py
+      timeout 300 colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation --event-handlers console_direct+ &&
+      if [ $? -eq 0 ]; then
+        source install/setup.bash &&
+        echo 'Packages built successfully' &&
+        echo 'Starting ROS2 automation services...' &&
+        ros2 launch my_robot_automation automation_launch.py
+      else
+        echo 'Build failed - starting with existing packages' &&
+        source install/setup.bash &&
+        ros2 launch my_robot_automation automation_launch.py
+      fi
       "
     # Share the source code folder so you can edit code on your PC and it updates inside the container
     volumes:
