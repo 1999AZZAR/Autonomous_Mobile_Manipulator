@@ -2,6 +2,40 @@
 
 A comprehensive command-line tool for managing N8N workflows with advanced import, export, backup, and cleanup capabilities.
 
+## Table of Contents
+
+- [Features](#features)
+  - [**Core Operations**](#core-operations)
+  - [**Enhanced Workflow Categories**](#enhanced-workflow-categories)
+- [Usage](#usage)
+  - [**Basic Commands**](#basic-commands)
+  - [**Import Operations**](#import-operations)
+  - [**Export & Backup**](#export--backup)
+  - [**Maintenance**](#maintenance)
+- [Workflow Management Workflow](#workflow-management-workflow)
+  - [**For Development & Testing**](#for-development--testing)
+  - [**For Production Deployment**](#for-production-deployment)
+  - [**For Maintenance**](#for-maintenance)
+- [Directory Structure](#directory-structure)
+- [Safety Features](#safety-features)
+  - [**Confirmation Prompts**](#confirmation-prompts)
+  - [**Error Handling**](#error-handling)
+  - [**Prerequisites Validation**](#prerequisites-validation)
+- [Output Examples](#output-examples)
+  - [**Status Check**](#status-check)
+  - [**Import Operation**](#import-operation)
+- [Technical Details](#technical-details)
+  - [**Dependencies**](#dependencies)
+  - [**Dynamic File Discovery Architecture**](#dynamic-file-discovery-architecture)
+  - [**Environment Requirements**](#environment-requirements)
+  - [**API Endpoints Used**](#api-endpoints-used)
+- [Important Notes](#important-notes)
+  - [**Backup First**](#backup-first)
+- [Best Practices](#best-practices)
+- [Troubleshooting](#troubleshooting)
+- [Performance Notes](#performance-notes)
+- [Summary](#summary)
+
 ## Features
 
 ### **Core Operations**

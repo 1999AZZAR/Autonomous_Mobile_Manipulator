@@ -2,6 +2,40 @@
 
 This guide provides comprehensive instructions for assembling and configuring the hardware components of the Autonomous Mobile Manipulator robot.
 
+## Table of Contents
+
+- [Robot Overview](#robot-overview)
+- [Bill of Materials](#bill-of-materials)
+  - [Core Components](#core-components)
+  - [Mechanical Components](#mechanical-components)
+  - [Electrical Components](#electrical-components)
+- [Assembly Instructions](#assembly-instructions)
+  - [Step 1: Base Platform Assembly](#step-1-base-platform-assembly)
+  - [Step 2: Electronics Installation](#step-2-electronics-installation)
+  - [Step 3: Picker System Assembly](#step-3-picker-system-assembly)
+  - [Step 4: Container System Assembly](#step-4-container-system-assembly)
+  - [Step 5: Wiring and Connections](#step-5-wiring-and-connections)
+- [Testing and Verification](#testing-and-verification)
+  - [Motor Testing](#motor-testing)
+  - [Sensor Verification](#sensor-verification)
+  - [Picker System Testing](#picker-system-testing)
+  - [Integration Testing](#integration-testing)
+- [Safety Considerations](#safety-considerations)
+  - [Electrical Safety](#electrical-safety)
+  - [Mechanical Safety](#mechanical-safety)
+  - [Operational Safety](#operational-safety)
+- [Troubleshooting Hardware Issues](#troubleshooting-hardware-issues)
+  - [Motor Control Problems](#motor-control-problems)
+  - [Sensor Issues](#sensor-issues)
+- [Maintenance Procedures](#maintenance-procedures)
+  - [Regular Maintenance](#regular-maintenance)
+  - [Component Replacement](#component-replacement)
+  - [Calibration Procedures](#calibration-procedures)
+- [Support and Resources](#support-and-resources)
+  - [Documentation References](#documentation-references)
+  - [Component Datasheets](#component-datasheets)
+  - [Community Resources](#community-resources)
+
 ## Robot Overview
 
 The LKS Autonomous Mobile Manipulator consists of:

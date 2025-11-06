@@ -2,6 +2,47 @@
 
 This guide provides comprehensive troubleshooting procedures for common issues encountered with the Autonomous Mobile Manipulator robot system.
 
+## Table of Contents
+
+- [Quick Diagnostic Commands](#quick-diagnostic-commands)
+  - [System Status Checks](#system-status-checks)
+- [Common Issues and Solutions](#common-issues-and-solutions)
+- [Installation Issues](#installation-issues)
+  - [Docker Installation Problems](#docker-installation-problems)
+  - [Repository Clone Issues](#repository-clone-issues)
+- [Runtime Issues](#runtime-issues)
+  - [Container Startup Problems](#container-startup-problems)
+  - [ROS 2 Import Errors](#ros-2-import-errors)
+  - [ROS 2 Communication Issues](#ros-2-communication-issues)
+- [Hardware Issues](#hardware-issues)
+  - [Motor Control Problems](#motor-control-problems)
+  - [Sensor Integration Issues](#sensor-integration-issues)
+- [Network and Communication Issues](#network-and-communication-issues)
+  - [API Connectivity Problems](#api-connectivity-problems)
+  - [ROS 2 Network Issues](#ros-2-network-issues)
+- [Performance Issues](#performance-issues)
+  - [System Performance Problems](#system-performance-problems)
+- [LabVIEW Integration Issues](#labview-integration-issues)
+  - [TCP Communication Problems](#tcp-communication-problems)
+  - [VI Execution Issues](#vi-execution-issues)
+- [Emergency Procedures](#emergency-procedures)
+  - [Emergency Stop Not Responding](#emergency-stop-not-responding)
+  - [System Lockup](#system-lockup)
+- [Diagnostic Tools](#diagnostic-tools)
+  - [Built-in Diagnostic Commands](#built-in-diagnostic-commands)
+  - [Log Analysis](#log-analysis)
+  - [Network Diagnostics](#network-diagnostics)
+- [Recovery Procedures](#recovery-procedures)
+  - [Clean System Reset](#clean-system-reset)
+  - [Configuration Reset](#configuration-reset)
+- [Prevention Measures](#prevention-measures)
+  - [Regular Maintenance](#regular-maintenance)
+  - [Monitoring Setup](#monitoring-setup)
+- [Getting Help](#getting-help)
+  - [Self-Service Resources](#self-service-resources)
+  - [Professional Support](#professional-support)
+  - [Emergency Contacts](#emergency-contacts)
+
 ## Quick Diagnostic Commands
 
 ### System Status Checks

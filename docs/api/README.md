@@ -2,6 +2,29 @@
 
 This documentation provides comprehensive information about the available APIs for controlling and monitoring the LKS Robot Project system.
 
+## Table of Contents
+
+- [API Overview](#api-overview)
+  - [Available Interfaces](#available-interfaces)
+- [Robot REST API](#robot-rest-api)
+  - [Basic Movement Control](#basic-movement-control)
+  - [Actuator Control](#actuator-control)
+  - [Status Monitoring](#status-monitoring)
+- [n8n Interface](#n8n-interface)
+- [WebSocket API](#websocket-api)
+- [ROS 2 Services](#ros-2-services)
+  - [Available Services](#available-services)
+  - [Python Service Client Examples](#python-service-client-examples)
+- [ROS 2 Topics](#ros-2-topics)
+  - [Command Topics](#command-topics)
+  - [Sensor Topics](#sensor-topics)
+- [Error Handling](#error-handling)
+  - [HTTP Status Codes](#http-status-codes)
+  - [Response Format](#response-format)
+- [Integration Examples](#integration-examples)
+  - [Python Integration](#python-integration)
+- [Support](#support)
+
 ## API Overview
 
 The robot exposes multiple API interfaces for different use cases:

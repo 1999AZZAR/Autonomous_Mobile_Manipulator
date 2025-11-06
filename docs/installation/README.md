@@ -2,6 +2,29 @@
 
 This guide provides complete instructions for installing and setting up the Autonomous Mobile Manipulator software stack.
 
+## Table of Contents
+
+- [Prerequisites](#prerequisites)
+  - [System Requirements](#system-requirements)
+  - [Required Software](#required-software)
+- [Installation Steps](#installation-steps)
+  - [Step 1: Install Git](#step-1-install-git)
+  - [Step 2: Install Docker Engine](#step-2-install-docker-engine)
+  - [Step 3: Verify Docker Installation](#step-3-verify-docker-installation)
+  - [Step 4: Clone the Repository](#step-4-clone-the-repository)
+  - [Step 5: Configure X11 (for GUI Applications)](#step-5-configure-x11-for-gui-applications)
+  - [Step 6: Build and Launch](#step-6-build-and-launch)
+  - [Step 7: Verify Installation](#step-7-verify-installation)
+- [Post-Installation Configuration](#post-installation-configuration)
+  - [Environment Variables](#environment-variables)
+  - [Network Configuration](#network-configuration)
+- [Troubleshooting Installation Issues](#troubleshooting-installation-issues)
+  - [Docker Permission Issues](#docker-permission-issues)
+  - [X11 Display Issues](#x11-display-issues)
+  - [Container Startup Issues](#container-startup-issues)
+- [Next Steps](#next-steps)
+- [Support](#support)
+
 ## Prerequisites
 
 ### System Requirements

@@ -2,6 +2,15 @@
 
 This directory contains comprehensive documentation for the LKS Robot Project system.
 
+## Table of Contents
+
+- [Documentation Structure](#documentation-structure)
+- [Getting Started](#getting-started)
+  - [New Users](#new-users)
+  - [Developers](#developers)
+  - [System Integration](#system-integration)
+- [Documentation Standards](#documentation-standards)
+
 ## Documentation Structure
 
 ### Core Documentation

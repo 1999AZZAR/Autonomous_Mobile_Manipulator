@@ -14,6 +14,7 @@ This document provides comprehensive details about the control systems and algor
 - [Control Architecture](#control-architecture)
 - [Performance Tuning](#performance-tuning)
 - [Testing and Validation](#testing-and-validation)
+- [Summary](#summary)
 
 ## Overview
 
