@@ -13,7 +13,7 @@ HTML_TEMPLATE = """
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>LKS Robot Control Center</title>
+    <title>Autonomous Mobile Manipulator Control Center</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         :root {
@@ -384,7 +384,7 @@ HTML_TEMPLATE = """
 <body>
     <div class="app-container">
         <header class="header">
-            <h1><i class="fas fa-robot"></i> LKS Robot Control Center</h1>
+            <h1><i class="fas fa-robot"></i> Autonomous Mobile Manipulator Control Center</h1>
             <div class="status-indicator status-online" id="connection-status">
                 <i class="fas fa-circle"></i>
                 <span>System Online</span>
@@ -1019,7 +1019,7 @@ HTML_TEMPLATE = """
         }
 
         // Initialize
-        addLog('LKS Robot Control Center initialized');
+        addLog('Autonomous Mobile Manipulator Control Center initialized');
         updateStatus();
 
         // Update status every 2 seconds

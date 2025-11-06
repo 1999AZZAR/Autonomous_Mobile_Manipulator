@@ -1,6 +1,6 @@
 # 🤖 **N8N Robot Workflows - Organized Structure**
 
-This directory contains organized n8n workflows for controlling the LKS Robot system. The workflows are divided into two main categories for better organization and usability.
+This directory contains organized n8n workflows for controlling the Autonomous Mobile Manipulator system. The workflows are divided into two main categories for better organization and usability.
 
 ---
 

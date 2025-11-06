@@ -1,6 +1,6 @@
-# LKS Robot Project Documentation
+# Autonomous Mobile Manipulator Documentation
 
-This directory contains comprehensive documentation for the LKS Robot Project system.
+This directory contains comprehensive documentation for the Autonomous Mobile Manipulator system.
 
 ## Table of Contents
 

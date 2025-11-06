@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Development Launch File for LKS Robot
+Development Launch File for Autonomous Mobile Manipulator
 Launches ROS2 automation services with sensor simulation for development/testing
 """
 

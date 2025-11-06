@@ -21,7 +21,7 @@
     "robotics",
     "automation"
   ],
-  "author": "LKS Robot Project",
+  "author": "Autonomous Mobile Manipulator",
   "license": "MIT",
   "n8n": {
     "n8nNodesApiVersion": 1,

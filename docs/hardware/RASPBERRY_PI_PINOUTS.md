@@ -1,8 +1,8 @@
-# Raspberry Pi 5 Pinout Configuration - LKS Robot Project
+# Raspberry Pi 5 Pinout Configuration - Autonomous Mobile Manipulator
 
 ## Complete Hardware Pinout for Hexagonal Robot
 
-This document provides the complete GPIO pinout configuration for the LKS Robot Project running on Raspberry Pi 5 with Ubuntu Server, ROS2, and N8N automation.
+This document provides the complete GPIO pinout configuration for the Autonomous Mobile Manipulator running on Raspberry Pi 5 with Ubuntu Server, ROS2, and N8N automation.
 
 ## Raspberry Pi 5 GPIO Layout
 
@@ -358,6 +358,6 @@ Some pins are assigned to multiple functions. Prioritize based on hardware capab
 
 ## Ready for Implementation
 
-This pinout configuration provides a complete hardware interface for the LKS Robot Project. All sensors and actuators referenced in the ROS2 code and N8N workflows are properly mapped to Raspberry Pi GPIO pins.
+This pinout configuration provides a complete hardware interface for the Autonomous Mobile Manipulator. All sensors and actuators referenced in the ROS2 code and N8N workflows are properly mapped to Raspberry Pi GPIO pins.
 
 **The robot is now ready for physical assembly and testing!**

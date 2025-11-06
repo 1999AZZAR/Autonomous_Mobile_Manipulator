@@ -1,6 +1,6 @@
 # API Documentation
 
-This documentation provides comprehensive information about the available APIs for controlling and monitoring the LKS Robot Project system.
+This documentation provides comprehensive information about the available APIs for controlling and monitoring the Autonomous Mobile Manipulator system.
 
 ## Table of Contents
 

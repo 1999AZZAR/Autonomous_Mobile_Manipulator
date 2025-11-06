@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-LKS Robot - GPIO Pinout Test Script
+Autonomous Mobile Manipulator - GPIO Pinout Test Script
 Tests all GPIO connections for sensors and actuators
 """
 
@@ -180,7 +180,7 @@ class GPIOTester:
 
     def run_full_test(self):
         """Run complete GPIO test suite"""
-        print("🧪 LKS Robot - GPIO Pinout Test")
+        print("Autonomous Mobile Manipulator - GPIO Pinout Test")
         print("=" * 50)
 
         # Test Servos

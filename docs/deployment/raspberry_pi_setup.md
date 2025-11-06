@@ -1,6 +1,6 @@
 # Raspberry Pi Setup Guide (ARM64)
 
-This comprehensive guide provides step-by-step instructions for configuring and deploying the LKS Robot Project on a Raspberry Pi 5 running Ubuntu Server 22.04 LTS (64-bit ARM).
+This comprehensive guide provides step-by-step instructions for configuring and deploying the Autonomous Mobile Manipulator on a Raspberry Pi 5 running Ubuntu Server 22.04 LTS (64-bit ARM).
 
 ## Table of Contents
 
@@ -766,8 +766,8 @@ sudo ufw enable
 
 ```bash
 # Clone the project repository
-git clone https://github.com/1999AZZAR/LKS_Robot_Project.git
-cd LKS_Robot_Project
+git clone https://github.com/1999AZZAR/Autonomous_Mobile_Manipulator.git
+cd Autonomous_Mobile_Manipulator
 
 # Create production configuration
 cp docker-compose.yml docker-compose.prod.yml
@@ -911,7 +911,7 @@ EOF
 # Create systemd service for robot deployment
 sudo tee /etc/systemd/system/lks-robot.service > /dev/null <<EOF
 [Unit]
-Description=LKS Robot Project
+Description=Autonomous Mobile Manipulator
 After=docker.service network.target
 Requires=docker.service
 
@@ -919,7 +919,7 @@ Requires=docker.service
 Type=oneshot
 RemainAfterExit=yes
 User=ubuntu
-WorkingDirectory=/home/ubuntu/LKS_Robot_Project
+WorkingDirectory=/home/ubuntu/Autonomous_Mobile_Manipulator
 ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
 ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
 TimeoutStartSec=300
@@ -1099,7 +1099,7 @@ chmod +x ~/system_monitor.sh
 ```bash
 # Configure log rotation
 sudo tee /etc/logrotate.d/lks-robot > /dev/null <<EOF
-/home/ubuntu/LKS_Robot_Project/logs/*.log {
+/home/ubuntu/Autonomous_Mobile_Manipulator/logs/*.log {
     daily
     missingok
     rotate 7
@@ -1111,7 +1111,7 @@ sudo tee /etc/logrotate.d/lks-robot > /dev/null <<EOF
 EOF
 
 # Create log directory
-mkdir -p ~/LKS_Robot_Project/logs
+mkdir -p ~/Autonomous_Mobile_Manipulator/logs
 
 # Configure Docker log rotation
 sudo tee /etc/docker/daemon.json > /dev/null <<EOF
@@ -1148,8 +1148,8 @@ docker compose -f docker-compose.prod.yml stop
 
 # Backup configuration files
 tar -czf $BACKUP_DIR/${BACKUP_NAME}_config.tar.gz \
-    ~/LKS_Robot_Project/docker-compose.prod.yml \
-    ~/LKS_Robot_Project/n8n_data \
+    ~/Autonomous_Mobile_Manipulator/docker-compose.prod.yml \
+    ~/Autonomous_Mobile_Manipulator/n8n_data \
     /etc/systemd/system/lks-robot.service \
     /etc/docker/daemon.json
 
@@ -1265,4 +1265,4 @@ sudo systemctl restart networking
 
 ---
 
-This comprehensive Raspberry Pi setup guide ensures successful deployment of the LKS Robot Project on ARM64 architecture. Follow each step carefully and test functionality at each stage before proceeding to the next step.
+This comprehensive Raspberry Pi setup guide ensures successful deployment of the Autonomous Mobile Manipulator on ARM64 architecture. Follow each step carefully and test functionality at each stage before proceeding to the next step.

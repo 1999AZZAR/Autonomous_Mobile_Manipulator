@@ -1,8 +1,8 @@
-# LKS Robot - Hardware Assembly Guide
+# Autonomous Mobile Manipulator - Hardware Assembly Guide
 
 ## Complete Hardware Setup for Raspberry Pi Integration
 
-This guide provides step-by-step instructions for assembling and connecting all hardware components for the LKS Robot Project.
+This guide provides step-by-step instructions for assembling and connecting all hardware components for the Autonomous Mobile Manipulator.
 
 ## Required Tools & Materials
 
@@ -559,7 +559,7 @@ dmesg | grep spi
 
 ## Ready for Operation
 
-Once all components are assembled and tested, the LKS Robot will be fully operational with:
+Once all components are assembled and tested, the Autonomous Mobile Manipulator will be fully operational with:
 
 - **ROS2 low-level control** for real hardware
 - **Web interface** for manual control

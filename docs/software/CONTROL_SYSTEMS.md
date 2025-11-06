@@ -1,8 +1,8 @@
 # Control Systems Documentation
 
-## LKS Robot Project - Control Logic Implementation
+## Autonomous Mobile Manipulator - Control Logic Implementation
 
-This document provides comprehensive details about the control systems and algorithms implemented in the LKS Robot Project, including PID control, motion control, navigation control, and safety systems.
+This document provides comprehensive details about the control systems and algorithms implemented in the Autonomous Mobile Manipulator, including PID control, motion control, navigation control, and safety systems.
 
 ## Table of Contents
 
@@ -18,7 +18,7 @@ This document provides comprehensive details about the control systems and algor
 
 ## Overview
 
-The LKS Robot Project implements multiple layers of control systems to ensure smooth, precise, and safe robotic operation:
+The Autonomous Mobile Manipulator implements multiple layers of control systems to ensure smooth, precise, and safe robotic operation:
 
 ### Control Hierarchy
 
@@ -49,7 +49,7 @@ The LKS Robot Project implements multiple layers of control systems to ensure sm
 
 ### PID Controller Architecture
 
-The LKS Robot Project implements PID (Proportional-Integral-Derivative) control for precise motor positioning and velocity control across multiple subsystems.
+The Autonomous Mobile Manipulator implements PID (Proportional-Integral-Derivative) control for precise motor positioning and velocity control across multiple subsystems.
 
 #### PID Control Equation
 
@@ -918,7 +918,7 @@ class ControlSystemTestSuite:
 
 ## Summary
 
-The LKS Robot Project implements comprehensive control systems with multiple layers of PID control, motion planning, and safety systems:
+The Autonomous Mobile Manipulator implements comprehensive control systems with multiple layers of PID control, motion planning, and safety systems:
 
 ### Key Control Features
 
@@ -941,4 +941,4 @@ The control systems are production-ready with comprehensive testing, monitoring,
 
 ---
 
-*This control systems documentation provides complete details for understanding, maintaining, and extending the LKS Robot Project's control architecture.*
+*This control systems documentation provides complete details for understanding, maintaining, and extending the Autonomous Mobile Manipulator's control architecture.*

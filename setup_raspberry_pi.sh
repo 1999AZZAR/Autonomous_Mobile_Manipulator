@@ -1,6 +1,6 @@
 #!/bin/bash
-# LKS Robot Project - Raspberry Pi Setup Script
-# This script automates the Raspberry Pi configuration for the LKS Robot Project
+# Autonomous Mobile Manipulator - Raspberry Pi Setup Script
+# This script automates the Raspberry Pi configuration for the Autonomous Mobile Manipulator
 
 set -e  # Exit on any error
 
@@ -259,7 +259,7 @@ create_service() {
     # Create systemd service for robot deployment
     sudo tee /etc/systemd/system/lks-robot.service > /dev/null <<EOF
 [Unit]
-Description=LKS Robot Project
+Description=Autonomous Mobile Manipulator
 After=docker.service network.target
 Requires=docker.service
 
@@ -267,7 +267,7 @@ Requires=docker.service
 Type=oneshot
 RemainAfterExit=yes
 User=$USER
-WorkingDirectory=/home/$USER/LKS_Robot_Project
+WorkingDirectory=/home/$USER/Autonomous_Mobile_Manipulator
 ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
 ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
 TimeoutStartSec=300
@@ -373,8 +373,8 @@ main() {
         log_info "Next steps:"
         log_info "1. Reboot: sudo reboot"
         log_info "2. After reboot, clone the project:"
-        log_info "   git clone https://github.com/1999AZZAR/LKS_Robot_Project.git"
-        log_info "3. Start the robot: cd LKS_Robot_Project && docker compose -f docker-compose.prod.yml up -d"
+        log_info "   git clone https://github.com/1999AZZAR/Autonomous_Mobile_Manipulator.git"
+        log_info "3. Start the robot: cd Autonomous_Mobile_Manipulator && docker compose -f docker-compose.prod.yml up -d"
         log_info "4. Access interfaces:"
         log_info "   - n8n: http://localhost:5678"
         log_info "   - Robot API: http://localhost:5000"

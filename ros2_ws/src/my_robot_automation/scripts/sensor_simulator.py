@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Sensor Simulator for LKS Robot Development
+Sensor Simulator for Autonomous Mobile Manipulator Development
 Publishes dummy sensor data for testing n8n workflows and ROS2 APIs without Gazebo/hardware
 """
 

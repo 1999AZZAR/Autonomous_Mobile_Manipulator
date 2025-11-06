@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# LKS Robot Project - Startup Script
+# Autonomous Mobile Manipulator - Startup Script
 # This script provides an easy way to start the ROS2 simulation and n8n workflow automation
 
 set -e  # Exit on any error
@@ -13,7 +13,7 @@ BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
 # Default values
-PROJECT_NAME="LKS Robot Project"
+PROJECT_NAME="Autonomous Mobile Manipulator"
 BUILD_FLAG=""
 START_MODE="normal"
 DEV_MODE=false

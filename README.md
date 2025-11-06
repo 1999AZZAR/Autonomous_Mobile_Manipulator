@@ -1,14 +1,14 @@
-# LKS Robot Project
+# Autonomous Mobile Manipulator
 
 A complete hexagonal-shaped autonomous mobile manipulator system built with ROS 2 Iron, featuring real-time automation workflows, advanced manipulation capabilities, and comprehensive robot control for industrial automation tasks.
 
 ## System Overview
 
-The LKS Robot Project is a comprehensive and containerized ROS2-based platform for a versatile mobile manipulator, designed for simulation in Gazebo and deployment on real hardware, with a focus on modularity, flexibility, and ease of use.
+The Autonomous Mobile Manipulator is a comprehensive and containerized ROS2-based platform for a versatile mobile manipulator, designed for simulation in Gazebo and deployment on real hardware, with a focus on modularity, flexibility, and ease of use.
 
 ### Project Description
 
-This document provides a high-level overview of the LKS Robot Project, a comprehensive and containerized ROS2-based platform for a versatile mobile manipulator. The project is designed for simulation in Gazebo and deployment on real hardware, with a focus on modularity, flexibility, and ease of use.
+This document provides a high-level overview of the Autonomous Mobile Manipulator, a comprehensive and containerized ROS2-based platform for a versatile mobile manipulator. The project is designed for simulation in Gazebo and deployment on real hardware, with a focus on modularity, flexibility, and ease of use.
 
 It integrates advanced robotics capabilities, including navigation, manipulation, and automation, all orchestrated through a variety of modern interfaces.
 
@@ -156,7 +156,7 @@ The system consists of two main components:
 
 ## API Capabilities Overview
 
-The LKS Robot Project provides a comprehensive API ecosystem supporting full robotic automation:
+The Autonomous Mobile Manipulator provides a comprehensive API ecosystem supporting full robotic automation:
 
 ### **Robot Control APIs (6 endpoints)**
 
@@ -731,7 +731,7 @@ For comprehensive Raspberry Pi setup, see the dedicated guide:
 sudo reboot
 
 # After reboot, deploy the robot
-cd LKS_Robot_Project
+cd Autonomous_Mobile_Manipulator
 docker compose -f docker-compose.prod.yml up -d
 
 # Access the robot
