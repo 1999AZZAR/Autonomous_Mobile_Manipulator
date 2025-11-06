@@ -5,6 +5,7 @@ A complete hexagonal-shaped autonomous mobile manipulator system built with ROS 
 ## System Overview
 
 This project provides a complete production-ready robotics platform featuring:
+
 - **Hexagonal robot design** with 3-wheel omnidirectional movement system
 - **Advanced manipulation** with 4-component picker system for precise object handling
 - **Container load management** with 4-container system for material transport
@@ -30,10 +31,12 @@ This project provides a complete production-ready robotics platform featuring:
 ## Hardware Specifications
 
 ### Robot Configuration
+
 - **Shape**: Hexagonal shaped autonomous mobile robot
 - **Drive System**: 3-wheel omnidirectional movement (Back, Front Left, Front Right)
 
 ### Sensors
+
 - **Distance sensors** (laser base): 3 units for obstacle detection
   - Front distance sensor
   - Back left distance sensor
@@ -44,6 +47,7 @@ This project provides a complete production-ready robotics platform featuring:
 - **IMU sensor** (MPU6050/BNO055): For orientation and motion sensing
 
 ### Actuators & Manipulation
+
 - **Picker System** (4 components):
   - Gripper (servo): Open/close control for object grasping
   - Gripper tilt (servo): Angle adjustment for precise positioning
@@ -54,6 +58,7 @@ This project provides a complete production-ready robotics platform featuring:
   - 2 on right side (right front, right back)
 
 ### Control Systems
+
 - **Hardware Controls**:
   - Emergency stop system
   - Start/stop control
@@ -70,6 +75,7 @@ This project provides a complete production-ready robotics platform featuring:
 The system consists of two main components:
 
 ### ROS 2 Container
+
 - **Robot control**: Hardware interface and low-level control
 - **Navigation**: Path planning and obstacle avoidance
 - **Manipulation**: Advanced 4-component picker system control
@@ -79,6 +85,7 @@ The system consists of two main components:
 - **ROS 2 services**: Modular automation services (patrol, pick-place, obstacle avoidance)
 
 ### Professional Web Interface
+
 - **User-friendly control center**: Modern web-based robot control interface
 - **Real-time status monitoring**: Live system status and diagnostics
 - **Tabbed control panels**: Organized access to all robot functions
@@ -86,6 +93,7 @@ The system consists of two main components:
 - **API integration**: Frontend for all ROS2 REST API endpoints
 
 ### n8n Workflow Engine
+
 - **Workflow automation**: High-level task orchestration
 - **HTTP API integration**: Direct control via REST endpoints
 - **Visual workflow designer**: Drag-and-drop automation
@@ -97,47 +105,56 @@ The system consists of two main components:
 
 The LKS Robot Project provides a comprehensive API ecosystem supporting full robotic automation:
 
-### 🤖 **Robot Control APIs (6 endpoints)**
+### **Robot Control APIs (6 endpoints)**
+
 - **Basic Movement**: Forward/backward, turning, strafing, emergency stop
 - **Mode Management**: AUTONOMOUS, MANUAL, EMERGENCY, MAINTENANCE modes
 - **Status Monitoring**: Real-time robot state, safety systems, diagnostics
 
-### 🦾 **Advanced Manipulation APIs (4 endpoints)**
+### **Advanced Manipulation APIs (4 endpoints)**
+
 - **Picker System**: 4-component gripper control (open/close, tilt, neck, base height)
 - **Precision Control**: Angle and position control with validation
 - **Force Management**: Configurable gripper force for different objects
 
-### 📦 **Container Management APIs (4 endpoints)**
+### **Container Management APIs (4 endpoints)**
+
 - **Load/Unload Operations**: Individual container control
 - **Multi-container Support**: Left/right, front/back positioning
 - **State Management**: Load status tracking and validation
 
-### 🚀 **Automation APIs (3 endpoints)**
+### **Automation APIs (3 endpoints)**
+
 - **Pick & Place**: Complete manipulation sequences with object handling
 - **Autonomous Patrol**: Multi-waypoint navigation with cycle control
 - **Obstacle Avoidance**: Intelligent navigation with dynamic path planning
 
-### 🛡️ **Safety & Emergency APIs (1 endpoint)**
+### **Safety & Emergency APIs (1 endpoint)**
+
 - **Emergency Stop**: Immediate halt with reason logging
 - **Safety Monitoring**: Collision detection and system health
 - **Force Stop**: Override capabilities for critical situations
 
-### 📡 **Sensor Data APIs (1 endpoint)**
+### **Sensor Data APIs (1 endpoint)**
+
 - **Comprehensive Sensing**: Ultrasonic, IR, line sensor, IMU, battery monitoring
 - **Real-time Data**: Live sensor readings with health status
 - **Multi-sensor Fusion**: Integrated sensor data processing
 
-### ⚙️ **Task Management APIs (2 endpoints)**
+### **Task Management APIs (2 endpoints)**
+
 - **Task Monitoring**: Active task tracking with progress and status
 - **Task Control**: Cancel running tasks with reason logging
 - **Lifecycle Management**: Complete task state management
 
-### 🧭 **Navigation APIs (1 endpoint)**
+### **Navigation APIs (1 endpoint)**
+
 - **Localization Status**: Real-time position and confidence tracking
 - **Path Planning**: Current path and navigation state monitoring
 - **Map Integration**: Map availability and navigation performance metrics
 
-### 🔗 **Integration APIs (3 webhooks)**
+### **Integration APIs (3 webhooks)**
+
 - **n8n Workflow Integration**: Direct workflow triggers
 - **Webhook Support**: HTTP callbacks for external systems
 - **Event-driven Automation**: Real-time response capabilities
@@ -147,31 +164,34 @@ The LKS Robot Project provides a comprehensive API ecosystem supporting full rob
 ## Quick Start
 
 ### Prerequisites
+
 - Docker and Docker Compose
 - Git
 
 ### Installation Options
 
 #### Option 1: Development Setup (Ubuntu/Debian)
+
 ```bash
 # Clone the repository
 git clone <repository-url>
 cd lks_robot_project
 
-# Quick start (recommended)
+# Development mode with sensor simulation (recommended for testing)
+./run.sh --dev
+
+# Or use development Docker Compose
+docker compose -f docker-compose.dev.yml up --build -d
+
+# Traditional setup (requires Gazebo)
 ./run.sh
-
-# Or use the advanced startup script
-./start_robot.sh
-
-# Manual Docker Compose (alternative)
-docker compose up --build -d
 
 # Verify services are running
 docker compose ps
 ```
 
 #### Option 2: Raspberry Pi Production Setup
+
 For Raspberry Pi deployment, follow the comprehensive setup guide:
 
 ```bash
@@ -183,24 +203,45 @@ For Raspberry Pi deployment, follow the comprehensive setup guide:
 # See: docs/deployment/raspberry_pi_setup.md
 ```
 
+### Development vs Production Mode
+
+#### Development Mode (Sensor Simulation)
+
+- **Purpose**: Testing n8n workflows and ROS2 APIs without Gazebo
+- **Sensors**: Simulated ultrasonic, line sensor, IMU, and LIDAR data
+- **Performance**: Lightweight, fast startup, ideal for development
+- **Access**: Same interfaces as production, but with dummy sensor data
+
+#### Production Mode (Full Simulation)
+
+- **Purpose**: Complete robot simulation with Gazebo physics
+- **Sensors**: Real sensor simulation through Gazebo plugins
+- **Performance**: Full physics simulation, more resource intensive
+- **Access**: Includes Gazebo GUI and complete sensor integration
+
 ### Access Points
+
 - **Professional Web Interface**: http://localhost:8000 *(Recommended for users)*
 - **n8n Workflow Automation**: http://localhost:5678 *(Advanced workflow design)*
 - **Robot REST API**: http://localhost:5000 *(Direct API access)*
-- **ROS 2 Development Environment**: `docker exec -it ros2_sim_container bash`
+- **ROS 2 Development Environment**: `docker exec -it ros2_dev_container bash`
 
 ### Startup Scripts
 
 The project includes convenient startup scripts for easy deployment:
 
 #### Quick Start (`./run.sh`)
+
 One-command startup for the entire system:
+
 ```bash
 ./run.sh  # Builds, starts, and shows access info
 ```
 
 #### Advanced Startup (`./start_robot.sh`)
+
 Full-featured startup script with options:
+
 ```bash
 ./start_robot.sh --help  # Show all options
 
@@ -253,6 +294,7 @@ lks_robot_project/
 The system includes comprehensive n8n workflows matching the actual robot hardware configuration:
 
 ### Combination Workflows
+
 - **Robot Basic Control**: Manual movement commands for omni wheels
 - **Autonomous Patrol**: Automated patrol with obstacle avoidance
 - **Emergency Stop Monitor**: Safety monitoring and emergency response
@@ -263,6 +305,7 @@ The system includes comprehensive n8n workflows matching the actual robot hardwa
 - **Object Recognition**: Computer vision for object detection
 
 ### Individual Control Workflows
+
 - **Control Omni Wheels**: Direct control of 3 omni wheels (Back, Front Left, Front Right)
 - **Control Picker System**: Complete control of 4-component picker system
   - Gripper control (servo)
@@ -324,6 +367,7 @@ curl -X POST http://localhost:5000/api/robot/stop
 ```
 
 ### Picker System Control
+
 ```bash
 # Control gripper (open/close)
 curl -X POST http://localhost:5000/api/robot/picker/gripper \
@@ -347,6 +391,7 @@ curl -X POST http://localhost:5000/api/robot/picker/gripper_base \
 ```
 
 ### Container System Control
+
 ```bash
 # Control left front container
 curl -X POST http://localhost:5000/api/robot/containers/left_front \
@@ -370,6 +415,7 @@ curl -X POST http://localhost:5000/api/robot/containers/right_back \
 ```
 
 ### Hardware Control
+
 ```bash
 # Emergency stop
 curl -X POST http://localhost:5000/api/robot/hardware/emergency \
@@ -388,6 +434,7 @@ curl -X POST http://localhost:5000/api/robot/hardware/mode \
 ```
 
 ### Legacy Actuator Control (for compatibility)
+
 ```bash
 # Control lifter (legacy)
 curl -X POST http://localhost:5000/api/robot/lifter \
@@ -507,6 +554,7 @@ curl http://localhost:5000/api/robot/navigation/status
 ## Development Guide
 
 ### ROS 2 Development
+
 ```bash
 # Access ROS 2 container
 docker exec -it ros2_sim_container bash
@@ -523,11 +571,13 @@ ros2 launch my_robot_bringup robot.launch.py
 ```
 
 #### Development Environment Notes
+
 - **Host System Development**: Launch files include conditional imports to handle ROS2 package availability. If ROS2 is not installed on your host system, imports will fail gracefully with clear error messages directing you to use the Docker container environment.
 - **Container Development**: All ROS2 packages are available within the Docker containers. Edit files on your host (they're volume-mounted) and execute within the container.
 - **IDE Integration**: Use VS Code with Docker container integration for seamless development experience.
 
 ### Workflow Development
+
 1. Access n8n at http://localhost:5678
 2. Import workflows from `n8n_data/workflows/`
 3. Modify workflows using the visual editor
@@ -535,39 +585,42 @@ ros2 launch my_robot_bringup robot.launch.py
 5. Export updated workflows back to files
 
 ### API Development
+
 The robot API is implemented in `ros2_ws/src/my_robot_automation/scripts/rest_api_server.py` and provides comprehensive REST endpoints for robot control and automation.
 
 #### Complete API Endpoint Reference
 
-| Endpoint | Method | Description | Parameters |
-|----------|--------|-------------|------------|
-| `/health` | GET | System health check | None |
-| `/api/robot/status` | GET | Get comprehensive robot status | None |
-| `/api/robot/sensors` | GET | Get detailed sensor data | None |
-| `/api/robot/tasks` | GET | Get active tasks | `task_id` (optional) |
-| `/api/robot/tasks/{task_id}/cancel` | POST | Cancel running task | `reason` |
-| `/api/robot/navigation/status` | GET | Get navigation status | `include_map`, `include_path` |
-| `/api/robot/mode` | POST | Set robot operating mode | `mode`, `reason`, `force` |
-| `/api/robot/move` | POST | Basic movement control | `direction`, `speed` |
-| `/api/robot/turn` | POST | Rotation control | `direction`, `speed` |
-| `/api/robot/stop` | POST | Stop all movement | None |
-| `/api/robot/picker/gripper` | POST | Control gripper open/close | `command` ("open"/"close") |
-| `/api/robot/picker/gripper_tilt` | POST | Control gripper tilt angle | `angle` (0-180°) |
-| `/api/robot/picker/gripper_neck` | POST | Control gripper neck position | `position` (-1.0 to 1.0) |
-| `/api/robot/picker/gripper_base` | POST | Control gripper base height | `height` (0.0 to 1.0) |
-| `/api/robot/containers/{id}` | POST | Control container operations | `action` ("load"/"unload") |
-| `/api/robot/pick-place` | POST | Execute pick and place operation | `pickup_location`, `place_location`, ... |
-| `/api/robot/patrol` | POST | Execute autonomous patrol | `waypoints`, `patrol_speed`, ... |
-| `/api/robot/obstacle-avoidance` | POST | Navigate with obstacle avoidance | `target_location`, `avoidance_distance`, ... |
-| `/api/robot/emergency-stop` | POST | Emergency stop control | `activate`, `reason`, `force` |
-| `/webhook/robot-control` | POST | n8n workflow integration | `command` |
-| `/webhook/emergency-stop` | POST | n8n emergency stop webhook | `activate`, `reason` |
-| `/webhook/robot/pick_place` | POST | n8n pick and place webhook | `pickup_location`, `place_location` |
+| Endpoint                              | Method | Description                      | Parameters                                       |
+| ------------------------------------- | ------ | -------------------------------- | ------------------------------------------------ |
+| `/health`                           | GET    | System health check              | None                                             |
+| `/api/robot/status`                 | GET    | Get comprehensive robot status   | None                                             |
+| `/api/robot/sensors`                | GET    | Get detailed sensor data         | None                                             |
+| `/api/robot/tasks`                  | GET    | Get active tasks                 | `task_id` (optional)                           |
+| `/api/robot/tasks/{task_id}/cancel` | POST   | Cancel running task              | `reason`                                       |
+| `/api/robot/navigation/status`      | GET    | Get navigation status            | `include_map`, `include_path`                |
+| `/api/robot/mode`                   | POST   | Set robot operating mode         | `mode`, `reason`, `force`                  |
+| `/api/robot/move`                   | POST   | Basic movement control           | `direction`, `speed`                         |
+| `/api/robot/turn`                   | POST   | Rotation control                 | `direction`, `speed`                         |
+| `/api/robot/stop`                   | POST   | Stop all movement                | None                                             |
+| `/api/robot/picker/gripper`         | POST   | Control gripper open/close       | `command` ("open"/"close")                     |
+| `/api/robot/picker/gripper_tilt`    | POST   | Control gripper tilt angle       | `angle` (0-180°)                              |
+| `/api/robot/picker/gripper_neck`    | POST   | Control gripper neck position    | `position` (-1.0 to 1.0)                       |
+| `/api/robot/picker/gripper_base`    | POST   | Control gripper base height      | `height` (0.0 to 1.0)                          |
+| `/api/robot/containers/{id}`        | POST   | Control container operations     | `action` ("load"/"unload")                     |
+| `/api/robot/pick-place`             | POST   | Execute pick and place operation | `pickup_location`, `place_location`, ...     |
+| `/api/robot/patrol`                 | POST   | Execute autonomous patrol        | `waypoints`, `patrol_speed`, ...             |
+| `/api/robot/obstacle-avoidance`     | POST   | Navigate with obstacle avoidance | `target_location`, `avoidance_distance`, ... |
+| `/api/robot/emergency-stop`         | POST   | Emergency stop control           | `activate`, `reason`, `force`              |
+| `/webhook/robot-control`            | POST   | n8n workflow integration         | `command`                                      |
+| `/webhook/emergency-stop`           | POST   | n8n emergency stop webhook       | `activate`, `reason`                         |
+| `/webhook/robot/pick_place`         | POST   | n8n pick and place webhook       | `pickup_location`, `place_location`          |
 
 *Container IDs: `left_front`, `left_back`, `right_front`, `right_back`*
 
 #### Response Format
+
 All API endpoints return JSON responses with consistent structure:
+
 ```json
 {
   "success": true|false,
@@ -580,6 +633,7 @@ All API endpoints return JSON responses with consistent structure:
 ## Deployment
 
 ### Production Deployment (Ubuntu/Debian)
+
 ```bash
 # Stop development containers
 docker compose down
@@ -604,11 +658,13 @@ curl http://localhost:5000  # robot API
 ```
 
 ### Raspberry Pi Deployment
+
 For comprehensive Raspberry Pi setup, see the dedicated guide:
 
 **📖 [Complete Raspberry Pi Setup Guide](docs/deployment/raspberry_pi_setup.md)**
 
 #### Quick Raspberry Pi Setup
+
 ```bash
 # On Raspberry Pi 5 with Ubuntu Server 22.04
 # Run the automated setup script
@@ -627,6 +683,7 @@ docker compose -f docker-compose.prod.yml up -d
 ```
 
 #### Manual Raspberry Pi Setup Steps
+
 1. **OS Installation**: Ubuntu Server 22.04 LTS (64-bit) on Raspberry Pi 5
 2. **Hardware Configuration**: GPIO, I2C, SPI, UART setup
 3. **System Optimization**: Performance tuning for ARM64
@@ -641,18 +698,20 @@ docker compose -f docker-compose.prod.yml up -d
 Comprehensive documentation is available:
 
 ### Hardware Setup
+
 - `docs/hardware/RASPBERRY_PI_PINOUTS.md` - Complete GPIO pinout configuration
 - `docs/hardware/HARDWARE_ASSEMBLY_GUIDE.md` - Step-by-step hardware assembly
 - `docs/hardware/gpio_test.py` - GPIO testing and validation script
 
 ### Raspberry Pi Deployment
+
 - `docs/deployment/raspberry_pi_setup.md` - Complete Raspberry Pi ARM64 setup guide
 - `setup_raspberry_pi.sh` - Automated Raspberry Pi configuration script
 
 ### Software & Workflows
+
 - `docs/workflows/WORKFLOW_MANAGEMENT_README.md` - Complete workflow management guide
 - `docs/` directory - Additional technical documentation
-
 - **[API Documentation](docs/api/)** - Complete API reference and examples
 - **[Hardware Guide](docs/hardware/)** - Hardware specifications and connections
 - **[Raspberry Pi Setup](docs/deployment/raspberry_pi_setup.md)** - ARM64 deployment guide
@@ -664,4 +723,3 @@ Comprehensive documentation is available:
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-

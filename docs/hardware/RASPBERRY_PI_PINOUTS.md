@@ -1,10 +1,10 @@
-# 🥧 Raspberry Pi 5 Pinout Configuration - LKS Robot Project
+# Raspberry Pi 5 Pinout Configuration - LKS Robot Project
 
-## 📋 Complete Hardware Pinout for Hexagonal Robot
+## Complete Hardware Pinout for Hexagonal Robot
 
 This document provides the complete GPIO pinout configuration for the LKS Robot Project running on Raspberry Pi 5 with Ubuntu Server, ROS2, and N8N automation.
 
-## 🔌 Raspberry Pi 5 GPIO Layout
+## Raspberry Pi 5 GPIO Layout
 
 ```
 Raspberry Pi 5 GPIO Header (40-pin)
@@ -32,25 +32,29 @@ Raspberry Pi 5 GPIO Header (40-pin)
 └─────────────────────────────────────┘
 ```
 
-## ⚡ Power Distribution
+## Power Distribution
 
 ### Main Power Supply
+
 - **Input Voltage**: 12V DC (recommended for motors)
 - **Current Rating**: 5A minimum (for all motors + servos)
 - **Connector**: DC Barrel Jack (5.5mm x 2.1mm)
 
 ### Power Rails
+
 - **5V Rail**: For Raspberry Pi, sensors, and logic circuits
 - **3.3V Rail**: For low-power sensors and I2C devices
 - **12V Rail**: For motors and high-power actuators
 
 ### Voltage Regulators Needed
+
 - **12V → 5V**: DC-DC converter (5A minimum) for motor drivers
 - **5V → 3.3V**: AMS1117-3.3 or similar for sensors
 
-## 🔧 GPIO Pin Assignments
+## GPIO Pin Assignments
 
-### 🎛️ **Servo Motors (5x MG996R or similar)**
+### **Servo Motors (5x MG996R or similar)**
+
 ```bash
 # PWM Pins for Servo Control (Hardware PWM capable)
 GPIO12 (32) - Servo 1: Gripper Open/Close        (PWM0)
@@ -62,7 +66,8 @@ GPIO19 (35) - Servo 4: Gripper Base Up/Down      (PWM1)
 GPIO21 (40) - Servo 5: Auxiliary Servo
 ```
 
-### 🔄 **Omni Wheel Motors (3x DC Motors with Encoders)**
+### **Omni Wheel Motors (3x DC Motors with Encoders)**
+
 ```bash
 # Motor 1: Back Wheel
 GPIO17 (11) - Direction Control
@@ -83,7 +88,8 @@ GPIO20 (38) - Encoder A (Interrupt)
 GPIO21 (40) - Encoder B (Alternative pin assignment needed)
 ```
 
-### 📏 **Ultrasonic Sensors (3x HC-SR04)**
+### **Ultrasonic Sensors (3x HC-SR04)**
+
 ```bash
 # Front Ultrasonic Sensor
 GPIO4  (7)  - TRIG (Trigger)
@@ -98,7 +104,8 @@ GPIO18 (12) - TRIG (Alternative pin needed)
 GPIO27 (13) - ECHO (Alternative pin needed)
 ```
 
-### 🔴 **IR Proximity Sensors (3x Sharp GP2Y0A21YK)**
+### **IR Proximity Sensors (3x Sharp GP2Y0A21YK)**
+
 ```bash
 # Front IR Sensor (Analog)
 GPIO0 (27) - ADC Channel 0 (MCP3008)
@@ -110,7 +117,8 @@ GPIO1 (28) - ADC Channel 1 (MCP3008)
 GPIO7 (26) - ADC Channel 2 (MCP3008)
 ```
 
-### 📏 **Line Sensors (8x IR Line Sensors)**
+### **Line Sensors (8x IR Line Sensors)**
+
 ```bash
 # Digital Line Sensor Array (74HC165 Shift Register)
 GPIO8  (24) - SH/LD (Shift/Load)
@@ -119,14 +127,16 @@ GPIO10 (19) - QH  (Serial Output)
 GPIO11 (23) - CLK_INH (Clock Inhibit)
 ```
 
-### 🌀 **IMU Sensor (MPU6050)**
+### **IMU Sensor (MPU6050)**
+
 ```bash
 # I2C Interface
 GPIO2 (3)  - SDA (I2C Data)
 GPIO3 (5)  - SCL (I2C Clock)
 ```
 
-### 🔋 **Lifter Motor (DC Motor with Encoder)**
+### **Lifter Motor (DC Motor with Encoder)**
+
 ```bash
 # Lifter Motor Control
 GPIO12 (32) - Direction Control (Alternative PWM pin needed)
@@ -135,9 +145,10 @@ GPIO19 (35) - Encoder A (Interrupt) (Alternative pin needed)
 GPIO16 (36) - Encoder B (Alternative pin needed)
 ```
 
-## 🔌 Hardware Connections
+## Hardware Connections
 
 ### **Motor Driver Connections (L298N or similar)**
+
 ```bash
 # Motor Driver 1 (Back Wheel)
 IN1: GPIO17 (11)
@@ -167,6 +178,7 @@ Logic pins connect to 5V from Raspberry Pi
 ### **Sensor Connections**
 
 #### **Ultrasonic Sensors (HC-SR04)**
+
 ```bash
 # Power: 5V, GND
 # Front Sensor:
@@ -187,6 +199,7 @@ ECHO: GPIO27 (13) - Connect to Echo pin (voltage divider)
 ```
 
 #### **IR Proximity Sensors (Sharp GP2Y0A21YK)**
+
 ```bash
 # Analog output connects to MCP3008 ADC
 # MCP3008 Connections:
@@ -205,6 +218,7 @@ CH2: Right IR Sensor
 ```
 
 #### **Line Sensor Array**
+
 ```bash
 # 8-sensor line following array
 # Uses 74HC165 shift register for parallel-to-serial conversion
@@ -221,6 +235,7 @@ CLK_INH: GPIO11 (23) - Clock inhibit
 ```
 
 #### **IMU Sensor (MPU6050)**
+
 ```bash
 # I2C Connection (default Raspberry Pi I2C bus)
 SDA: GPIO2 (3)  - Connect to MPU6050 SDA
@@ -230,21 +245,24 @@ GND: GND
 INT: GPIO4 (7)  - Interrupt pin (optional)
 ```
 
-## 🔧 Software Configuration
+## Software Configuration
 
 ### **Enable I2C Interface**
+
 ```bash
 sudo raspi-config
 # Interfacing Options > I2C > Enable
 ```
 
 ### **Enable SPI Interface (for ADC)**
+
 ```bash
 sudo raspi-config
 # Interfacing Options > SPI > Enable
 ```
 
 ### **Install Required Libraries**
+
 ```bash
 sudo apt update
 sudo apt install python3-pip python3-gpiozero python3-smbus python3-spidev
@@ -252,21 +270,24 @@ pip3 install adafruit-circuitpython-mpu6050 adafruit-circuitpython-mcp3008
 ```
 
 ### **GPIO Permissions**
+
 ```bash
 sudo usermod -a -G gpio $USER
 sudo usermod -a -G i2c $USER
 sudo usermod -a -G spi $USER
 ```
 
-## 📊 Pin Usage Summary
+## Pin Usage Summary
 
 ### **PWM Pins Used (Hardware PWM)**
+
 - GPIO12 (32) - Servo 1
 - GPIO13 (33) - Servo 2
 - GPIO18 (12) - Servo 3
 - GPIO19 (35) - Servo 4
 
 ### **Interrupt Pins (Encoder Inputs)**
+
 - GPIO22 (15) - Back wheel encoder A
 - GPIO23 (16) - Back wheel encoder B
 - GPIO5 (29)  - Front left encoder A
@@ -275,16 +296,19 @@ sudo usermod -a -G spi $USER
 - GPIO21 (40) - Front right encoder B
 
 ### **I2C Pins**
+
 - GPIO2 (3) - SDA
 - GPIO3 (5) - SCL
 
 ### **SPI Pins (MCP3008 ADC)**
+
 - GPIO8 (24)  - CS
 - GPIO9 (21)  - CLK
 - GPIO10 (19) - DOUT
 - GPIO11 (23) - DIN
 
 ### **Digital I/O Pins**
+
 - GPIO4 (7)   - Ultrasonic TRIG
 - GPIO14 (8)  - Ultrasonic ECHO
 - GPIO15 (10) - Ultrasonic TRIG
@@ -295,35 +319,41 @@ sudo usermod -a -G spi $USER
 - GPIO26 (37) - Motor PWM
 - GPIO27 (13) - Motor PWM
 
-## ⚠️ Important Notes
+## Important Notes
 
 ### **Pin Conflicts Resolution**
+
 Some pins are assigned to multiple functions. Prioritize based on hardware capabilities:
+
 1. Use hardware PWM pins for servo control
 2. Use interrupt-capable pins for encoders
 3. Redistribute conflicting pins as needed
 
 ### **Power Considerations**
+
 - **Separate power supplies** for motors and logic to avoid noise
 - **Current monitoring** for motor drivers
 - **Voltage regulators** must handle peak current loads
 - **Heat sinks** for motor drivers and voltage regulators
 
 ### **Sensor Calibration**
+
 - **Ultrasonic sensors**: Calibrate for temperature and humidity
 - **IR sensors**: Calibrate distance-to-voltage curves
 - **Line sensors**: Calibrate threshold values for different surfaces
 - **IMU**: Calibrate gyroscope and accelerometer offsets
 
 ### **Safety Features**
+
 - **Emergency stop button** connected to GPIO (not assigned yet)
 - **Motor current monitoring** to prevent overheating
 - **Software limits** for all actuators
 - **Watchdog timer** for system health monitoring
 
-## 🔧 Hardware Shopping List
+## Hardware Shopping List
 
 ### **Core Components**
+
 - Raspberry Pi 5
 - 5x MG996R Servo Motors
 - 3x DC Motors with Encoders (for omni wheels)
@@ -338,14 +368,15 @@ Some pins are assigned to multiple functions. Prioritize based on hardware capab
 - Power Supply (12V, 5A)
 
 ### **Supporting Components**
+
 - Jumper wires, breadboards
 - Voltage regulators (12V→5V, 5V→3.3V)
 - Resistors for voltage dividers
 - Capacitors for noise filtering
 - Heat sinks and cooling fans
 
-## 🚀 Ready for Implementation
+## Ready for Implementation
 
 This pinout configuration provides a complete hardware interface for the LKS Robot Project. All sensors and actuators referenced in the ROS2 code and N8N workflows are properly mapped to Raspberry Pi GPIO pins.
 
-**The robot is now ready for physical assembly and testing!** 🤖⚙️🔌
+**The robot is now ready for physical assembly and testing!**

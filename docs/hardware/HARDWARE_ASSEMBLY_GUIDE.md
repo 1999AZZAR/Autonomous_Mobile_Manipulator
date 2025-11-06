@@ -1,12 +1,13 @@
-# 🔧 LKS Robot - Hardware Assembly Guide
+# LKS Robot - Hardware Assembly Guide
 
-## 📋 Complete Hardware Setup for Raspberry Pi Integration
+## Complete Hardware Setup for Raspberry Pi Integration
 
 This guide provides step-by-step instructions for assembling and connecting all hardware components for the LKS Robot Project.
 
-## 🛠️ Required Tools & Materials
+## Required Tools & Materials
 
 ### **Tools**
+
 - Soldering iron and solder
 - Wire cutters/strippers
 - Multimeter
@@ -16,23 +17,26 @@ This guide provides step-by-step instructions for assembling and connecting all 
 - Jumper wires
 
 ### **Power Supplies**
+
 - 12V DC power supply (5A minimum)
 - 5V DC-DC converter (5A)
 - 3.3V voltage regulator
 - Power distribution board
 
 ### **Cables & Connectors**
+
 - Dupont jumper wires (male-male, male-female, female-female)
 - Servo extension cables
 - Motor power cables (16-18 AWG)
 - Sensor cables
 - Terminal blocks for power distribution
 
-## 🔌 Step-by-Step Assembly
+## Step-by-Step Assembly
 
 ### **Step 1: Power Distribution Setup**
 
 #### **Main Power Supply Connections**
+
 ```bash
 12V Power Supply → Power Distribution Board
 ├── 12V Rail → All Motor Drivers (L298N modules)
@@ -41,6 +45,7 @@ This guide provides step-by-step instructions for assembling and connecting all 
 ```
 
 #### **Voltage Regulator Setup**
+
 ```bash
 # 12V → 5V DC-DC Converter
 Input: 12V from main supply
@@ -59,6 +64,7 @@ Output: 3.3V → MCP3008 ADC
 ### **Step 2: Raspberry Pi GPIO Header Connections**
 
 #### **Servo Motor Connections**
+
 ```bash
 # Servo 1: Gripper Open/Close
 Signal: GPIO12 (Pin 32) → Servo 1 Signal Wire
@@ -137,6 +143,7 @@ Logic: 5V → VSS
 ### **Step 3: Encoder Connections**
 
 #### **Wheel Encoders**
+
 ```bash
 # Back Wheel Encoder
 Encoder A: GPIO22 (Pin 15) → Encoder Channel A
@@ -166,6 +173,7 @@ Ground: GND → Encoder GND
 ### **Step 4: Sensor Connections**
 
 #### **Ultrasonic Sensors (HC-SR04)**
+
 ```bash
 # Front Ultrasonic Sensor
 TRIG: GPIO4 (Pin 7) → HC-SR04 TRIG
@@ -191,6 +199,7 @@ GND: GND → HC-SR04 GND
 ```
 
 #### **IR Proximity Sensors (Sharp GP2Y0A21YK)**
+
 ```bash
 # MCP3008 ADC Connections
 VDD: 3.3V → MCP3008 VDD
@@ -213,6 +222,7 @@ VO → ADC Channels (through MCP3008)
 ```
 
 #### **Line Sensor Array**
+
 ```bash
 # 74HC165 Shift Register Connections
 QH: GPIO10 (Pin 19) → 74HC165 QH ⚠️ CONFLICT with ADC
@@ -235,6 +245,7 @@ OUT → 74HC165 inputs
 ```
 
 #### **IMU Sensor (MPU6050)**
+
 ```bash
 # I2C Connections (Default Raspberry Pi I2C bus)
 SDA: GPIO2 (Pin 3) → MPU6050 SDA
@@ -244,11 +255,12 @@ GND: GND → MPU6050 GND
 INT: GPIO4 (Pin 7) → MPU6050 INT (optional)
 ```
 
-## ⚠️ Pin Conflict Resolution
+## Pin Conflict Resolution
 
 ### **Critical Conflicts to Resolve**
 
 #### **Lifter Motor vs Servos**
+
 ```
 Current: GPIO12/13 used for both Servo 1/2 AND Lifter
 Solution: Move lifter to GPIO20/21 (currently shared with encoders)
@@ -259,6 +271,7 @@ New Assignment:
 ```
 
 #### **Ultrasonic Sensors**
+
 ```
 Current: Conflicts with motor and servo pins
 Solution: Use GPIO0/1 (I2C ID pins) for additional sensors
@@ -269,6 +282,7 @@ New Assignment:
 ```
 
 #### **ADC vs Line Sensors**
+
 ```
 Current: Same pins used for both
 Solution: Use software SPI for ADC or separate SPI bus
@@ -330,9 +344,10 @@ GPIO2  (3)  - SDA
 GPIO3  (5)  - SCL
 ```
 
-## 🔧 Software Setup
+## Software Setup
 
 ### **Enable Interfaces**
+
 ```bash
 sudo raspi-config
 # Interfacing Options:
@@ -343,6 +358,7 @@ sudo raspi-config
 ```
 
 ### **Install Dependencies**
+
 ```bash
 sudo apt update
 sudo apt install python3-pip python3-gpiozero python3-smbus python3-spidev
@@ -350,6 +366,7 @@ pip3 install adafruit-circuitpython-mpu6050 adafruit-circuitpython-mcp3008
 ```
 
 ### **GPIO Permissions**
+
 ```bash
 sudo usermod -a -G gpio $USER
 sudo usermod -a -G i2c $USER
@@ -357,16 +374,18 @@ sudo usermod -a -G spi $USER
 ```
 
 ### **Test Hardware**
+
 ```bash
 python3 docs/hardware/gpio_test.py          # Test all GPIO pins
 python3 docs/hardware/gpio_test.py --quick  # Quick GPIO test
 ```
 
-## 🔍 Testing & Calibration
+## Testing & Calibration
 
 ### **Individual Component Tests**
 
 #### **Servo Test**
+
 ```python
 import RPi.GPIO as GPIO
 import time
@@ -385,6 +404,7 @@ GPIO.cleanup()
 ```
 
 #### **Motor Test**
+
 ```python
 import RPi.GPIO as GPIO
 import time
@@ -405,6 +425,7 @@ GPIO.cleanup()
 ```
 
 #### **Ultrasonic Test**
+
 ```python
 import RPi.GPIO as GPIO
 import time
@@ -438,6 +459,7 @@ GPIO.cleanup()
 ### **System Integration Test**
 
 #### **ROS2 Launch Test**
+
 ```bash
 # Terminal 1: Launch ROS2
 ros2 launch my_robot_bringup robot.launch.py
@@ -451,17 +473,19 @@ curl http://localhost:5000/api/robot/status
 curl -X POST http://localhost:5000/api/robot/move -H "Content-Type: application/json" -d '{"direction":"forward","speed":0.3}'
 ```
 
-## 🔧 Troubleshooting
+## Troubleshooting
 
 ### **Common Issues**
 
 #### **GPIO Permission Denied**
+
 ```bash
 sudo usermod -a -G gpio $USER
 sudo reboot
 ```
 
 #### **I2C/SPI Not Working**
+
 ```bash
 ls /dev/i2c*  # Check I2C devices
 ls /dev/spi*  # Check SPI devices
@@ -469,21 +493,25 @@ sudo i2cdetect -y 1  # Scan I2C bus
 ```
 
 #### **PWM Not Working**
+
 - Check if pin supports hardware PWM
 - Use software PWM as fallback: `GPIO.PWM(pin, frequency)`
 
 #### **Motor Not Moving**
+
 - Check power supply voltage/current
 - Verify motor driver connections
 - Test motor driver with simple script
 
 #### **Sensors Not Responding**
+
 - Check power connections (5V/3.3V)
 - Verify signal connections
 - Test with multimeter
 - Check sensor documentation for pinouts
 
 ### **Debug Commands**
+
 ```bash
 # Check GPIO status
 gpio readall
@@ -500,9 +528,10 @@ dmesg | grep i2c
 dmesg | grep spi
 ```
 
-## 📋 Final Checklist
+## Final Checklist
 
 ### **Hardware Assembly**
+
 - [ ] Power distribution board assembled
 - [ ] Voltage regulators tested
 - [ ] Raspberry Pi GPIO connections verified
@@ -512,6 +541,7 @@ dmesg | grep spi
 - [ ] I2C/SPI devices connected
 
 ### **Software Setup**
+
 - [ ] Interfaces enabled (I2C, SPI)
 - [ ] Dependencies installed
 - [ ] GPIO permissions set
@@ -520,19 +550,20 @@ dmesg | grep spi
 - [ ] N8N workflows imported
 
 ### **Testing & Calibration**
+
 - [ ] Individual component tests passed
 - [ ] System integration test successful
 - [ ] Sensor calibration completed
 - [ ] Motor PID tuning done
 - [ ] Emergency stop tested
 
-## 🚀 Ready for Operation
+## Ready for Operation
 
 Once all components are assembled and tested, the LKS Robot will be fully operational with:
 
-- **🤖 ROS2 low-level control** for real hardware
-- **🌐 Web interface** for manual control
-- **🔄 N8N workflows** for automation
-- **📊 Real-time monitoring** of all systems
+- **ROS2 low-level control** for real hardware
+- **Web interface** for manual control
+- **N8N workflows** for automation
+- **Real-time monitoring** of all systems
 
-**The robot is now ready for advanced autonomous operations!** 🎯🤖⚙️
+**The robot is now ready for advanced autonomous operations!**

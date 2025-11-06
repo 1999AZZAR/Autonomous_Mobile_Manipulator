@@ -1,27 +1,29 @@
-# 🤖 N8N Workflow Management Tools
+# N8N Workflow Management Tools
 
 A comprehensive command-line tool for managing N8N workflows with advanced import, export, backup, and cleanup capabilities.
 
-## 🚀 Features
+## Features
 
 ### **Core Operations**
-- **📥 Import Workflows**: Import enhanced individual control workflows or all available workflows
-- **📤 Export Workflows**: Export all workflows from running N8N instance to local files
-- **🧹 Clean Workflows**: Safely remove all workflows from N8N instance
-- **💾 Backup Workflows**: Create timestamped backups of workflows and N8N state
-- **📊 Status Monitoring**: Check N8N instance status and workflow counts
-- **📋 List Workflows**: Display all available workflow files with categorization
+
+- **Import Workflows**: Import enhanced individual control workflows or all available workflows
+- **Export Workflows**: Export all workflows from running N8N instance to local files
+- **Clean Workflows**: Safely remove all workflows from N8N instance
+- **Backup Workflows**: Create timestamped backups of workflows and N8N state
+- **Status Monitoring**: Check N8N instance status and workflow counts
+- **List Workflows**: Display all available workflow files with categorization
 
 ### **Enhanced Workflow Categories**
-- **🛡️ Sensor Monitoring**: Ultrasonic, IR proximity, line following with safety integration
-- **🎯 Precise Movement**: Distance-based navigation and angle-based rotation control
-- **🔧 Advanced Servo Control**: Safety-limited servo positioning with verification
-- **⚙️ Servo Sequences**: Pre-programmed manipulation patterns for complex operations
-- **🛡️ Safety Systems**: Multi-level emergency response and continuous monitoring
-- **📊 State Management**: Comprehensive robot state tracking and health monitoring
-- **📦 Container Framework**: Ready-for-implementation container management system
 
-## 📋 Usage
+- **Sensor Monitoring**: Ultrasonic, IR proximity, line following with safety integration
+- **Precise Movement**: Distance-based navigation and angle-based rotation control
+- **Advanced Servo Control**: Safety-limited servo positioning with verification
+- **Servo Sequences**: Pre-programmed manipulation patterns for complex operations
+- **Safety Systems**: Multi-level emergency response and continuous monitoring
+- **State Management**: Comprehensive robot state tracking and health monitoring
+- **Container Framework**: Ready-for-implementation container management system
+
+## Usage
 
 ### **Basic Commands**
 
@@ -49,6 +51,7 @@ A comprehensive command-line tool for managing N8N workflows with advanced impor
 ```
 
 #### **Dynamic File Discovery**
+
 - **No hardcoded file lists** - Automatically finds workflow files based on naming patterns
 - **Enhanced workflows**: All files matching `individual_sensor*`, `individual_movement*`, `individual_servo*`, `individual_safety*`, `individual_state*`, plus container system
 - **All workflows**: Every `.json` file in the workflows directory
@@ -71,24 +74,27 @@ A comprehensive command-line tool for managing N8N workflows with advanced impor
 ./workflow_management_tools.sh clean
 ```
 
-## 🔄 Workflow Management Workflow
+## Workflow Management Workflow
 
 ### **For Development & Testing**
+
 1. **Backup current state**: `./workflow_management_tools.sh backup`
 2. **Clean N8N instance**: `./workflow_management_tools.sh clean`
 3. **Import fresh workflows**: `./workflow_management_tools.sh import-enhanced`
 
 ### **For Production Deployment**
+
 1. **Export current workflows**: `./workflow_management_tools.sh export`
 2. **Clean for fresh start**: `./workflow_management_tools.sh clean`
 3. **Import production workflows**: `./workflow_management_tools.sh import-all`
 
 ### **For Maintenance**
+
 1. **Check status**: `./workflow_management_tools.sh status`
 2. **Create backup**: `./workflow_management_tools.sh backup`
 3. **List available workflows**: `./workflow_management_tools.sh list`
 
-## 📁 Directory Structure
+## Directory Structure
 
 ```
 project/
@@ -104,27 +110,31 @@ project/
     └── backup_20241101_143000/           # Timestamped backups
 ```
 
-## 🛡️ Safety Features
+## Safety Features
 
 ### **Confirmation Prompts**
+
 - **Clean operations** require explicit "YES" confirmation
 - **Status checks** before destructive operations
 - **Automatic backups** before major changes
 
 ### **Error Handling**
+
 - **Graceful failures** with detailed error messages
 - **Partial operation recovery** when possible
 - **Automatic cleanup** of temporary files
 
 ### **Prerequisites Validation**
+
 - **Docker accessibility** check
 - **N8N container status** verification
 - **Directory permissions** validation
 - **Network connectivity** testing
 
-## 📊 Output Examples
+## Output Examples
 
 ### **Status Check**
+
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║ N8N Workflow Management Tools                                               ║
@@ -143,6 +153,7 @@ project/
 ```
 
 ### **Import Operation**
+
 ```
 ╔══════════════════════════════════════════════════════════════════════════════╗
 ║ N8N Workflow Management Tools                                               ║
@@ -170,9 +181,10 @@ project/
 └────────────────────────────────────────────────────────────────────────────┘
 ```
 
-## 🔧 Technical Details
+## Technical Details
 
 ### **Dependencies**
+
 - **Docker**: For N8N container management
 - **SQLite3**: For database operations
 - **curl**: For API communication
@@ -181,6 +193,7 @@ project/
 ### **Dynamic File Discovery Architecture**
 
 #### **File Pattern Matching**
+
 The script uses shell globbing patterns to dynamically discover workflow files:
 
 ```bash
@@ -194,48 +207,58 @@ The script uses shell globbing patterns to dynamically discover workflow files:
 ```
 
 #### **All Workflows Discovery**
+
 ```bash
 # Simple globbing for all JSON files
 "$WORKFLOWS_DIR"/*.json
 ```
 
 #### **Benefits of Dynamic Discovery**
+
 - **Zero maintenance**: No need to update script when adding new workflows
 - **Pattern-based**: Logical grouping based on file naming conventions
 - **Robust**: Handles missing files gracefully
 - **Extensible**: Easy to add new workflow categories
 
 ### **Environment Requirements**
+
 - **N8N container** named `n8n_container` must be running
 - **Docker Compose** setup in project root
 - **Workflow files** in `n8n_data/workflows/` directory
 - **Write permissions** for export and backup directories
 
 ### **API Endpoints Used**
+
 - `GET /rest/workflows` - List all workflows
 - `GET /rest/workflows/{id}` - Get specific workflow
 - Database direct access for advanced operations
 
-## 🚨 Important Notes
+## Important Notes
 
 ### **Backup First**
+
 Always create backups before performing clean or major import operations:
+
 ```bash
 ./workflow_management_tools.sh backup
 ```
 
 ### **N8N Restart Required**
+
 Some operations may require N8N restart for changes to take effect. The script handles this automatically.
 
 ### **Large Imports**
+
 For large workflow imports, the script provides progress feedback and handles partial failures gracefully.
 
 ### **Permissions**
+
 Ensure the script has write permissions to export and backup directories.
 
-## 🎯 Best Practices
+## Best Practices
 
 ### **Development Workflow**
+
 1. **List available workflows**: Check what's available
 2. **Backup current state**: Always backup before changes
 3. **Clean if needed**: Remove old workflows for clean slate
@@ -243,6 +266,7 @@ Ensure the script has write permissions to export and backup directories.
 5. **Verify operation**: Check status after operations
 
 ### **Production Deployment**
+
 1. **Export current state**: Preserve existing configurations
 2. **Clean instance**: Ensure clean deployment
 3. **Import production workflows**: Use `import-all` for complete setup
@@ -250,16 +274,18 @@ Ensure the script has write permissions to export and backup directories.
 5. **Create backup**: Backup successful deployment state
 
 ### **Maintenance Schedule**
+
 - **Daily**: Status checks during active development
 - **Weekly**: Full backups of working configurations
 - **Before releases**: Complete export and backup cycles
 - **After changes**: Verification of workflow integrity
 
-## 🆘 Troubleshooting
+## Troubleshooting
 
 ### **Common Issues**
 
 #### **"N8N container is not running"**
+
 ```bash
 # Start N8N first
 docker compose up -d n8n
@@ -269,11 +295,13 @@ docker compose up -d n8n
 ```
 
 #### **"Failed to import workflow"**
+
 - Check workflow JSON syntax
 - Ensure N8N has sufficient resources
 - Try importing individual workflows
 
 #### **"Permission denied"**
+
 ```bash
 # Fix permissions
 chmod +x workflow_management_tools.sh
@@ -281,6 +309,7 @@ chmod -R 755 n8n_data/ workflow_exports/ workflow_backups/
 ```
 
 #### **"Database locked"**
+
 - Wait for N8N operations to complete
 - Restart N8N container if needed
 - Check for concurrent operations
@@ -288,6 +317,7 @@ chmod -R 755 n8n_data/ workflow_exports/ workflow_backups/
 ### **Recovery Procedures**
 
 #### **After Failed Import**
+
 ```bash
 # Clean and retry
 ./workflow_management_tools.sh clean
@@ -295,6 +325,7 @@ chmod -R 755 n8n_data/ workflow_exports/ workflow_backups/
 ```
 
 #### **Restore from Backup**
+
 ```bash
 # List available backups
 ls -la workflow_backups/
@@ -306,19 +337,22 @@ cp workflow_backups/backup_20241101_143000/*.json n8n_data/workflows/
 ./workflow_management_tools.sh import-all
 ```
 
-## 📈 Performance Notes
+## Performance Notes
 
 ### **Import Performance**
+
 - **Enhanced workflows**: ~10 workflows, ~30 seconds
 - **All workflows**: ~33 workflows, ~60 seconds
 - **Large imports**: May require N8N restart
 
 ### **Export Performance**
+
 - **Database queries**: Fast, <5 seconds
 - **File operations**: Depends on workflow count and size
 - **API calls**: May be slower for large numbers of workflows
 
 ### **Optimization Tips**
+
 - **Use enhanced import** for development (faster, focused)
 - **Regular backups** prevent data loss
 - **Monitor resource usage** during large operations
@@ -326,8 +360,8 @@ cp workflow_backups/backup_20241101_143000/*.json n8n_data/workflows/
 
 ---
 
-## 🎉 Summary
+## Summary
 
 The **N8N Workflow Management Tools** provide a comprehensive, safe, and efficient way to manage complex robot control workflows. With support for enhanced individual control mechanisms, automatic safety features, and robust error handling, this tool ensures reliable workflow deployment and maintenance.
 
-**Ready for enterprise-level industrial automation!** 🚀🤖✨
+**Ready for enterprise-level industrial automation!**

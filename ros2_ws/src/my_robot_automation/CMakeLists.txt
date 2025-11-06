@@ -71,6 +71,7 @@ install(PROGRAMS
   scripts/sensor_data_server.py
   scripts/task_management_server.py
   scripts/navigation_status_server.py
+  scripts/sensor_simulator.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
