@@ -20,6 +20,7 @@ This directory contains comprehensive documentation for the Autonomous Mobile Ma
 - **[Development Guide](./development/)** - Development workflow and best practices
 - **[Deployment Guide](./deployment/)** - Production deployment procedures
 - **[Troubleshooting](./troubleshooting/)** - Common issues and solutions
+- **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to the project
 
 ### Integration Guides
 - **[LabVIEW Integration](./labview-integration/)** - LabVIEW system integration

@@ -79,6 +79,7 @@ External control systems interact with the `my_robot_automation` package, which 
 - [Development Guide](#development-guide)
 - [Deployment](#deployment)
 - [Documentation](#documentation)
+- [Contributing](#contributing)
 - [License](#license)
 
 ## Hardware Specifications
@@ -825,6 +826,16 @@ The system includes **33+ pre-configured n8n workflows** covering:
 - **Emergency Stop**: <100ms response time with multi-layer protection
 - **Obstacle Avoidance**: LIDAR-based reactive navigation
 - **Velocity Limiting**: Configurable speed and acceleration limits
+
+## Contributing
+
+We welcome contributions to the Autonomous Mobile Manipulator project! Please see our [Contributing Guide](CONTRIBUTING.md) for detailed information on:
+
+- Development environment setup
+- Code contribution guidelines
+- Testing requirements
+- Pull request process
+- Issue reporting
 
 ## License
 

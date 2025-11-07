@@ -42,7 +42,6 @@ This guide provides comprehensive instructions for developing and extending the 
   - [Real-time Systems Development](#real-time-systems-development)
 - [Community Contribution](#community-contribution)
   - [Contributing Guidelines](#contributing-guidelines)
-  - [Community Standards](#community-standards)
 - [Resources and References](#resources-and-references)
   - [Essential Documentation](#essential-documentation)
   - [Development Tools](#development-tools)
@@ -896,12 +895,15 @@ void real_time_control_loop()
 
 ### Contributing Guidelines
 
-1. **Fork and Clone**: Fork repository and create feature branch
-2. **Development**: Implement changes following code standards
-3. **Testing**: Add comprehensive tests for new functionality
-4. **Documentation**: Update documentation for changes
-5. **Pull Request**: Submit well-documented pull request
-6. **Review**: Participate in code review process
+For detailed information on how to contribute to the Autonomous Mobile Manipulator project, please see the [Contributing Guide](../CONTRIBUTING.md).
+
+The contributing guide covers:
+- Development environment setup
+- Code contribution guidelines
+- Testing requirements
+- Pull request process
+- Issue reporting
+- Code of conduct
 
 ### Community Standards
 
