@@ -1,5 +1,5 @@
-# Use ARM64-compatible ROS 2 Jazzy base image (desktop-full not available for ARM64)
-FROM arm64v8/ros:jazzy
+# Use ROS 2 Iron desktop image for x86 development
+FROM osrf/ros:iron-desktop-full
 
 # Set the shell to bash
 SHELL ["/bin/bash", "-c"]
@@ -12,21 +12,20 @@ RUN apt-get update && apt-get install -y \
     git \
     python3-pip \
     python3-colcon-common-extensions \
-    ros-jazzy-desktop \
-    ros-jazzy-navigation2 \
-    ros-jazzy-nav2-bringup \
-    ros-jazzy-moveit \
-    ros-jazzy-ros2-control \
-    ros-jazzy-ros2-controllers \
-    ros-jazzy-joint-state-publisher \
-    ros-jazzy-xacro \
-    ros-jazzy-robot-localization \
-    ros-jazzy-slam-toolbox \
-    ros-jazzy-imu-filter-madgwick \
-    ros-jazzy-foxglove-bridge \
-    ros-jazzy-teleop-twist-joy \
-    ros-jazzy-teleop-twist-keyboard \
-    ros-jazzy-rplidar-ros \
+    ros-iron-navigation2 \
+    ros-iron-nav2-bringup \
+    ros-iron-moveit \
+    ros-iron-ros2-control \
+    ros-iron-ros2-controllers \
+    ros-iron-joint-state-publisher \
+    ros-iron-xacro \
+    ros-iron-robot-localization \
+    ros-iron-slam-toolbox \
+    ros-iron-imu-filter-madgwick \
+    ros-iron-foxglove-bridge \
+    ros-iron-teleop-twist-joy \
+    ros-iron-teleop-twist-keyboard \
+    ros-iron-rplidar-ros \
     # Add any other specific libraries your robot needs here
     && rm -rf /var/lib/apt/lists/*
 
@@ -38,7 +37,7 @@ RUN pip3 install flask flask-cors websockets
 # Create and build the workspace
 WORKDIR /root/ros2_ws
 COPY . .
-RUN . /opt/ros/jazzy/setup.bash && colcon build
+RUN . /opt/ros/iron/setup.bash && colcon build
 
 # --- Entrypoint ---
 # Source the ROS 2 environment every time the container starts

@@ -351,12 +351,12 @@ EOF
 echo "Performing health checks..."
 
 # Check Docker containers
-if ! docker ps | grep -q lks_robot; then
+if ! docker ps | grep -q ros2_sim_prod_container; then
     echo "ERROR: Robot container not running"
     exit 1
 fi
 
-if ! docker ps | grep -q lks_n8n; then
+if ! docker ps | grep -q n8n_prod_container; then
     echo "ERROR: n8n container not running"
     exit 1
 fi
@@ -408,7 +408,8 @@ main() {
         log_info "1. Reboot: sudo reboot"
         log_info "2. After reboot, clone the project:"
         log_info "   git clone https://github.com/1999AZZAR/Autonomous_Mobile_Manipulator.git"
-        log_info "3. Start the robot: cd Autonomous_Mobile_Manipulator && docker compose -f docker-compose.prod.yml up -d"
+        log_info "3. Start the robot (production): cd Autonomous_Mobile_Manipulator && docker compose -f docker-compose.prod.yml up -d"
+        log_info "   Or for development: docker compose -f docker-compose.dev.yml up -d"
         log_info "4. Access interfaces:"
         log_info "   - n8n: http://localhost:5678"
         log_info "   - Robot API: http://localhost:5000"

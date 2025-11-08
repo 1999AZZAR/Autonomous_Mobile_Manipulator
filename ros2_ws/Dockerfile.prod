@@ -1,4 +1,4 @@
-# Use ARM64-compatible ROS 2 Jazzy base image (desktop-full not available for ARM64)
+# Use ARM64-compatible ROS 2 Jazzy base image for Raspberry Pi deployment
 FROM arm64v8/ros:jazzy
 
 # Set the shell to bash
@@ -32,7 +32,7 @@ RUN apt-get update && apt-get install -y \
 
 # --- Python Dependencies ---
 # Install Python libraries for your custom nodes
-RUN pip3 install flask flask-cors websockets
+RUN pip3 install flask flask-cors websockets --break-system-packages
 
 # --- ROS 2 Workspace Setup ---
 # Create and build the workspace

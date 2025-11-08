@@ -7,7 +7,7 @@ services:
     # Launch ROS2 automation services only (no Gazebo for faster testing)
     command: >
       bash -c "
-      source /opt/ros/iron/setup.bash &&
+      source /opt/ros/jazzy/setup.bash &&
       cd /root/ros2_ws &&
       echo 'Building robot packages...' &&
       timeout 300 colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation --event-handlers console_direct+ &&
