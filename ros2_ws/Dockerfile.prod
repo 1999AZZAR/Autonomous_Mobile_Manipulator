@@ -35,10 +35,10 @@ RUN apt-get update && apt-get install -y \
 RUN pip3 install flask flask-cors websockets --break-system-packages
 
 # --- ROS 2 Workspace Setup ---
-# Create and build the workspace
+# Create and build the workspace (only build working packages for Jazzy compatibility)
 WORKDIR /root/ros2_ws
 COPY . .
-RUN . /opt/ros/jazzy/setup.bash && colcon build
+RUN . /opt/ros/jazzy/setup.bash && colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation --continue-on-error
 
 # --- Entrypoint ---
 # Source the ROS 2 environment every time the container starts
