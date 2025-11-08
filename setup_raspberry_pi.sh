@@ -55,12 +55,43 @@ configure_system() {
     # Configure timezone
     sudo timedatectl set-timezone Asia/Jakarta
 
-    # Enable required interfaces
-    sudo raspi-config nonint do_i2c 0
-    sudo raspi-config nonint do_spi 0
-    sudo raspi-config nonint do_serial_hw 0
-    sudo raspi-config nonint do_serial_cons 1
-    sudo raspi-config nonint do_camera 0
+    # Enable required interfaces using direct config file modification for Ubuntu compatibility
+    log_info "Configuring hardware interfaces..."
+
+    # Check if we're on Ubuntu and modify config.txt directly
+    if [[ -f /boot/firmware/config.txt ]]; then
+        CONFIG_FILE="/boot/firmware/config.txt"
+
+        # Enable I2C
+        if ! grep -q "^dtparam=i2c_arm=on" "$CONFIG_FILE"; then
+            echo "dtparam=i2c_arm=on" | sudo tee -a "$CONFIG_FILE"
+        fi
+
+        # Enable SPI
+        if ! grep -q "^dtparam=spi=on" "$CONFIG_FILE"; then
+            echo "dtparam=spi=on" | sudo tee -a "$CONFIG_FILE"
+        fi
+
+        # Enable UART
+        if ! grep -q "^enable_uart=1" "$CONFIG_FILE"; then
+            echo "enable_uart=1" | sudo tee -a "$CONFIG_FILE"
+        fi
+
+        # Enable camera
+        if ! grep -q "^start_x=1" "$CONFIG_FILE"; then
+            echo "start_x=1" | sudo tee -a "$CONFIG_FILE"
+            echo "gpu_mem=128" | sudo tee -a "$CONFIG_FILE"
+        fi
+
+        log_info "Hardware interfaces configured via config.txt"
+    else
+        # Fallback to raspi-config for Raspberry Pi OS
+        log_warning "config.txt not found, trying raspi-config..."
+        sudo raspi-config nonint do_i2c 0
+        sudo raspi-config nonint do_spi 0
+        sudo raspi-config nonint do_serial 0  # Use single do_serial function for Ubuntu
+        sudo raspi-config nonint do_camera 0
+    fi
 
     log_success "System configured"
 }
@@ -83,20 +114,23 @@ install_dependencies() {
         libi2c-dev \
         libgpiod-dev \
         gpiod \
-        pigpio \
         python3-pigpio \
         python3-rpi.gpio \
         python3-lgpio \
         python3-gpiozero \
-        python3-picamera2 \
         ca-certificates \
         gnupg \
         lsb-release \
         uidmap \
         dbus-user-session \
         python3-numpy \
-        python3-smbus \
-        python3-rtimulib
+        python3-smbus
+
+    # Install RTIMULib from pip since it's not in Ubuntu repos
+    python3 -m pip install RTIMULib --break-system-packages || log_warning "RTIMULib installation failed, may need manual installation"
+
+    # Install picamera2 from pip for Ubuntu 24.04
+    python3 -m pip install picamera2 --break-system-packages || log_warning "picamera2 installation failed, camera functionality may be limited"
 
     log_success "Dependencies installed"
 }
