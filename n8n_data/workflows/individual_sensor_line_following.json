@@ -135,7 +135,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"{{ $json.search_direction }}\",\n  \"speed\": {{ $json.search_speed }}\n}"
+        "jsonBody": "{\n  \"direction\": \"{{ $json.search_direction || 'forward' }}\",\n  \"speed\": {{ $json.search_speed || 0.3 }}\n}"
       },
       "id": "search-movement",
       "name": "Execute Search Movement",
