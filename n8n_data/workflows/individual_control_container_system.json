@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "message": "🎭 SIMULATION: {{ $json.simulation_result.message }}",
+        "message": "\ud83c\udfad SIMULATION: {{ $json.simulation_result.message }}",
         "level": "info"
       },
       "name": "Log Simulation Result",
@@ -135,7 +135,7 @@
     },
     {
       "parameters": {
-        "message": "🔧 HARDWARE MODE: Container {{ $json.container_position }} - {{ $json.container_action }} operation completed",
+        "message": "\ud83d\udd27 HARDWARE MODE: Container {{ $json.container_position }} - {{ $json.container_action }} operation completed",
         "level": "info"
       },
       "name": "Log Hardware Operation Result",
@@ -208,7 +208,7 @@
     },
     {
       "parameters": {
-        "message": "📦 Left Front Container Operation Framework - Ready for hardware implementation",
+        "message": "\ud83d\udce6 Left Front Container Operation Framework - Ready for hardware implementation",
         "level": "info"
       },
       "name": "Left Front Container",
@@ -222,7 +222,7 @@
     },
     {
       "parameters": {
-        "message": "📦 Left Back Container Operation Framework - Ready for hardware implementation",
+        "message": "\ud83d\udce6 Left Back Container Operation Framework - Ready for hardware implementation",
         "level": "info"
       },
       "name": "Left Back Container",
@@ -236,7 +236,7 @@
     },
     {
       "parameters": {
-        "message": "📦 Right Front Container Operation Framework - Ready for hardware implementation",
+        "message": "\ud83d\udce6 Right Front Container Operation Framework - Ready for hardware implementation",
         "level": "info"
       },
       "name": "Right Front Container",
@@ -250,7 +250,7 @@
     },
     {
       "parameters": {
-        "message": "📦 Right Back Container Operation Framework - Ready for hardware implementation",
+        "message": "\ud83d\udce6 Right Back Container Operation Framework - Ready for hardware implementation",
         "level": "info"
       },
       "name": "Right Back Container",
@@ -292,7 +292,7 @@
     },
     {
       "parameters": {
-        "message": "🏗️ Container System Status: {{ $json.operation_status }} | Hardware Available: {{ $json.hardware_available }} | Framework: {{ $json.framework_status }}",
+        "message": "\ud83c\udfd7\ufe0f Container System Status: {{ $json.operation_status }} | Hardware Available: {{ $json.hardware_available }} | Framework: {{ $json.framework_status }}",
         "level": "info"
       },
       "name": "Log Final Status",
@@ -303,6 +303,17 @@
         300
       ],
       "id": "container_014"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "0d81db08-0674-4337-a2c4-d302f8072542"
     }
   ],
   "connections": {
@@ -488,6 +499,17 @@
         [
           {
             "node": "Log Framework Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "container_001": {
+      "main": [
+        [
+          {
+            "node": "0d81db08-0674-4337-a2c4-d302f8072542",
             "type": "main",
             "index": 0
           }

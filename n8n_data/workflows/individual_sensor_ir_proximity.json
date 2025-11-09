@@ -98,7 +98,7 @@
     },
     {
       "parameters": {
-        "message": "🚨 OBSTACLE DETECTED! Distance: {{ $json.ultrasonic_distance }}m - EMERGENCY STOP ACTIVATED",
+        "message": "\ud83d\udea8 OBSTACLE DETECTED! Distance: {{ $json.ultrasonic_distance }}m - EMERGENCY STOP ACTIVATED",
         "level": "warning"
       },
       "name": "Log Obstacle Alert",
@@ -138,7 +138,7 @@
     },
     {
       "parameters": {
-        "message": "✅ Ultrasonic monitoring: Distance {{ $json.ultrasonic_distance }}m - Safe",
+        "message": "\u2705 Ultrasonic monitoring: Distance {{ $json.ultrasonic_distance }}m - Safe",
         "level": "info"
       },
       "name": "Log Safe Status",
@@ -187,7 +187,7 @@
     },
     {
       "parameters": {
-        "message": "🔄 Ultrasonic monitoring cycle completed. Distance: {{ $json.ultrasonic_distance }}m",
+        "message": "\ud83d\udd04 Ultrasonic monitoring cycle completed. Distance: {{ $json.ultrasonic_distance }}m",
         "level": "info"
       },
       "name": "Log Monitoring Cycle",
@@ -218,6 +218,17 @@
         440
       ],
       "id": "sensor_ultrasonic_012"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "f8e93bbc-b71f-4eae-a635-c08886a140a8"
     }
   ],
   "connections": {
@@ -365,6 +376,17 @@
         [
           {
             "node": "Get Sensor Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sensor_ultrasonic_001": {
+      "main": [
+        [
+          {
+            "node": "f8e93bbc-b71f-4eae-a635-c08886a140a8",
             "type": "main",
             "index": 0
           }
