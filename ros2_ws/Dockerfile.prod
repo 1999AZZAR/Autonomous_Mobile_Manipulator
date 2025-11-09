@@ -40,6 +40,29 @@ WORKDIR /root/ros2_ws
 COPY . .
 RUN . /opt/ros/jazzy/setup.bash && colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation --continue-on-error
 
+# --- Reliability Setup ---
+# Install additional tools for monitoring and reliability
+RUN apt-get update && apt-get install -y \
+    procps \
+    htop \
+    curl \
+    jq \
+    bc \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create log directory
+RUN mkdir -p /root/ros2_ws/logs
+
+# Make watchdog script executable
+RUN chmod +x /root/ros2_ws/ros2_watchdog.sh
+
+# Create CycloneDDS config
+RUN mkdir -p /root/.ros
+
+# Enable core dumps for debugging
+RUN echo "kernel.core_pattern=/root/ros2_ws/logs/core.%e.%p.%t" >> /etc/sysctl.conf && \
+    ulimit -c unlimited
+
 # --- Entrypoint ---
 # Source the ROS 2 environment every time the container starts
 CMD ["/bin/bash"]

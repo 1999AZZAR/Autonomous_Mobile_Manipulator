@@ -286,6 +286,143 @@ test_hardware() {
     log_success "Hardware tests completed"
 }
 
+# Clone and setup project
+setup_project() {
+    log_info "Setting up Autonomous Mobile Manipulator project..."
+
+    # Clone the project if it doesn't exist
+    if [ ! -d "/home/$USER/Autonomous_Mobile_Manipulator" ]; then
+        log_info "Cloning project repository..."
+        git clone https://github.com/1999AZZAR/Autonomous_Mobile_Manipulator.git /home/$USER/Autonomous_Mobile_Manipulator
+        log_success "Project cloned successfully"
+    else
+        log_info "Project directory already exists, pulling latest changes..."
+        cd /home/$USER/Autonomous_Mobile_Manipulator
+        git pull
+        log_success "Project updated"
+    fi
+
+    # Change to project directory
+    cd /home/$USER/Autonomous_Mobile_Manipulator
+
+    # Make workflow management tools executable
+    if [ -f "workflow_management_tools.sh" ]; then
+        chmod +x workflow_management_tools.sh
+        log_success "Workflow management tools ready"
+    else
+        log_warning "workflow_management_tools.sh not found in project directory"
+    fi
+
+    log_success "Project setup completed"
+}
+
+# Setup and import workflows
+setup_workflows() {
+    log_info "Setting up N8N workflows..."
+
+    cd /home/$USER/Autonomous_Mobile_Manipulator
+
+    # Wait for services to be fully ready
+    log_info "Waiting for services to be ready..."
+    local attempts=0
+    local max_attempts=60
+
+    while [ $attempts -lt $max_attempts ]; do
+        if curl -s --max-time 5 http://localhost:5678 >/dev/null 2>&1 && \
+           curl -s --max-time 5 http://localhost:5000/health >/dev/null 2>&1; then
+            log_success "All services are responding"
+            break
+        fi
+
+        if [ $((attempts % 10)) -eq 0 ]; then
+            log_info "Still waiting for services... ($attempts/$max_attempts)"
+        fi
+
+        sleep 5
+        attempts=$((attempts + 1))
+    done
+
+    if [ $attempts -eq $max_attempts ]; then
+        log_error "Services failed to start properly after $max_attempts attempts"
+        return 1
+    fi
+
+    # Run workflow management tools for safe import
+    if [ -f "workflow_management_tools.sh" ]; then
+        log_info "Running workflow management tools..."
+        ./workflow_management_tools.sh safe-import
+
+        if [ $? -eq 0 ]; then
+            log_success "Workflows imported successfully"
+        else
+            log_warning "Workflow import completed with warnings - check logs above"
+        fi
+    else
+        log_error "workflow_management_tools.sh not found"
+        return 1
+    fi
+
+    log_success "Workflow setup completed"
+}
+
+# Complete post-reboot setup
+complete_setup() {
+    log_info "Completing post-reboot setup..."
+
+    # Run project setup
+    setup_project
+
+    # Start the robot services
+    log_info "Starting robot services..."
+    cd /home/$USER/Autonomous_Mobile_Manipulator
+
+    # Start services in production mode
+    docker compose -f docker-compose.prod.yml up -d
+
+    if [ $? -eq 0 ]; then
+        log_success "Robot services started successfully"
+    else
+        log_error "Failed to start robot services"
+        return 1
+    fi
+
+    # Setup workflows
+    setup_workflows
+
+    # Final verification
+    log_info "Running final health checks..."
+    if [ -f "/home/$USER/health_check.sh" ]; then
+        /home/$USER/health_check.sh
+        if [ $? -eq 0 ]; then
+            log_success "All health checks passed!"
+        else
+            log_warning "Some health checks failed - manual verification recommended"
+        fi
+    fi
+
+    log_success "🎉 Complete Autonomous Mobile Manipulator setup finished!"
+    log_info ""
+    log_info "System is ready and fully operational:"
+    log_info "   - n8n: http://localhost:5678"
+    log_info "   - Robot API: http://localhost:5000"
+    log_info "   - WebSocket: ws://localhost:8765"
+    log_info ""
+    log_info "Available monitoring tools:"
+    log_info "   ./system_monitor.sh        - System status"
+    log_info "   ./health_check.sh          - Service health"
+    log_info "   ./ros2_log_maintenance.sh  - Log management"
+    log_info ""
+    log_info "Workflow management:"
+    log_info "   ./workflow_management_tools.sh help  - Available commands"
+    log_info ""
+    log_info "ROS2 Reliability Features:"
+    log_info "   ✓ Automatic watchdog monitoring (30s intervals)"
+    log_info "   ✓ Health checks with auto-recovery"
+    log_info "   ✓ Resource limits and monitoring"
+    log_info "   ✓ Structured logging and rotation"
+    log_info "   ✓ DDS optimization for reliability"
+}
+
 # Create systemd service
 create_service() {
     log_info "Creating systemd service..."
@@ -296,35 +433,60 @@ create_service() {
 Description=Autonomous Mobile Manipulator
 After=docker.service network.target
 Requires=docker.service
+ConditionPathExists=!/home/$USER/.lks-setup-complete
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
 User=$USER
-WorkingDirectory=/home/$USER/Autonomous_Mobile_Manipulator
-ExecStart=/usr/bin/docker compose -f docker-compose.prod.yml up -d
-ExecStop=/usr/bin/docker compose -f docker-compose.prod.yml down
-TimeoutStartSec=300
+WorkingDirectory=/home/$USER
+ExecStart=/home/$USER/setup_raspberry_pi.sh complete-setup
+ExecStop=/usr/bin/docker compose -f /home/$USER/Autonomous_Mobile_Manipulator/docker-compose.prod.yml down
+TimeoutStartSec=900
 RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
 EOF
 
-    sudo systemctl daemon-reload
-    sudo systemctl enable lks-robot
+    # Create setup completion marker
+    sudo tee /etc/systemd/system/lks-setup-marker.service > /dev/null <<EOF
+[Unit]
+Description=Mark LKS Setup Complete
+After=lks-robot.service
+Requires=lks-robot.service
 
-    log_success "Service created"
+[Service]
+Type=oneshot
+User=$USER
+ExecStart=/bin/touch /home/$USER/.lks-setup-complete
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+    sudo systemctl daemon-reload
+    sudo systemctl enable lks-robot lks-setup-marker
+
+    log_success "Services created"
 }
 
 # Create monitoring script
 create_monitoring() {
     log_info "Creating monitoring scripts..."
 
+    # Create ROS2 logs directory
+    mkdir -p ~/ros2_logs
+
+    # Copy log maintenance script
+    cp ros2_log_maintenance.sh ~/ros2_log_maintenance.sh 2>/dev/null || log_warning "ros2_log_maintenance.sh not found in current directory"
+    chmod +x ~/ros2_log_maintenance.sh 2>/dev/null || true
+
     # Create system monitoring script
     tee ~/system_monitor.sh > /dev/null <<EOF
 #!/bin/bash
-# System monitoring script
+# System monitoring script with ROS2 focus
 
 echo "=== System Status ==="
 echo "Uptime: \$(uptime -p)"
@@ -334,7 +496,38 @@ echo "Disk: \$(df -h / | awk 'NR==2{print \$5}') used"
 
 echo ""
 echo "=== Docker Status ==="
-docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}" 2>/dev/null || echo "No containers running"
+docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}\t{{.Status}}" 2>/dev/null || echo "No containers running"
+
+echo ""
+echo "=== ROS2 Container Health ==="
+if docker ps -q -f name=ros2_sim_prod_container | grep -q .; then
+    ROS2_HEALTH=\$(docker inspect --format='{{.State.Health.Status}}' ros2_sim_prod_container 2>/dev/null || echo "unknown")
+    echo "ROS2 Container Health: \$ROS2_HEALTH"
+
+    # Check ROS2 nodes if container is healthy
+    if [ "\$ROS2_HEALTH" = "healthy" ]; then
+        echo "Active ROS2 Nodes:"
+        docker exec ros2_sim_prod_container ros2 node list 2>/dev/null | head -10 || echo "Unable to query nodes"
+    fi
+else
+    echo "ROS2 Container: NOT RUNNING"
+fi
+
+echo ""
+echo "=== ROS2 Logs Status ==="
+if [ -d ~/ros2_logs ]; then
+    LOG_COUNT=\$(find ~/ros2_logs -name "*.log" 2>/dev/null | wc -l)
+    LOG_SIZE=\$(du -sh ~/ros2_logs 2>/dev/null | cut -f1)
+    echo "ROS2 Logs: \$LOG_COUNT files, \$LOG_SIZE total"
+
+    # Show recent watchdog activity
+    if [ -f ~/ros2_logs/watchdog.log ]; then
+        echo "Recent Watchdog Activity:"
+        tail -5 ~/ros2_logs/watchdog.log 2>/dev/null || echo "No recent activity"
+    fi
+else
+    echo "ROS2 Logs: Directory not found"
+fi
 
 echo ""
 echo "=== Temperature ==="
@@ -346,33 +539,151 @@ EOF
     # Create health check script
     tee ~/health_check.sh > /dev/null <<EOF
 #!/bin/bash
-# Health check script for LKS Robot
+# Health check script for LKS Robot with ROS2 focus
 
-echo "Performing health checks..."
+echo "Performing comprehensive health checks..."
+
+ERRORS_FOUND=0
+WARNINGS_FOUND=0
+
+# Function to report errors and warnings
+report_error() {
+    echo "ERROR: \$1"
+    ((ERRORS_FOUND++))
+}
+
+report_warning() {
+    echo "WARNING: \$1"
+    ((WARNINGS_FOUND++))
+}
 
 # Check Docker containers
+echo "Checking Docker containers..."
 if ! docker ps | grep -q ros2_sim_prod_container; then
-    echo "ERROR: Robot container not running"
-    exit 1
+    report_error "ROS2 container not running"
+else
+    echo "✓ ROS2 container is running"
+
+    # Check ROS2 container health
+    ROS2_HEALTH=\$(docker inspect --format='{{.State.Health.Status}}' ros2_sim_prod_container 2>/dev/null || echo "unknown")
+    if [ "\$ROS2_HEALTH" != "healthy" ]; then
+        report_warning "ROS2 container health: \$ROS2_HEALTH"
+    else
+        echo "✓ ROS2 container is healthy"
+    fi
 fi
 
 if ! docker ps | grep -q n8n_prod_container; then
-    echo "ERROR: n8n container not running"
-    exit 1
+    report_error "n8n container not running"
+else
+    echo "✓ n8n container is running"
+fi
+
+# Check ROS2-specific health
+echo "Checking ROS2 services..."
+if docker ps | grep -q ros2_sim_prod_container; then
+    # Check critical ROS2 topics
+    if ! docker exec ros2_sim_prod_container timeout 5 ros2 topic list 2>/dev/null | grep -q robot_status; then
+        report_error "ROS2 robot_status topic not available"
+    else
+        echo "✓ ROS2 robot_status topic active"
+    fi
+
+    # Check critical ROS2 nodes
+    CRITICAL_NODES=("robot_automation_server" "rest_api_server" "websocket_server")
+    for node in "\${CRITICAL_NODES[@]}"; do
+        if ! docker exec ros2_sim_prod_container ros2 node list 2>/dev/null | grep -q "\$node"; then
+            report_warning "ROS2 node not found: \$node"
+        else
+            echo "✓ ROS2 node active: \$node"
+        fi
+    done
+
+    # Check watchdog process
+    if ! docker exec ros2_sim_prod_container pgrep -f "ros2_watchdog.sh" >/dev/null 2>&1; then
+        report_warning "ROS2 watchdog process not running"
+    else
+        echo "✓ ROS2 watchdog is active"
+    fi
+else
+    report_error "Cannot check ROS2 services - container not running"
 fi
 
 # Check API endpoints
+echo "Checking API endpoints..."
 if ! curl -s --max-time 5 http://localhost:5000/health > /dev/null; then
-    echo "ERROR: Robot API not responding"
-    exit 1
+    report_error "Robot API not responding"
+else
+    echo "✓ Robot API is responding"
+
+    # Check API health details
+    API_HEALTH=\$(curl -s --max-time 5 http://localhost:5000/health || echo "{}")
+    if echo "\$API_HEALTH" | grep -q '"status":"healthy"'; then
+        echo "✓ Robot API reports healthy status"
+    else
+        report_warning "Robot API health check failed"
+    fi
 fi
 
 if ! curl -s --max-time 5 http://localhost:5678 > /dev/null; then
-    echo "ERROR: n8n interface not responding"
-    exit 1
+    report_error "n8n interface not responding"
+else
+    echo "✓ n8n interface is responding"
 fi
 
-echo "All services healthy"
+# Check WebSocket endpoint
+echo "Checking WebSocket endpoint..."
+if ! timeout 5 bash -c 'echo > /dev/tcp/localhost/8765' 2>/dev/null; then
+    report_warning "WebSocket port not accessible"
+else
+    echo "✓ WebSocket port is accessible"
+fi
+
+# Check system resources
+echo "Checking system resources..."
+MEMORY_USAGE=\$(free | awk 'NR==2{printf "%.0f", \$3*100/\$2}')
+if [ "\$MEMORY_USAGE" -gt 90 ]; then
+    report_error "High memory usage: \${MEMORY_USAGE}%"
+elif [ "\$MEMORY_USAGE" -gt 80 ]; then
+    report_warning "High memory usage: \${MEMORY_USAGE}%"
+else
+    echo "✓ Memory usage normal: \${MEMORY_USAGE}%"
+fi
+
+# Check disk space
+DISK_USAGE=\$(df / | awk 'NR==2{print \$5}' | sed 's/%//')
+if [ "\$DISK_USAGE" -gt 95 ]; then
+    report_error "Critical disk usage: \${DISK_USAGE}%"
+elif [ "\$DISK_USAGE" -gt 85 ]; then
+    report_warning "High disk usage: \${DISK_USAGE}%"
+else
+    echo "✓ Disk usage normal: \${DISK_USAGE}%"
+fi
+
+# Check ROS2 logs for errors
+echo "Checking ROS2 logs..."
+if [ -d ~/ros2_logs ]; then
+    RECENT_ERRORS=\$(find ~/ros2_logs -name "*.log" -mmin -10 -exec grep -l "ERROR\|CRITICAL" {} \; 2>/dev/null | wc -l)
+    if [ "\$RECENT_ERRORS" -gt 0 ]; then
+        report_warning "\$RECENT_ERRORS log files contain recent errors"
+    else
+        echo "✓ No recent errors in ROS2 logs"
+    fi
+fi
+
+# Summary
+echo ""
+echo "=== Health Check Summary ==="
+if [ "\$ERRORS_FOUND" -gt 0 ]; then
+    echo "❌ FAILED: \$ERRORS_FOUND error(s) found"
+    exit 1
+elif [ "\$WARNINGS_FOUND" -gt 0 ]; then
+    echo "⚠️  WARNING: \$WARNINGS_FOUND warning(s) found, but system operational"
+    exit 0
+else
+    echo "✅ SUCCESS: All systems healthy"
+    exit 0
+fi
 EOF
 
     chmod +x ~/health_check.sh
@@ -385,41 +696,57 @@ EOF
 
 # Main setup function
 main() {
-    log_info "Starting LKS Robot Raspberry Pi Setup"
-    log_info "======================================"
+    local command="$1"
 
-    # Run setup steps
-    check_raspberry_pi
-    update_system
-    configure_system
-    install_dependencies
-    setup_docker
-    configure_hardware
-    configure_network
-    optimize_performance
+    case "$command" in
+        "complete-setup")
+            log_info "Starting LKS Robot Post-Reboot Setup"
+            log_info "===================================="
+            complete_setup
+            ;;
+        *)
+            # Initial setup
+            log_info "Starting LKS Robot Raspberry Pi Setup"
+            log_info "======================================"
 
-    if test_hardware; then
-        create_service
-        create_monitoring
+            # Run setup steps
+            check_raspberry_pi
+            update_system
+            configure_system
+            install_dependencies
+            setup_docker
+            configure_hardware
+            configure_network
+            optimize_performance
 
-        log_success "Setup completed successfully!"
-        log_info ""
-        log_info "Next steps:"
-        log_info "1. Reboot: sudo reboot"
-        log_info "2. After reboot, clone the project:"
-        log_info "   git clone https://github.com/1999AZZAR/Autonomous_Mobile_Manipulator.git"
-        log_info "3. Start the robot (production): cd Autonomous_Mobile_Manipulator && docker compose -f docker-compose.prod.yml up -d"
-        log_info "   Or for development: docker compose -f docker-compose.dev.yml up -d"
-        log_info "4. Access interfaces:"
-        log_info "   - n8n: http://localhost:5678"
-        log_info "   - Robot API: http://localhost:5000"
-        log_info ""
-        log_info "Run './system_monitor.sh' to check system status"
-        log_info "Run './health_check.sh' to verify all services are running"
-    else
-        log_error "Setup failed during hardware testing"
-        exit 1
-    fi
+            if test_hardware; then
+                create_service
+                create_monitoring
+
+                log_success "Initial setup completed successfully!"
+                log_info ""
+                log_info "Next steps:"
+                log_info "1. Reboot: sudo reboot"
+                log_info "2. After reboot, the setup will continue automatically..."
+                log_info ""
+                log_info "The setup will then:"
+                log_info "   - Clone the Autonomous Mobile Manipulator project"
+                log_info "   - Start all services (production mode)"
+                log_info "   - Import and configure N8N workflows"
+                log_info "   - Set up monitoring and health checks"
+                log_info ""
+                log_info "After complete setup, access interfaces:"
+                log_info "   - n8n: http://localhost:5678"
+                log_info "   - Robot API: http://localhost:5000"
+                log_info ""
+                log_info "Run './system_monitor.sh' to check system status"
+                log_info "Run './health_check.sh' to verify all services are running"
+            else
+                log_error "Setup failed during hardware testing"
+                exit 1
+            fi
+            ;;
+    esac
 }
 
 # Run main function

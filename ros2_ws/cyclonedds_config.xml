@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<CycloneDDS xmlns="https://cdds.io/config" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="https://cdds.io/config https://raw.githubusercontent.com/eclipse-cyclonedds/cyclonedds/master/etc/cdds.xsd">
+  <Domain id="42">
+    <General>
+      <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
+      <AllowMulticast>default</AllowMulticast>
+      <MaxMessageSize>65500B</MaxMessageSize>
+      <FragmentSize>4000B</FragmentSize>
+      <Transport>udp</Transport>
+    </General>
+
+    <Discovery>
+      <ParticipantIndex>auto</ParticipantIndex>
+      <MaxAutoParticipantIndex>100</MaxAutoParticipantIndex>
+      <SPDPDiscoverySocketsCheckMinInterval>50ms</SPDPDiscoverySocketsCheckMinInterval>
+      <LeaseDuration>10s</LeaseDuration>
+    </Discovery>
+
+    <Internal>
+      <HeartbeatInterval>100ms</HeartbeatInterval>
+      <HeartbeatTimeout>1s</HeartbeatTimeout>
+      <InitialDiscoveryTimeout>2s</InitialDiscoveryTimeout>
+    </Internal>
+
+    <Tracing>
+      <Verbosity>info</Verbosity>
+      <OutputFile>/root/ros2_ws/logs/cyclonedds.log</OutputFile>
+    </Tracing>
+  </Domain>
+</CycloneDDS>
