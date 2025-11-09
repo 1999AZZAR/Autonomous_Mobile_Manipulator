@@ -128,7 +128,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"{{ $json.movement_command || 'forward' }}\",\n  \"speed\": {{ $json.speed || 0.5 }}\n}"
+        "jsonBody": "{\n  \"direction\": \"{{ ['forward', 'backward', 'strafe_left', 'strafe_right'].includes($json.movement_command) ? $json.movement_command : 'forward' }}\",\n  \"speed\": {{ $json.speed || 0.5 }}\n}"
       },
       "id": "move-linear",
       "name": "Linear Movement (Forward/Backward/Strafe)",

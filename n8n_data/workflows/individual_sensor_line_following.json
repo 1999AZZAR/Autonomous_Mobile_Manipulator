@@ -106,7 +106,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"{{ $json.direction || 'forward' }}\",\n  \"speed\": {{ $json.speed || 0.3 }}\n}"
+        "jsonBody": "{\n  \"direction\": \"{{ ['forward', 'backward', 'strafe_left', 'strafe_right'].includes($json.direction) ? $json.direction : 'forward' }}\",\n  \"speed\": {{ $json.speed || 0.3 }}\n}"
       },
       "id": "move-robot",
       "name": "Move Robot",
@@ -135,7 +135,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"{{ $json.search_direction || 'forward' }}\",\n  \"speed\": {{ $json.search_speed || 0.3 }}\n}"
+        "jsonBody": "{\n  \"direction\": \"{{ ['forward', 'backward', 'strafe_left', 'strafe_right'].includes($json.search_direction) ? $json.search_direction : 'forward' }}\",\n  \"speed\": {{ $json.search_speed || 0.3 }}\n}"
       },
       "id": "search-movement",
       "name": "Execute Search Movement",
