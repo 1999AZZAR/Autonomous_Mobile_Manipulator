@@ -28,7 +28,7 @@
           "string": [
             {
               "name": "movement_command",
-              "value": "={{ $json.body.movement_command || 'forward' }}"
+              "value": "={{ (() => {\n  const cmd = ($json.body.movement_command || 'forward').toLowerCase().trim();\n  // Map common input variations to valid movement commands\n  const commandMap = {\n    'forward': 'forward',\n    'move forward': 'forward',\n    'go forward': 'forward',\n    'backward': 'backward',\n    'move backward': 'backward',\n    'go backward': 'backward',\n    'back': 'backward',\n    'move back': 'backward',\n    'go back': 'backward',\n    'strafe left': 'strafe_left',\n    'left': 'strafe_left',\n    'go left': 'strafe_left',\n    'strafe right': 'strafe_right',\n    'right': 'strafe_right',\n    'go right': 'strafe_right'\n  };\n  return commandMap[cmd] || 'forward';\n})() }}"
             },
             {
               "name": "speed",
@@ -90,7 +90,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"left\",\n  \"speed\": {{ $json.speed }}\n}"
+        "jsonBody": "{\n  \"direction\": \"left\",\n  \"speed\": {{ $json.speed || 0.5 }}\n}"
       },
       "id": "turn-left",
       "name": "Turn Left",
@@ -109,7 +109,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"right\",\n  \"speed\": {{ $json.speed }}\n}"
+        "jsonBody": "{\n  \"direction\": \"right\",\n  \"speed\": {{ $json.speed || 0.5 }}\n}"
       },
       "id": "turn-right",
       "name": "Turn Right",

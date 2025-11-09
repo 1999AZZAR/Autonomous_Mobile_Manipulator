@@ -16,7 +16,7 @@
           "string": [
             {
               "name": "command",
-              "value": "={{ $json.body.command || 'forward' }}"
+              "value": "={{ (() => {\n  const cmd = ($json.body.command || 'forward').toLowerCase().trim();\n  // Map common input variations to valid commands\n  const commandMap = {\n    'forward': 'forward',\n    'move forward': 'forward',\n    'go forward': 'forward',\n    'backward': 'backward',\n    'move backward': 'backward',\n    'go backward': 'backward',\n    'back': 'backward',\n    'move back': 'backward',\n    'go back': 'backward',\n    'left': 'left',\n    'turn left': 'left',\n    'go left': 'left',\n    'right': 'right',\n    'turn right': 'right',\n    'go right': 'right',\n    'stop': 'stop',\n    'halt': 'stop',\n    'emergency stop': 'stop'\n  };\n  return commandMap[cmd] || 'forward';\n})() }}"
             }
           ]
         }
