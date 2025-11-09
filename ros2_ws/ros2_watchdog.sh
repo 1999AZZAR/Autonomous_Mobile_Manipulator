@@ -134,11 +134,26 @@ perform_health_check() {
         ((issues_found++))
     fi
 
+    # Check if main launch process is running
+    local launch_running=false
+    if pgrep -f "ros2 launch my_robot_automation automation_launch.py" >/dev/null 2>&1; then
+        launch_running=true
+        log "Main ROS2 launch process is running"
+    else
+        log "WARNING: Main ROS2 launch process not found - will attempt individual service restarts"
+    fi
+
     # Check critical ROS2 nodes
     for node in "${CRITICAL_NODES[@]}"; do
         if ! check_node "$node"; then
             log "ERROR: Critical node not found: $node"
             ((issues_found++))
+
+            # Only attempt individual restarts if main launch is not running
+            if [ "$launch_running" = true ]; then
+                log "Main launch is running - skipping individual restart of $node"
+                continue
+            fi
 
             # Check restart limits
             local current_time=$(date +%s)

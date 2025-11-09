@@ -1,5 +1,5 @@
 # Use ARM64-compatible ROS 2 Jazzy base image for Raspberry Pi deployment
-FROM arm64v8/ros:jazzy
+FROM ros:jazzy
 
 # Set the shell to bash
 SHELL ["/bin/bash", "-c"]
@@ -27,6 +27,7 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-teleop-twist-joy \
     ros-jazzy-teleop-twist-keyboard \
     ros-jazzy-rplidar-ros \
+    ros-jazzy-rmw-cyclonedds-cpp \
     # Add any other specific libraries your robot needs here
     && rm -rf /var/lib/apt/lists/*
 

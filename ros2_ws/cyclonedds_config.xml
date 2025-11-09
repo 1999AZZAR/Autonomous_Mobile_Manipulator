@@ -3,7 +3,7 @@
   <Domain id="42">
     <General>
       <NetworkInterfaceAddress>auto</NetworkInterfaceAddress>
-      <AllowMulticast>default</AllowMulticast>
+      <AllowMulticast>true</AllowMulticast>
       <MaxMessageSize>65500B</MaxMessageSize>
       <FragmentSize>4000B</FragmentSize>
       <Transport>udp</Transport>
@@ -11,20 +11,7 @@
 
     <Discovery>
       <ParticipantIndex>auto</ParticipantIndex>
-      <MaxAutoParticipantIndex>100</MaxAutoParticipantIndex>
-      <SPDPDiscoverySocketsCheckMinInterval>50ms</SPDPDiscoverySocketsCheckMinInterval>
       <LeaseDuration>10s</LeaseDuration>
     </Discovery>
-
-    <Internal>
-      <HeartbeatInterval>100ms</HeartbeatInterval>
-      <HeartbeatTimeout>1s</HeartbeatTimeout>
-      <InitialDiscoveryTimeout>2s</InitialDiscoveryTimeout>
-    </Internal>
-
-    <Tracing>
-      <Verbosity>info</Verbosity>
-      <OutputFile>/root/ros2_ws/logs/cyclonedds.log</OutputFile>
-    </Tracing>
   </Domain>
 </CycloneDDS>
