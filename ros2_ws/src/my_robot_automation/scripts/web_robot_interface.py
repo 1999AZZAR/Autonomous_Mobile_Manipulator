@@ -418,6 +418,10 @@ HTML_TEMPLATE = """
                         <i class="fas fa-chart-line"></i>
                         <span>Status</span>
                     </a>
+                    <a href="#sensors" class="nav-tab" onclick="showTab('sensors')">
+                        <i class="fas fa-radar"></i>
+                        <span>Sensors</span>
+                    </a>
                     <a href="#hardware" class="nav-tab" onclick="showTab('hardware')">
                         <i class="fas fa-microchip"></i>
                         <span>Hardware</span>
@@ -782,6 +786,179 @@ HTML_TEMPLATE = """
                             </div>
 
                             <div class="log-panel" id="log-panel"></div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-history"></i>
+                                <h3>Last 3 Commands</h3>
+                            </div>
+
+                            <div class="log-panel" id="commands-panel" style="max-height: 200px;">Loading...</div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-clipboard-list"></i>
+                                <h3>Robot System Log</h3>
+                            </div>
+
+                            <div class="log-panel" id="robot-log-panel" style="max-height: 200px;">Loading...</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sensors Tab -->
+                <div id="sensors" class="tab-content">
+                    <div class="control-panels">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-ruler"></i>
+                                <h3>Laser Distance Sensors (6x)</h3>
+                            </div>
+
+                            <div class="status-grid" id="laser-sensors">
+                                <div class="status-card">
+                                    <h4>Left Front</h4>
+                                    <div class="value" id="laser-left-front">-- mm</div>
+                                </div>
+                                <div class="status-card">
+                                    <h4>Left Back</h4>
+                                    <div class="value" id="laser-left-back">-- mm</div>
+                                </div>
+                                <div class="status-card">
+                                    <h4>Right Front</h4>
+                                    <div class="value" id="laser-right-front">-- mm</div>
+                                </div>
+                                <div class="status-card">
+                                    <h4>Right Back</h4>
+                                    <div class="value" id="laser-right-back">-- mm</div>
+                                </div>
+                                <div class="status-card">
+                                    <h4>Back Left</h4>
+                                    <div class="value" id="laser-back-left">-- mm</div>
+                                </div>
+                                <div class="status-card">
+                                    <h4>Back Right</h4>
+                                    <div class="value" id="laser-back-right">-- mm</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-broadcast-tower"></i>
+                                <h3>Ultrasonic & LIDAR Sensors</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Ultrasonic Sensors (HC-SR04)</h4>
+                                <div class="status-grid">
+                                    <div class="status-card">
+                                        <h4>Front Left</h4>
+                                        <div class="value" id="ultrasonic-front-left">-- cm</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Front Right</h4>
+                                        <div class="value" id="ultrasonic-front-right">-- cm</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>TF-Luna LIDAR</h4>
+                                <div class="status-grid">
+                                    <div class="status-card">
+                                        <h4>Distance</h4>
+                                        <div class="value" id="tf-luna-distance">-- cm</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Signal Strength</h4>
+                                        <div class="value" id="tf-luna-strength">--</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-road"></i>
+                                <h3>Line Sensors & IMU</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Line Sensors (3x IR)</h4>
+                                <div class="status-grid">
+                                    <div class="status-card">
+                                        <h4>Left</h4>
+                                        <div class="value" id="line-left">--</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Center</h4>
+                                        <div class="value" id="line-center">--</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Right</h4>
+                                        <div class="value" id="line-right">--</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>IMU (MPU6050)</h4>
+                                <div class="status-grid">
+                                    <div class="status-card">
+                                        <h4>Orientation X</h4>
+                                        <div class="value" id="imu-orient-x">--°</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Orientation Y</h4>
+                                        <div class="value" id="imu-orient-y">--°</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Orientation Z</h4>
+                                        <div class="value" id="imu-orient-z">--°</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Angular Velocity</h4>
+                                        <div class="value" id="imu-angular">-- rad/s</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Linear Accel X</h4>
+                                        <div class="value" id="imu-accel-x">-- m/s²</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Linear Accel Y</h4>
+                                        <div class="value" id="imu-accel-y">-- m/s²</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-boxes"></i>
+                                <h3>Container Load Sensors</h3>
+                            </div>
+
+                            <div class="status-grid">
+                                <div class="status-card">
+                                    <h4>Left Front</h4>
+                                    <div class="value" id="container-left-front">Empty</div>
+                                </div>
+                                <div class="status-card">
+                                    <h4>Left Back</h4>
+                                    <div class="value" id="container-left-back">Empty</div>
+                                </div>
+                                <div class="status-card">
+                                    <h4>Right Front</h4>
+                                    <div class="value" id="container-right-front">Empty</div>
+                                </div>
+                                <div class="status-card">
+                                    <h4>Right Back</h4>
+                                    <div class="value" id="container-right-back">Empty</div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -1176,6 +1353,148 @@ USB3 - Reserved
             }
         }
 
+        // Sensor data updates
+        async function updateSensorData() {
+            try {
+                const response = await fetch(`${API_BASE}/api/robot/sensors`);
+                const sensorData = await response.json();
+
+                if (sensorData.success && sensorData.data) {
+                    const data = sensorData.data;
+
+                    // Laser distance sensors
+                    if (data.laser_sensors) {
+                        document.getElementById('laser-left-front').textContent = (data.laser_sensors.left_front || '--') + ' mm';
+                        document.getElementById('laser-left-back').textContent = (data.laser_sensors.left_back || '--') + ' mm';
+                        document.getElementById('laser-right-front').textContent = (data.laser_sensors.right_front || '--') + ' mm';
+                        document.getElementById('laser-right-back').textContent = (data.laser_sensors.right_back || '--') + ' mm';
+                        document.getElementById('laser-back-left').textContent = (data.laser_sensors.back_left || '--') + ' mm';
+                        document.getElementById('laser-back-right').textContent = (data.laser_sensors.back_right || '--') + ' mm';
+                    }
+
+                    // Ultrasonic sensors
+                    if (data.ultrasonic_sensors) {
+                        document.getElementById('ultrasonic-front-left').textContent = (data.ultrasonic_sensors.front_left || '--') + ' cm';
+                        document.getElementById('ultrasonic-front-right').textContent = (data.ultrasonic_sensors.front_right || '--') + ' cm';
+                    }
+
+                    // TF-Luna LIDAR
+                    if (data.tf_luna) {
+                        document.getElementById('tf-luna-distance').textContent = (data.tf_luna.distance || '--') + ' cm';
+                        document.getElementById('tf-luna-strength').textContent = data.tf_luna.strength || '--';
+                    }
+
+                    // Line sensors
+                    if (data.line_sensors) {
+                        document.getElementById('line-left').textContent = data.line_sensors.left ? 'DETECTED' : 'No Line';
+                        document.getElementById('line-center').textContent = data.line_sensors.center ? 'DETECTED' : 'No Line';
+                        document.getElementById('line-right').textContent = data.line_sensors.right ? 'DETECTED' : 'No Line';
+                    }
+
+                    // Container load sensors
+                    if (data.container_sensors) {
+                        document.getElementById('container-left-front').textContent = data.container_sensors.left_front ? 'Loaded' : 'Empty';
+                        document.getElementById('container-left-back').textContent = data.container_sensors.left_back ? 'Loaded' : 'Empty';
+                        document.getElementById('container-right-front').textContent = data.container_sensors.right_front ? 'Loaded' : 'Empty';
+                        document.getElementById('container-right-back').textContent = data.container_sensors.right_back ? 'Loaded' : 'Empty';
+                    }
+                }
+            } catch (error) {
+                console.error('Sensor data update failed:', error);
+            }
+        }
+
+        // IMU data updates
+        async function updateIMUData() {
+            try {
+                const response = await fetch(`${API_BASE}/api/robot/imu/position`);
+                const imuData = await response.json();
+
+                if (imuData.success && imuData.data) {
+                    const data = imuData.data;
+
+                    // Orientation (convert quaternion to euler angles if needed)
+                    if (data.orientation) {
+                        document.getElementById('imu-orient-x').textContent = (data.orientation.x || 0).toFixed(2) + '°';
+                        document.getElementById('imu-orient-y').textContent = (data.orientation.y || 0).toFixed(2) + '°';
+                        document.getElementById('imu-orient-z').textContent = (data.orientation.z || 0).toFixed(2) + '°';
+                    }
+
+                    // Angular velocity
+                    if (data.angular_velocity) {
+                        const angVel = Math.sqrt(
+                            Math.pow(data.angular_velocity.x || 0, 2) +
+                            Math.pow(data.angular_velocity.y || 0, 2) +
+                            Math.pow(data.angular_velocity.z || 0, 2)
+                        );
+                        document.getElementById('imu-angular').textContent = angVel.toFixed(3) + ' rad/s';
+                    }
+
+                    // Linear acceleration
+                    if (data.linear_acceleration) {
+                        document.getElementById('imu-accel-x').textContent = (data.linear_acceleration.x || 0).toFixed(2) + ' m/s²';
+                        document.getElementById('imu-accel-y').textContent = (data.linear_acceleration.y || 0).toFixed(2) + ' m/s²';
+                    }
+                }
+            } catch (error) {
+                console.error('IMU data update failed:', error);
+            }
+        }
+
+        // Last commands update
+        async function updateLastCommands() {
+            try {
+                const response = await fetch(`${API_BASE}/api/robot/commands/last`);
+                const commandData = await response.json();
+
+                if (commandData.success && commandData.data && commandData.data.commands) {
+                    const panel = document.getElementById('commands-panel');
+                    panel.innerHTML = '';
+                    
+                    commandData.data.commands.forEach((cmd, index) => {
+                        const cmdEntry = document.createElement('div');
+                        cmdEntry.className = 'log-entry';
+                        cmdEntry.innerHTML = `<span class="log-timestamp">[${cmd.timestamp || 'N/A'}]</span> ${cmd.command || 'Unknown'} - ${cmd.status || 'N/A'}`;
+                        panel.appendChild(cmdEntry);
+                    });
+
+                    if (commandData.data.commands.length === 0) {
+                        panel.textContent = 'No commands executed yet';
+                    }
+                }
+            } catch (error) {
+                console.error('Commands update failed:', error);
+                document.getElementById('commands-panel').textContent = 'Failed to load commands';
+            }
+        }
+
+        // Robot log update
+        async function updateRobotLog() {
+            try {
+                const response = await fetch(`${API_BASE}/api/robot/log`);
+                const logData = await response.json();
+
+                if (logData.success && logData.data && logData.data.logs) {
+                    const panel = document.getElementById('robot-log-panel');
+                    panel.innerHTML = '';
+                    
+                    logData.data.logs.slice(0, 10).forEach((log, index) => {
+                        const logEntry = document.createElement('div');
+                        logEntry.className = 'log-entry';
+                        logEntry.innerHTML = `<span class="log-timestamp">[${log.timestamp || 'N/A'}]</span> ${log.message || log}`;
+                        panel.appendChild(logEntry);
+                    });
+
+                    if (logData.data.logs.length === 0) {
+                        panel.textContent = 'No logs available';
+                    }
+                }
+            } catch (error) {
+                console.error('Robot log update failed:', error);
+                document.getElementById('robot-log-panel').textContent = 'Failed to load logs';
+            }
+        }
+
         function updateStatusDisplay() {
             const statusGrid = document.getElementById('status-grid');
             const data = systemStatus.data || {};
@@ -1247,9 +1566,23 @@ USB3 - Reserved
         // Initialize
         addLog('Autonomous Mobile Manipulator Control Center initialized');
         updateStatus();
+        updateSensorData();
+        updateIMUData();
+        updateLastCommands();
+        updateRobotLog();
 
         // Update status every 2 seconds
         setInterval(updateStatus, 2000);
+        
+        // Update sensor data every 1 second
+        setInterval(updateSensorData, 1000);
+        
+        // Update IMU data every 500ms for smooth updates
+        setInterval(updateIMUData, 500);
+        
+        // Update commands and logs every 3 seconds
+        setInterval(updateLastCommands, 3000);
+        setInterval(updateRobotLog, 3000);
     </script>
 </body>
 </html>
