@@ -24,7 +24,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -89,7 +89,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/pick-place",
+        "url": "http://127.0.0.1:5000/api/robot/pick-place",
         "method": "POST",
         "options": {
           "bodyContentType": "json"
@@ -105,7 +105,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

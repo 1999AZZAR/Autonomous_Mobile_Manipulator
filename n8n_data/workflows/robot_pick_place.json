@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/servos",
+        "url": "http://127.0.0.1:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/servo",
+        "url": "http://127.0.0.1:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -91,7 +91,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/servo",
+        "url": "http://127.0.0.1:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -110,7 +110,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/servo",
+        "url": "http://127.0.0.1:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -129,7 +129,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/servo",
+        "url": "http://127.0.0.1:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -148,7 +148,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/servos",
+        "url": "http://127.0.0.1:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -167,7 +167,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

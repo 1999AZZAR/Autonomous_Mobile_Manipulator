@@ -24,8 +24,8 @@
     },
     {
       "parameters": {
-        "httpMethod": "GET",
-        "path": "api/robot/status",
+        "method": "GET",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "options": {}
       },
       "name": "Get Sensor Status",
@@ -80,8 +80,8 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "api/robot/emergency-stop",
+        "method": "POST",
+        "url": "http://127.0.0.1:5000/api/robot/emergency-stop",
         "bodyContentType": "raw",
         "sendBody": true,
         "body": "{}",

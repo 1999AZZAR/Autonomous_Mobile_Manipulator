@@ -31,8 +31,8 @@
     },
     {
       "parameters": {
-        "httpMethod": "GET",
-        "path": "api/robot/status",
+        "method": "GET",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "options": {}
       },
       "name": "Get TF-Luna Sensor Status",
@@ -82,8 +82,8 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "api/robot/emergency-stop",
+        "method": "POST",
+        "url": "http://127.0.0.1:5000/api/robot/emergency-stop",
         "bodyContentType": "raw",
         "sendBody": true,
         "body": "{}",
@@ -131,8 +131,8 @@
     },
     {
       "parameters": {
-        "httpMethod": "POST",
-        "path": "api/robot/obstacle-avoidance",
+        "method": "POST",
+        "url": "http://127.0.0.1:5000/api/robot/obstacle-avoidance",
         "bodyContentType": "json",
         "sendBody": true,
         "bodyParametersJson": "{\n  \"obstacle_distance\": {{ $json.tf_luna_distance }},\n  \"obstacle_direction\": \"front\",\n  \"sensor_type\": \"tf_luna\"\n}",

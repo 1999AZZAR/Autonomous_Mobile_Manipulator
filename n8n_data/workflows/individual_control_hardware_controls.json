@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -99,7 +99,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/emergency-stop",
+        "url": "http://127.0.0.1:5000/api/robot/emergency-stop",
         "method": "POST",
         "options": {}
       },
@@ -145,7 +145,7 @@
     },
     {
       "parameters": {
-        "url": "http://localhost:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
