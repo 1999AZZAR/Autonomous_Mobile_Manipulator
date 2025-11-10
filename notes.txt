@@ -1,30 +1,24 @@
-picker
-- gripper (servo)
-- gripper tilt (servo)
-- gripper neck (forward backward)(servo continuous)
-- gripper base (up down)(motor)
+main body and nav:
+    - 6x sensor jarak (laser based)(l,r,b)(2 per side)(used to alighn the robot with the wall)
+    - 2x sensor jarak (hcsr04)(f)
+    - 3x individual line sensor assembled side by side (used to align the robot with the line on the floor/ can also be used to navigate as navigate my line following mode)
+
+    - 3x omni (lf,rf,b):
+        - back
+        - front left
+        - front right
+
+    - single poin lidar (tf_luma)
+    - imu (mpu6050)
+
+main gripper:
+    - 1x motor (same motor used on omni)(move up down)
+    - 2x servo (1 tilt, 1 open/close)
+    - 1x 360degree (free rotation) servo (optional) (used to move the gripper asembly forward/backward)
+    - 1 usb based camera (can move up down with the gripper mechanism)
 
 
-distance sensors (laser base)
-- front
-- back left
-- back right
-
-
-other sensors
-- 380 degree lidar sensor (rplidar a1)
-- microsoft camera (usb)(used for object recongnition)
-- line sensor (used for line based nav)
-- imu sensor (MPU6050/BNO055)
-
-
-wheel (omni)
-- back
-- front left
-- front right
-
-
-containe load (to save piced object)
+containe load (to save piced object)(optional)
 - 2 on left
     - left front
     - left back
@@ -47,7 +41,6 @@ brain/controll
 - raspiberry pi 5
     - ubuntu server
     - docker
-    - casaos
     - tailscale
 - n8n (on docker)
     - automation
@@ -64,3 +57,9 @@ contoll mechanism
 - pid based contoll to gain smooth motor characteristic movement
 - object pick and place
 - object recongnition
+
+ros2 api need tobe accesible all the time:
+- imu pos
+- robot log
+- 3 last command/execution data
+

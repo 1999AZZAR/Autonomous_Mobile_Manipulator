@@ -1,0 +1,842 @@
+{
+  "name": "Material Transport System (Container-Based)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-initial-status",
+      "name": "Get Initial Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "source_container",
+              "value": "={{ $json.body.source_container || 'left_front' }}"
+            },
+            {
+              "name": "destination_container",
+              "value": "={{ $json.body.destination_container || 'right_front' }}"
+            },
+            {
+              "name": "transport_speed",
+              "value": "={{ $json.body.transport_speed || 0.3 }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-transport-params",
+      "name": "Extract Transport Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "home-servos-start",
+      "name": "Check System Status (Start)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.source_container }}",
+              "operation": "equal",
+              "value2": "left_front"
+            }
+          ]
+        }
+      },
+      "id": "is-source-left-front",
+      "name": "Is Source Left Front?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.source_container }}",
+              "operation": "equal",
+              "value2": "left_back"
+            }
+          ]
+        }
+      },
+      "id": "is-source-left-back",
+      "name": "Is Source Left Back?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.source_container }}",
+              "operation": "equal",
+              "value2": "right_front"
+            }
+          ]
+        }
+      },
+      "id": "is-source-right-front",
+      "name": "Is Source Right Front?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.source_container }}",
+              "operation": "equal",
+              "value2": "right_back"
+            }
+          ]
+        }
+      },
+      "id": "is-source-right-back",
+      "name": "Is Source Right Back?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "container_message",
+              "value": "Moving to Left Front container for pickup (container control not yet implemented)"
+            }
+          ]
+        }
+      },
+      "id": "navigate-left-front",
+      "name": "Navigate to Left Front Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1120, 100]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "container_message",
+              "value": "Moving to Left Back container for pickup (container control not yet implemented)"
+            }
+          ]
+        }
+      },
+      "id": "navigate-left-back",
+      "name": "Navigate to Left Back Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "container_message",
+              "value": "Moving to Right Front container for pickup (container control not yet implemented)"
+            }
+          ]
+        }
+      },
+      "id": "navigate-right-front",
+      "name": "Navigate to Right Front Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "container_message",
+              "value": "Moving to Right Back container for pickup (container control not yet implemented)"
+            }
+          ]
+        }
+      },
+      "id": "navigate-right-back",
+      "name": "Navigate to Right Back Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1120, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": {{ $json.transport_speed }}\n}"
+      },
+      "id": "move-to-source",
+      "name": "Move to Source Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 250]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-at-source",
+      "name": "Stop at Source Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 250]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "pickup_message",
+              "value": "Simulating pickup from {{ $json.source_container }} container (picker system ready)"
+            }
+          ]
+        }
+      },
+      "id": "simulate-pickup",
+      "name": "Simulate Pickup from Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1780, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.destination_container }}",
+              "operation": "equal",
+              "value2": "left_front"
+            }
+          ]
+        }
+      },
+      "id": "is-dest-left-front",
+      "name": "Is Destination Left Front?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2000, 150]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.destination_container }}",
+              "operation": "equal",
+              "value2": "left_back"
+            }
+          ]
+        }
+      },
+      "id": "is-dest-left-back",
+      "name": "Is Destination Left Back?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2000, 250]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.destination_container }}",
+              "operation": "equal",
+              "value2": "right_front"
+            }
+          ]
+        }
+      },
+      "id": "is-dest-right-front",
+      "name": "Is Destination Right Front?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2000, 350]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.destination_container }}",
+              "operation": "equal",
+              "value2": "right_back"
+            }
+          ]
+        }
+      },
+      "id": "is-dest-right-back",
+      "name": "Is Destination Right Back?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2000, 450]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "transport_message",
+              "value": "Transporting material to Left Front container (container control not yet implemented)"
+            }
+          ]
+        }
+      },
+      "id": "transport-left-front",
+      "name": "Transport to Left Front Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2220, 150]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "transport_message",
+              "value": "Transporting material to Left Back container (container control not yet implemented)"
+            }
+          ]
+        }
+      },
+      "id": "transport-left-back",
+      "name": "Transport to Left Back Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2220, 250]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "transport_message",
+              "value": "Transporting material to Right Front container (container control not yet implemented)"
+            }
+          ]
+        }
+      },
+      "id": "transport-right-front",
+      "name": "Transport to Right Front Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2220, 350]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "transport_message",
+              "value": "Transporting material to Right Back container (container control not yet implemented)"
+            }
+          ]
+        }
+      },
+      "id": "transport-right-back",
+      "name": "Transport to Right Back Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2220, 450]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"direction\": \"strafe_left\",\n  \"speed\": {{ $json.transport_speed }}\n}"
+      },
+      "id": "move-to-destination",
+      "name": "Move to Destination Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-at-destination",
+      "name": "Stop at Destination Container",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "place_message",
+              "value": "Simulating placement into {{ $json.destination_container }} container (picker system ready)"
+            }
+          ]
+        }
+      },
+      "id": "simulate-placement",
+      "name": "Simulate Placement into Container",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2880, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "home-servos-final",
+      "name": "Check System Status (Final)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3100, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-final-status",
+      "name": "Get Final Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [3320, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "Material transport completed: moved material from {{ $json.source_container }} to {{ $json.destination_container }} container using picker system"
+            }
+          ]
+        }
+      },
+      "id": "transport-complete",
+      "name": "Transport Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [3540, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Initial Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Initial Status": {
+      "main": [
+        [
+          {
+            "node": "Extract Transport Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Transport Parameters": {
+      "main": [
+        [
+          {
+            "node": "Home Servos (Start)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Home Servos (Start)": {
+      "main": [
+        [
+          {
+            "node": "Is Source Left Front?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Source Left Back?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Source Right Front?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Source Right Back?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Source Left Front?": {
+      "main": [
+        [
+          {
+            "node": "Navigate to Left Front Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Source Left Back?": {
+      "main": [
+        [
+          {
+            "node": "Navigate to Left Back Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Source Right Front?": {
+      "main": [
+        [
+          {
+            "node": "Navigate to Right Front Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Source Right Back?": {
+      "main": [
+        [
+          {
+            "node": "Navigate to Right Back Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Navigate to Left Front Container": {
+      "main": [
+        [
+          {
+            "node": "Move to Source Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Navigate to Left Back Container": {
+      "main": [
+        [
+          {
+            "node": "Move to Source Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Navigate to Right Front Container": {
+      "main": [
+        [
+          {
+            "node": "Move to Source Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Navigate to Right Back Container": {
+      "main": [
+        [
+          {
+            "node": "Move to Source Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Source Container": {
+      "main": [
+        [
+          {
+            "node": "Stop at Source Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop at Source Container": {
+      "main": [
+        [
+          {
+            "node": "Simulate Pickup from Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate Pickup from Container": {
+      "main": [
+        [
+          {
+            "node": "Is Destination Left Front?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Destination Left Back?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Destination Right Front?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Destination Right Back?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Destination Left Front?": {
+      "main": [
+        [
+          {
+            "node": "Transport to Left Front Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Destination Left Back?": {
+      "main": [
+        [
+          {
+            "node": "Transport to Left Back Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Destination Right Front?": {
+      "main": [
+        [
+          {
+            "node": "Transport to Right Front Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Destination Right Back?": {
+      "main": [
+        [
+          {
+            "node": "Transport to Right Back Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transport to Left Front Container": {
+      "main": [
+        [
+          {
+            "node": "Move to Destination Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transport to Left Back Container": {
+      "main": [
+        [
+          {
+            "node": "Move to Destination Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transport to Right Front Container": {
+      "main": [
+        [
+          {
+            "node": "Move to Destination Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transport to Right Back Container": {
+      "main": [
+        [
+          {
+            "node": "Move to Destination Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move to Destination Container": {
+      "main": [
+        [
+          {
+            "node": "Stop at Destination Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop at Destination Container": {
+      "main": [
+        [
+          {
+            "node": "Simulate Placement into Container",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simulate Placement into Container": {
+      "main": [
+        [
+          {
+            "node": "Home Servos (Final)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Home Servos (Final)": {
+      "main": [
+        [
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Final Status": {
+      "main": [
+        [
+          {
+            "node": "Transport Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "material-transport",
+      "name": "Material Transport"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
+}

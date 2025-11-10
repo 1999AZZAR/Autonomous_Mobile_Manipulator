@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -49,7 +49,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -201,7 +201,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/move",
+        "url": "http://100.74.72.71:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -210,7 +210,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"forward\",\n  \"speed\": {{ $json.transport_speed }}\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": {{ $json.transport_speed }}\n}"
       },
       "id": "move-to-source",
       "name": "Move to Source Container",
@@ -220,7 +220,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -389,7 +389,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/move",
+        "url": "http://100.74.72.71:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -398,7 +398,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"strafe_left\",\n  \"speed\": {{ $json.transport_speed }}\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"strafe_left\",\n  \"speed\": {{ $json.transport_speed }}\n}"
       },
       "id": "move-to-destination",
       "name": "Move to Destination Container",
@@ -408,7 +408,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -437,7 +437,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -449,7 +449,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

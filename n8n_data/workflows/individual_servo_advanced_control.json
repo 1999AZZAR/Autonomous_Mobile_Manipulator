@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -67,7 +67,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/picker/gripper",
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -76,7 +76,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"command\": \"{{ $json.angle < 90 ? 'close' : 'open' }}\"\n}"
+        "bodyParametersJson": "{\n  \"command\": \"{{ $json.angle < 90 ? 'close' : 'open' }}\"\n}"
       },
       "id": "control-gripper",
       "name": "Control Gripper (Servo 1)",
@@ -104,7 +104,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_tilt",
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_tilt",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -113,7 +113,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"angle\": {{ $json.angle }}\n}"
+        "bodyParametersJson": "{\n  \"angle\": {{ $json.angle }}\n}"
       },
       "id": "control-gripper-tilt",
       "name": "Control Gripper Tilt (Servo 2)",
@@ -141,7 +141,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_neck",
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_neck",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -150,7 +150,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"position\": {{ $json.angle / 180.0 }}\n}"
+        "bodyParametersJson": "{\n  \"position\": {{ $json.angle / 180.0 }}\n}"
       },
       "id": "control-gripper-neck",
       "name": "Control Gripper Neck (Servo 3)",
@@ -178,7 +178,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_base",
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_base",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -187,7 +187,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"height\": {{ $json.angle / 180.0 }}\n}"
+        "bodyParametersJson": "{\n  \"height\": {{ $json.angle / 180.0 }}\n}"
       },
       "id": "control-gripper-base",
       "name": "Control Gripper Base (Servo 4)",
@@ -208,7 +208,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

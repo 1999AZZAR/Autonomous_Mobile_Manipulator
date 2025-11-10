@@ -1,0 +1,332 @@
+{
+  "name": "Pick and Place Automation (Servo-Based)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-initial-status",
+      "name": "Get Initial Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "pickup_x",
+              "value": "={{ $json.body.pickup_x || 1.0 }}"
+            },
+            {
+              "name": "pickup_y",
+              "value": "={{ $json.body.pickup_y || 0.0 }}"
+            },
+            {
+              "name": "place_x",
+              "value": "={{ $json.body.place_x || -1.0 }}"
+            },
+            {
+              "name": "place_y",
+              "value": "={{ $json.body.place_y || 0.0 }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-coordinates",
+      "name": "Extract Coordinates",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/servos",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
+      },
+      "id": "home-servos",
+      "name": "Home All Servos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"servo\": 4,\n  \"angle\": 30\n}"
+      },
+      "id": "lower-gripper-base",
+      "name": "Lower Gripper Base (Servo 4)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"servo\": 1,\n  \"angle\": 45\n}"
+      },
+      "id": "open-gripper",
+      "name": "Open Gripper (Servo 1)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"servo\": 1,\n  \"angle\": 135\n}"
+      },
+      "id": "close-gripper",
+      "name": "Close Gripper (Servo 1)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/servo",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"servo\": 4,\n  \"angle\": 90\n}"
+      },
+      "id": "raise-gripper-base",
+      "name": "Raise Gripper Base (Servo 4)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/servos",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
+      },
+      "id": "home-servos-final",
+      "name": "Home All Servos (Final)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-final-status",
+      "name": "Get Final Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "Pick and place operation completed successfully using servo-based picker system"
+            }
+          ]
+        }
+      },
+      "id": "operation-complete",
+      "name": "Operation Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2200, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Initial Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Initial Status": {
+      "main": [
+        [
+          {
+            "node": "Extract Coordinates",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Coordinates": {
+      "main": [
+        [
+          {
+            "node": "Home All Servos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Home All Servos": {
+      "main": [
+        [
+          {
+            "node": "Lower Gripper Base (Servo 4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Lower Gripper Base (Servo 4)": {
+      "main": [
+        [
+          {
+            "node": "Open Gripper (Servo 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open Gripper (Servo 1)": {
+      "main": [
+        [
+          {
+            "node": "Close Gripper (Servo 1)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Close Gripper (Servo 1)": {
+      "main": [
+        [
+          {
+            "node": "Raise Gripper Base (Servo 4)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Raise Gripper Base (Servo 4)": {
+      "main": [
+        [
+          {
+            "node": "Home All Servos (Final)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Home All Servos (Final)": {
+      "main": [
+        [
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Final Status": {
+      "main": [
+        [
+          {
+            "node": "Operation Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "pick-place",
+      "name": "Pick and Place"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
+}

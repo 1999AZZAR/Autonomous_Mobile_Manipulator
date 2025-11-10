@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servos",
+        "url": "http://100.74.72.71:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -62,7 +62,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
       },
       "id": "home-servos",
       "name": "Home All Servos",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servo",
+        "url": "http://100.74.72.71:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -81,7 +81,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 30\n}"
+        "bodyParametersJson": "{\n  \"servo\": 4,\n  \"angle\": 30\n}"
       },
       "id": "lower-gripper-base",
       "name": "Lower Gripper Base (Servo 4)",
@@ -91,7 +91,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servo",
+        "url": "http://100.74.72.71:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -100,7 +100,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 45\n}"
+        "bodyParametersJson": "{\n  \"servo\": 1,\n  \"angle\": 45\n}"
       },
       "id": "open-gripper",
       "name": "Open Gripper (Servo 1)",
@@ -110,7 +110,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servo",
+        "url": "http://100.74.72.71:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -119,7 +119,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 135\n}"
+        "bodyParametersJson": "{\n  \"servo\": 1,\n  \"angle\": 135\n}"
       },
       "id": "close-gripper",
       "name": "Close Gripper (Servo 1)",
@@ -129,7 +129,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servo",
+        "url": "http://100.74.72.71:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -138,7 +138,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 4,\n  \"angle\": 90\n}"
+        "bodyParametersJson": "{\n  \"servo\": 4,\n  \"angle\": 90\n}"
       },
       "id": "raise-gripper-base",
       "name": "Raise Gripper Base (Servo 4)",
@@ -148,7 +148,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servos",
+        "url": "http://100.74.72.71:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -157,7 +157,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
       },
       "id": "home-servos-final",
       "name": "Home All Servos (Final)",
@@ -167,7 +167,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

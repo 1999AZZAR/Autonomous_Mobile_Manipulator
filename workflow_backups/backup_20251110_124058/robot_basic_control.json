@@ -1,0 +1,362 @@
+{
+  "name": "Robot Basic Movement Control",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "command",
+              "value": "={{ (() => {\n  const cmd = ($json.body.command || 'forward').toLowerCase().trim();\n  // Map common input variations to valid commands\n  const commandMap = {\n    'forward': 'forward',\n    'move forward': 'forward',\n    'go forward': 'forward',\n    'backward': 'backward',\n    'move backward': 'backward',\n    'go backward': 'backward',\n    'back': 'backward',\n    'move back': 'backward',\n    'go back': 'backward',\n    'left': 'left',\n    'turn left': 'left',\n    'go left': 'left',\n    'right': 'right',\n    'turn right': 'right',\n    'go right': 'right',\n    'stop': 'stop',\n    'halt': 'stop',\n    'emergency stop': 'stop'\n  };\n  return commandMap[cmd] || 'forward';\n})() }}"
+            }
+          ]
+        }
+      },
+      "id": "command-setter",
+      "name": "Set Command",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.command }}",
+              "operation": "equal",
+              "value2": "forward"
+            }
+          ]
+        }
+      },
+      "id": "forward-condition",
+      "name": "Forward?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/move",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}"
+      },
+      "id": "move-forward",
+      "name": "Move Forward",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 100]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.command }}",
+              "operation": "equal",
+              "value2": "backward"
+            }
+          ]
+        }
+      },
+      "id": "backward-condition",
+      "name": "Backward?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/move",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "bodyParametersJson": "{\n  \"direction\": \"backward\",\n  \"speed\": 0.5\n}"
+      },
+      "id": "move-backward",
+      "name": "Move Backward",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.command }}",
+              "operation": "equal",
+              "value2": "left"
+            }
+          ]
+        }
+      },
+      "id": "left-condition",
+      "name": "Turn Left?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "bodyParametersJson": "{\n  \"direction\": \"left\",\n  \"speed\": 0.3\n}"
+      },
+      "id": "turn-left",
+      "name": "Turn Left",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.command }}",
+              "operation": "equal",
+              "value2": "right"
+            }
+          ]
+        }
+      },
+      "id": "right-condition",
+      "name": "Turn Right?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "bodyParametersJson": "{\n  \"direction\": \"right\",\n  \"speed\": 0.3\n}"
+      },
+      "id": "turn-right",
+      "name": "Turn Right",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.command }}",
+              "operation": "equal",
+              "value2": "stop"
+            }
+          ]
+        }
+      },
+      "id": "stop-condition",
+      "name": "Stop?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [460, 600]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "bodyParametersJson": "{}"
+      },
+      "id": "stop-robot",
+      "name": "Stop Robot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "options": {}
+      },
+      "id": "get-status",
+      "name": "Get Robot Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Set Command",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Set Command": {
+      "main": [
+        [
+          {
+            "node": "Forward?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Backward?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Turn Left?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Turn Right?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Stop?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Forward?": {
+      "main": [
+        [
+          {
+            "node": "Move Forward",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Backward?": {
+      "main": [
+        [
+          {
+            "node": "Move Backward",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Left?": {
+      "main": [
+        [
+          {
+            "node": "Turn Left",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Right?": {
+      "main": [
+        [
+          {
+            "node": "Turn Right",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop?": {
+      "main": [
+        [
+          {
+            "node": "Stop Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Forward": {
+      "main": [
+        [
+          {
+            "node": "Get Robot Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Backward": {
+      "main": [
+        [
+          {
+            "node": "Get Robot Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Left": {
+      "main": [
+        [
+          {
+            "node": "Get Robot Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Right": {
+      "main": [
+        [
+          {
+            "node": "Get Robot Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop Robot": {
+      "main": [
+        [
+          {
+            "node": "Get Robot Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "executionOrder": "v1"
+  }
+}

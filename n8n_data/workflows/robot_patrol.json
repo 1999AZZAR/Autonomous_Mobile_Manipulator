@@ -59,13 +59,13 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/move",
+        "url": "http://100.74.72.71:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json"
         },
         "sendBody": true,
-        "jsonBody": "{\"direction\": \"forward\", \"speed\": 0.5}",
+        "bodyParametersJson": "{\"direction\": \"forward\", \"speed\": 0.5}",
         "headers": {
           "Content-Type": "application/json"
         }
@@ -78,13 +78,13 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/turn",
+        "url": "http://100.74.72.71:5000/api/robot/turn",
         "method": "POST",
         "options": {
           "bodyContentType": "json"
         },
         "sendBody": true,
-        "jsonBody": "{\"direction\": \"left\", \"speed\": 0.5}",
+        "bodyParametersJson": "{\"direction\": \"left\", \"speed\": 0.5}",
         "headers": {
           "Content-Type": "application/json"
         }

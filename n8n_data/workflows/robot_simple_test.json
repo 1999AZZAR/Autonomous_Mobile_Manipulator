@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -24,13 +24,13 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/move",
+        "url": "http://100.74.72.71:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json"
         },
         "sendBody": true,
-        "jsonBody": "{\"direction\": \"forward\", \"speed\": 0.5}",
+        "bodyParametersJson": "{\"direction\": \"forward\", \"speed\": 0.5}",
         "headers": {
           "Content-Type": "application/json"
         }
@@ -43,13 +43,13 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/turn",
+        "url": "http://100.74.72.71:5000/api/robot/turn",
         "method": "POST",
         "options": {
           "bodyContentType": "json"
         },
         "sendBody": true,
-        "jsonBody": "{\"direction\": \"left\", \"speed\": 0.3}",
+        "bodyParametersJson": "{\"direction\": \"left\", \"speed\": 0.3}",
         "headers": {
           "Content-Type": "application/json"
         }
@@ -62,7 +62,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servos",
+        "url": "http://100.74.72.71:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -71,7 +71,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
       },
       "id": "open-gripper",
       "name": "Open Gripper",
@@ -81,7 +81,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/lifter",
+        "url": "http://100.74.72.71:5000/api/robot/lifter",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -90,7 +90,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"up\",\n  \"speed\": 0.5\n}"
+        "bodyParametersJson": "{\n  \"action\": \"up\",\n  \"speed\": 0.5\n}"
       },
       "id": "control-lifter",
       "name": "Control Lifter",
@@ -100,7 +100,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servos",
+        "url": "http://100.74.72.71:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -109,7 +109,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
       },
       "id": "control-servos",
       "name": "Control Servos",
@@ -119,7 +119,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -128,7 +128,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{}"
+        "bodyParametersJson": "{}"
       },
       "id": "stop-robot",
       "name": "Stop Robot",

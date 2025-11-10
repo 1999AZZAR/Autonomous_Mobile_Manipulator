@@ -102,7 +102,7 @@
         "level": "warning"
       },
       "name": "Log Obstacle Alert",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         1340,
@@ -142,7 +142,7 @@
         "level": "info"
       },
       "name": "Log Safe Status",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         1340,
@@ -191,7 +191,7 @@
         "level": "info"
       },
       "name": "Log Monitoring Cycle",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         2000,

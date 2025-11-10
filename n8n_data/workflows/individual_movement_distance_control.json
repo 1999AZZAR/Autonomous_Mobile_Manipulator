@@ -41,7 +41,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -78,7 +78,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/move",
+        "url": "http://100.74.72.71:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -87,7 +87,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"{{ $json.direction }}\",\n  \"speed\": {{ $json.speed }}\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"{{ $json.direction }}\",\n  \"speed\": {{ $json.speed }}\n}"
       },
       "id": "start-movement",
       "name": "Start Movement",
@@ -125,7 +125,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -134,7 +134,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{}"
+        "bodyParametersJson": "{}"
       },
       "id": "stop-at-target",
       "name": "Stop at Target Distance",
@@ -171,7 +171,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -211,7 +211,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

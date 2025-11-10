@@ -1,0 +1,431 @@
+{
+  "name": "Advanced Servo Control with Safety Limits",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-initial-status",
+      "name": "Get Initial Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "servo_id",
+              "value": "={{ $json.body.servo_id || 1 }}"
+            },
+            {
+              "name": "angle",
+              "value": "={{ $json.body.angle || 90 }}"
+            },
+            {
+              "name": "tolerance",
+              "value": "={{ $json.body.tolerance || 2 }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-servo-params",
+      "name": "Extract Servo Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.servo_id }}",
+              "operation": "equal",
+              "value2": "1"
+            }
+          ]
+        }
+      },
+      "id": "check-servo-type",
+      "name": "Check Servo Type",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"command\": \"{{ $json.angle < 90 ? 'close' : 'open' }}\"\n}"
+      },
+      "id": "control-gripper",
+      "name": "Control Gripper (Servo 1)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 160]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.servo_id }}",
+              "operation": "equal",
+              "value2": "2"
+            }
+          ]
+        }
+      },
+      "id": "check-servo-2",
+      "name": "Check Servo 2 (Tilt)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [680, 440]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_tilt",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"angle\": {{ $json.angle }}\n}"
+      },
+      "id": "control-gripper-tilt",
+      "name": "Control Gripper Tilt (Servo 2)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 440]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.servo_id }}",
+              "operation": "equal",
+              "value2": "3"
+            }
+          ]
+        }
+      },
+      "id": "check-servo-3",
+      "name": "Check Servo 3 (Neck)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_neck",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"position\": {{ $json.angle / 180.0 }}\n}"
+      },
+      "id": "control-gripper-neck",
+      "name": "Control Gripper Neck (Servo 3)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.servo_id }}",
+              "operation": "equal",
+              "value2": "4"
+            }
+          ]
+        }
+      },
+      "id": "check-servo-4",
+      "name": "Check Servo 4 (Base)",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 500]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_base",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"height\": {{ $json.angle / 180.0 }}\n}"
+      },
+      "id": "control-gripper-base",
+      "name": "Control Gripper Base (Servo 4)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 500]
+    },
+    {
+      "parameters": {
+        "amount": 1,
+        "unit": "seconds"
+      },
+      "id": "wait-for-movement",
+      "name": "Wait for Movement",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "verify-position",
+      "name": "Verify Final Position",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "Servo {{ $json.servo_id }} successfully moved to {{ $json.angle }}°"
+            },
+            {
+              "name": "verification",
+              "value": "Movement completed and verified"
+            }
+          ]
+        }
+      },
+      "id": "operation-success",
+      "name": "Operation Success",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2000, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Initial Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Initial Status": {
+      "main": [
+        [
+          {
+            "node": "Extract Servo Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Servo Parameters": {
+      "main": [
+        [
+          {
+            "node": "Check Servo Type",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Servo Type": {
+      "main": [
+        [
+          {
+            "node": "Control Gripper",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Servo 2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Gripper": {
+      "main": [
+        [
+          {
+            "node": "Wait for Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Servo 2": {
+      "main": [
+        [
+          {
+            "node": "Control Gripper Tilt",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Servo 3",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Gripper Tilt": {
+      "main": [
+        [
+          {
+            "node": "Wait for Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Servo 3": {
+      "main": [
+        [
+          {
+            "node": "Control Gripper Neck",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Check Servo 4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Gripper Neck": {
+      "main": [
+        [
+          {
+            "node": "Wait for Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Servo 4": {
+      "main": [
+        [
+          {
+            "node": "Control Gripper Base",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Gripper Base": {
+      "main": [
+        [
+          {
+            "node": "Wait for Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait for Movement": {
+      "main": [
+        [
+          {
+            "node": "Verify Final Position",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verify Final Position": {
+      "main": [
+        [
+          {
+            "node": "Operation Success",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "pinData": {},
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "individual-control",
+      "name": "Individual Control"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "servo-control",
+      "name": "Servo Control"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
+}

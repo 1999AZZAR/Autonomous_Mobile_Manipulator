@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -45,7 +45,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/emergency-stop",
+        "url": "http://100.74.72.71:5000/api/robot/emergency-stop",
         "method": "POST",
         "options": {}
       },
@@ -74,7 +74,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servos",
+        "url": "http://100.74.72.71:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -83,7 +83,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
       },
       "id": "safe-servo-positioning",
       "name": "Safe Servo Positioning",
@@ -198,7 +198,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/move",
+        "url": "http://100.74.72.71:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -207,7 +207,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"backward\",\n  \"speed\": 0.3\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"backward\",\n  \"speed\": 0.3\n}"
       },
       "id": "evacuate-to-safe-zone",
       "name": "Evacuate to Safe Zone",
@@ -217,7 +217,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -229,7 +229,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -380,7 +380,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

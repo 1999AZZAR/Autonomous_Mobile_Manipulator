@@ -1,0 +1,147 @@
+{
+  "name": "Robot Object Recognition (Framework - Vision Not Implemented)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-status",
+      "name": "Get Current Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "message": "⚠️ VISION CAPABILITIES NOT IMPLEMENTED\n\nThis workflow requires:\n• ROS2 Camera Node\n• OpenCV Integration\n• Vision Processing Pipeline\n\nCurrent ROS2 API only supports basic sensors (ultrasonic, IR, line)"
+      },
+      "id": "vision-warning",
+      "name": "Vision Framework Warning",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "message": "🔍 OBJECT RECOGNITION FRAMEWORK\n\nWould analyze camera feed for:\n• Geometric shapes (cube, cylinder, sphere)\n• Object classification\n• Feature extraction\n\nRequires: TensorFlow/OpenCV integration"
+      },
+      "id": "recognition-framework",
+      "name": "Object Recognition Framework",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "message": "📊 OBJECT ANALYSIS FRAMEWORK\n\nWould provide:\n• 3D position estimation\n• Object orientation\n• Distance calculations\n• Pose estimation\n\nRequires: Stereo vision or depth sensing"
+      },
+      "id": "analysis-framework",
+      "name": "Object Analysis Framework",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-final-status",
+      "name": "Get Final Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Current Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Status": {
+      "main": [
+        [
+          {
+            "node": "Capture Image",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Capture Image": {
+      "main": [
+        [
+          {
+            "node": "Recognize Objects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recognize Objects": {
+      "main": [
+        [
+          {
+            "node": "Analyze Objects",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Analyze Objects": {
+      "main": [
+        [
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "object-recognition",
+      "name": "Object Recognition"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
+}

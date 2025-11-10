@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -62,7 +62,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servos",
+        "url": "http://100.74.72.71:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -71,7 +71,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
       },
       "id": "home-all-servos",
       "name": "Home All Servos",
@@ -81,7 +81,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servo",
+        "url": "http://100.74.72.71:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -90,7 +90,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 0\n}"
+        "bodyParametersJson": "{\n  \"servo\": 1,\n  \"angle\": 0\n}"
       },
       "id": "test-servo-1-min",
       "name": "Test Servo 1 (Min)",
@@ -100,7 +100,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servo",
+        "url": "http://100.74.72.71:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -109,7 +109,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 90\n}"
+        "bodyParametersJson": "{\n  \"servo\": 1,\n  \"angle\": 90\n}"
       },
       "id": "test-servo-1-mid",
       "name": "Test Servo 1 (Mid)",
@@ -119,7 +119,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servo",
+        "url": "http://100.74.72.71:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -128,7 +128,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"servo\": 1,\n  \"angle\": 180\n}"
+        "bodyParametersJson": "{\n  \"servo\": 1,\n  \"angle\": 180\n}"
       },
       "id": "test-servo-1-max",
       "name": "Test Servo 1 (Max)",
@@ -172,7 +172,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/move",
+        "url": "http://100.74.72.71:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -181,7 +181,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.2\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.2\n}"
       },
       "id": "test-forward-movement",
       "name": "Test Forward Movement",
@@ -191,7 +191,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -203,7 +203,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/move",
+        "url": "http://100.74.72.71:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -212,7 +212,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"backward\",\n  \"speed\": 0.2\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"backward\",\n  \"speed\": 0.2\n}"
       },
       "id": "test-backward-movement",
       "name": "Test Backward Movement",
@@ -222,7 +222,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -234,7 +234,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/turn",
+        "url": "http://100.74.72.71:5000/api/robot/turn",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -243,7 +243,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"left\",\n  \"speed\": 0.2\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"left\",\n  \"speed\": 0.2\n}"
       },
       "id": "test-left-turn",
       "name": "Test Left Turn",
@@ -253,7 +253,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/turn",
+        "url": "http://100.74.72.71:5000/api/robot/turn",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -262,7 +262,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"right\",\n  \"speed\": 0.2\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"right\",\n  \"speed\": 0.2\n}"
       },
       "id": "test-right-turn",
       "name": "Test Right Turn",
@@ -272,7 +272,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -318,7 +318,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -364,7 +364,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/emergency-stop",
+        "url": "http://100.74.72.71:5000/api/robot/emergency-stop",
         "method": "POST",
         "options": {}
       },
@@ -393,7 +393,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/servos",
+        "url": "http://100.74.72.71:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -402,7 +402,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"action\": \"home\"\n}"
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
       },
       "id": "final-system-home",
       "name": "Final System Home",
@@ -412,7 +412,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

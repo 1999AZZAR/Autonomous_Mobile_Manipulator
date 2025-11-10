@@ -76,7 +76,7 @@
         "level": "info"
       },
       "name": "Log Simulation Result",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         900,
@@ -116,7 +116,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/containers/{{ $json.container_position }}",
+        "url": "http://100.74.72.71:5000/api/robot/containers/{{ $json.container_position }}",
         "method": "POST",
         "options": {
           "bodyContentType": "json"
@@ -139,7 +139,7 @@
         "level": "info"
       },
       "name": "Log Hardware Operation Result",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         900,
@@ -212,7 +212,7 @@
         "level": "info"
       },
       "name": "Left Front Container",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         1560,
@@ -226,7 +226,7 @@
         "level": "info"
       },
       "name": "Left Back Container",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         1560,
@@ -240,7 +240,7 @@
         "level": "info"
       },
       "name": "Right Front Container",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         1560,
@@ -254,7 +254,7 @@
         "level": "info"
       },
       "name": "Right Back Container",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         1560,
@@ -296,7 +296,7 @@
         "level": "info"
       },
       "name": "Log Final Status",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [
         2000,

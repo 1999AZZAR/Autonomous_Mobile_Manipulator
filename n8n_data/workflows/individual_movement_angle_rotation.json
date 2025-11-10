@@ -41,7 +41,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -73,7 +73,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/turn",
+        "url": "http://100.74.72.71:5000/api/robot/turn",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -82,7 +82,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"direction\": \"{{ $json.rotation_direction }}\",\n  \"speed\": {{ $json.rotation_speed || 0.5 }}\n}"
+        "bodyParametersJson": "{\n  \"direction\": \"{{ $json.rotation_direction }}\",\n  \"speed\": {{ $json.rotation_speed || 0.5 }}\n}"
       },
       "id": "start-rotation",
       "name": "Start Rotation",
@@ -120,7 +120,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -129,7 +129,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{}"
+        "bodyParametersJson": "{}"
       },
       "id": "stop-at-target-angle",
       "name": "Stop at Target Angle",
@@ -166,7 +166,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -206,7 +206,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

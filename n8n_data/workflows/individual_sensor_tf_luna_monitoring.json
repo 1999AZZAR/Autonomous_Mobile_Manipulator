@@ -101,7 +101,7 @@
         "level": "error"
       },
       "name": "Log Critical Alert",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [1340, 160],
       "id": "tf_luna_critical_log"
@@ -150,7 +150,7 @@
         "level": "warning"
       },
       "name": "Log Warning Alert",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [1560, 300],
       "id": "tf_luna_warning_log"
@@ -190,7 +190,7 @@
         "level": "info"
       },
       "name": "Log Safe Status",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [1340, 440],
       "id": "tf_luna_safe_log"
@@ -230,7 +230,7 @@
         "level": "info"
       },
       "name": "Log Monitoring Cycle",
-      "type": "n8n-nodes-base.log",
+      "type": "n8n-nodes-base.noOp",
       "typeVersion": 1,
       "position": [2220, 160],
       "id": "tf_luna_cycle_log"

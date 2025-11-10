@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/picker/gripper",
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -62,7 +62,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"command\": \"{{ $json.gripper_command }}\"\n}"
+        "bodyParametersJson": "{\n  \"command\": \"{{ $json.gripper_command }}\"\n}"
       },
       "id": "control-gripper",
       "name": "Control Gripper (Open/Close)",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_tilt",
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_tilt",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -81,7 +81,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"angle\": {{ $json.gripper_tilt_angle }}\n}"
+        "bodyParametersJson": "{\n  \"angle\": {{ $json.gripper_tilt_angle }}\n}"
       },
       "id": "control-gripper-tilt",
       "name": "Control Gripper Tilt (Angle)",
@@ -91,7 +91,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_neck",
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_neck",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -100,7 +100,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"position\": {{ $json.gripper_neck_position }}\n}"
+        "bodyParametersJson": "{\n  \"position\": {{ $json.gripper_neck_position }}\n}"
       },
       "id": "control-gripper-neck",
       "name": "Control Gripper Neck (Position)",
@@ -110,7 +110,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_base",
+        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_base",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -119,7 +119,7 @@
           }
         },
         "sendBody": true,
-        "jsonBody": "{\n  \"height\": {{ $json.gripper_base_height }}\n}"
+        "bodyParametersJson": "{\n  \"height\": {{ $json.gripper_base_height }}\n}"
       },
       "id": "control-gripper-base",
       "name": "Control Gripper Base (Height)",
@@ -129,7 +129,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
