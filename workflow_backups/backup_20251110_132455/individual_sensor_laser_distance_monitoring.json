@@ -1,0 +1,227 @@
+{
+  "name": "Laser Distance Sensor Monitoring for Wall Alignment",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "continuous_monitoring",
+              "value": "{{$parameter.continuous_monitoring}}"
+            }
+          ],
+          "number": [
+            {
+              "name": "wall_alignment_threshold",
+              "value": "{{$parameter.wall_alignment_threshold || 0.3}}"
+            },
+            {
+              "name": "obstacle_threshold",
+              "value": "{{$parameter.obstacle_threshold || 0.8}}"
+            }
+          ]
+        }
+      },
+      "name": "Configure Laser Monitoring",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [240, 300],
+      "id": "laser_config"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "api/robot/status",
+        "options": {}
+      },
+      "name": "Get Laser Sensor Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 300],
+      "id": "laser_status"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Process 6 laser distance sensors for wall alignment\n// Sensors: left_front, left_back, right_front, right_back, back_left, back_right\nconst left_front = $input.item.json.distance_left_front || 4.0;\nconst left_back = $input.item.json.distance_left_back || 4.0;\nconst right_front = $input.item.json.distance_right_front || 4.0;\nconst right_back = $input.item.json.distance_right_back || 4.0;\nconst back_left = $input.item.json.distance_back_left || 4.0;\nconst back_right = $input.item.json.distance_back_right || 4.0;\n\n// Calculate wall alignment errors\nconst left_wall_distance = (left_front + left_back) / 2;\nconst right_wall_distance = (right_front + right_back) / 2;\nconst back_wall_distance = (back_left + back_right) / 2;\n\nconst target_wall_distance = 1.5; // Target distance from walls\nconst lateral_error = right_wall_distance - left_wall_distance;\nconst forward_error = Math.min(left_front, right_front, back_left, back_right);\n\n// Detect obstacles (any sensor reading below threshold)\nconst obstacle_detected = Math.min(left_front, left_back, right_front, right_back, back_left, back_right) < $input.item.json.obstacle_threshold;\n\nreturn {\n  left_wall_distance: left_wall_distance,\n  right_wall_distance: right_wall_distance,\n  back_wall_distance: back_wall_distance,\n  lateral_error: lateral_error,\n  forward_error: forward_error,\n  obstacle_detected: obstacle_detected,\n  wall_aligned: Math.abs(lateral_error) < $input.item.json.wall_alignment_threshold\n};"
+      },
+      "name": "Process Laser Data",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [680, 300],
+      "id": "laser_process"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.obstacle_detected }}",
+              "operation": "equal",
+              "value2": true
+            }
+          ]
+        }
+      },
+      "name": "Obstacle Detected?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [900, 300],
+      "id": "obstacle_check"
+    },
+    {
+      "parameters": {
+        "functionCode": "// Calculate wall alignment correction using PID-like control\nconst lateral_error = $input.item.json.lateral_error;\nconst kp = 0.5; // Proportional gain\nconst max_correction = 0.3; // Maximum lateral correction speed\n\nlet lateral_correction = lateral_error * kp;\nlateral_correction = Math.max(-max_correction, Math.min(max_correction, lateral_correction));\n\n// For obstacle avoidance, we want to move away from obstacles\n// If obstacle is detected, prioritize safety over wall alignment\nconst base_forward_speed = $input.item.json.obstacle_detected ? 0.1 : 0.4;\n\nconst forward_speed = Math.max(0, base_forward_speed);\n\nreturn {\n  forward_speed: forward_speed,\n  lateral_correction: lateral_correction,\n  wall_aligned: $input.item.json.wall_aligned,\n  correction_type: $input.item.json.obstacle_detected ? 'obstacle_avoidance' : 'wall_alignment'\n};"
+      },
+      "name": "Calculate Wall Alignment",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [900, 160],
+      "id": "alignment_calc"
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/move",
+        "method": "POST",
+        "sendBody": true,
+        "bodyContentType": "json",
+        "bodyParametersJson": "{\n  \"linear_x\": {{ $json.forward_speed || 0.2 }},\n  \"linear_y\": {{ $json.lateral_correction || 0.0 }},\n  \"angular_z\": 0.0\n}",
+        "options": {
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        }
+      },
+      "name": "Execute Alignment Movement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 160],
+      "id": "alignment_move"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "api/robot/emergency-stop",
+        "bodyContentType": "raw",
+        "sendBody": true,
+        "body": "{\"reason\": \"Obstacle detected by laser sensors\"}",
+        "options": {}
+      },
+      "name": "Emergency Stop for Obstacle",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300],
+      "id": "obstacle_emergency"
+    },
+    {
+      "parameters": {
+        "message": "LASER SENSORS: Wall alignment={{ $json.wall_aligned ? 'GOOD' : 'NEEDS_CORRECTION' }}, Lateral error={{ $json.lateral_error?.toFixed(3) }}m, Obstacle={{ $json.obstacle_detected ? 'DETECTED' : 'CLEAR' }}",
+        "options": {}
+      },
+      "name": "Log Sensor Status",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1340, 300],
+      "id": "laser_log"
+    }
+  ],
+  "connections": {
+    "Configure Laser Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Get Laser Sensor Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Laser Sensor Status": {
+      "main": [
+        [
+          {
+            "node": "Process Laser Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Process Laser Data": {
+      "main": [
+        [
+          {
+            "node": "Obstacle Detected?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Calculate Wall Alignment",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obstacle Detected?": {
+      "main": [
+        [
+          {
+            "node": "Emergency Stop for Obstacle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ],
+      "true": [
+        [
+          {
+            "node": "Emergency Stop for Obstacle",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Calculate Wall Alignment": {
+      "main": [
+        [
+          {
+            "node": "Execute Alignment Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Alignment Movement": {
+      "main": [
+        [
+          {
+            "node": "Log Sensor Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Emergency Stop for Obstacle": {
+      "main": [
+        [
+          {
+            "node": "Log Sensor Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "executionOrder": "v1"
+  }
+}

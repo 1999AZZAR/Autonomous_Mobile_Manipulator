@@ -1,0 +1,7 @@
+{
+  "backup_timestamp": "20251110_132455",
+  "backup_path": "/home/azzar/project/robotic/lks_robot_project/workflow_backups/backup_20251110_132455",
+  "n8n_status": "1 container(s) running",
+  "local_workflows": 38,
+  "description": "Complete workflow backup including local files and N8N exports"
+}

@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/status",
+        "url": "http://localhost:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -62,7 +62,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/servos",
+        "url": "http://localhost:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -81,7 +81,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/servo",
+        "url": "http://localhost:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -100,7 +100,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/servo",
+        "url": "http://localhost:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -119,7 +119,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/servo",
+        "url": "http://localhost:5000/api/robot/servo",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -172,7 +172,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/move",
+        "url": "http://localhost:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -191,7 +191,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "url": "http://localhost:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -203,7 +203,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/move",
+        "url": "http://localhost:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -222,7 +222,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "url": "http://localhost:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -234,7 +234,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "url": "http://localhost:5000/api/robot/turn",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -253,7 +253,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "url": "http://localhost:5000/api/robot/turn",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -272,7 +272,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "url": "http://localhost:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -318,7 +318,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/status",
+        "url": "http://localhost:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -364,7 +364,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/emergency-stop",
+        "url": "http://localhost:5000/api/robot/emergency-stop",
         "method": "POST",
         "options": {}
       },
@@ -393,7 +393,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/servos",
+        "url": "http://localhost:5000/api/robot/servos",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -412,7 +412,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/status",
+        "url": "http://localhost:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },

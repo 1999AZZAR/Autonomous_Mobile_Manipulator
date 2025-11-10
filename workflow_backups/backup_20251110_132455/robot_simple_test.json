@@ -1,0 +1,233 @@
+{
+  "name": "Robot Complete Test",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-status",
+      "name": "Get Robot Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\"direction\": \"forward\", \"speed\": 0.5}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "id": "move-forward",
+      "name": "Move Forward",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\"direction\": \"left\", \"speed\": 0.3}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "id": "turn-left",
+      "name": "Turn Left",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/servos",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
+      },
+      "id": "open-gripper",
+      "name": "Open Gripper",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/lifter",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"action\": \"up\",\n  \"speed\": 0.5\n}"
+      },
+      "id": "control-lifter",
+      "name": "Control Lifter",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/servos",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"action\": \"home\"\n}"
+      },
+      "id": "control-servos",
+      "name": "Control Servos",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{}"
+      },
+      "id": "stop-robot",
+      "name": "Stop Robot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Robot Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Robot Status": {
+      "main": [
+        [
+          {
+            "node": "Move Forward",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Forward": {
+      "main": [
+        [
+          {
+            "node": "Turn Left",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Left": {
+      "main": [
+        [
+          {
+            "node": "Open Gripper",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Open Gripper": {
+      "main": [
+        [
+          {
+            "node": "Control Lifter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Lifter": {
+      "main": [
+        [
+          {
+            "node": "Control Servos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Control Servos": {
+      "main": [
+        [
+          {
+            "node": "Stop Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    }
+  ]
+}

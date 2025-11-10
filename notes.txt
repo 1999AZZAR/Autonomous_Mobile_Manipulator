@@ -8,7 +8,7 @@ main body and nav:
         - front left
         - front right
 
-    - single poin lidar (tf_luma)
+    - single poin lidar (tf_luna)(i2c/uart)
     - imu (mpu6050)
 
 main gripper:

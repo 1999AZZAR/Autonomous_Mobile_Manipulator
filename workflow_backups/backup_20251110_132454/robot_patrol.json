@@ -1,0 +1,284 @@
+{
+  "name": "Autonomous Square Patrol",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "rule": "0,30 * * * * *"
+      },
+      "id": "schedule-trigger",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1,
+      "position": [20, 200]
+    },
+    {
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "patrol_step",
+              "value": 1
+            }
+          ]
+        }
+      },
+      "id": "patrol-counter",
+      "name": "Patrol Counter",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [240, 200]
+    },
+    {
+      "parameters": {
+        "functionCode": "// Simple patrol logic: alternate between move and turn\nconst step = $input.item.json.patrol_step || 1;\nconst shouldMove = (step % 2 === 1);\n\nif (shouldMove) {\n  return { action: 'move', step: step };\n} else {\n  return { action: 'turn', step: step };\n}"
+      },
+      "id": "movement-decision",
+      "name": "Movement Decision",
+      "type": "n8n-nodes-base.function",
+      "typeVersion": 1,
+      "position": [460, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.action }}",
+              "operation": "equal",
+              "value2": "move"
+            }
+          ]
+        }
+      },
+      "id": "action-decision",
+      "name": "Action Decision",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\"direction\": \"forward\", \"speed\": 0.5}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "id": "move-forward",
+      "name": "Move Forward",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 80]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json"
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\"direction\": \"left\", \"speed\": 0.5}",
+        "headers": {
+          "Content-Type": "application/json"
+        }
+      },
+      "id": "rotate-90",
+      "name": "Rotate 90°",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 320]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Patrol step {{ $node[\"Patrol Counter\"].json.patrol_step }} completed"
+            }
+          ]
+        }
+      },
+      "id": "log-patrol",
+      "name": "Log Patrol",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "amount": 4,
+        "unit": "seconds"
+      },
+      "id": "delay-forward",
+      "name": "Delay Forward",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1120, 80]
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "id": "delay-rotate",
+      "name": "Delay Rotate",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [1120, 320]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "status",
+              "value": "Patrol completed - Ready for next cycle"
+            }
+          ]
+        }
+      },
+      "id": "patrol-complete",
+      "name": "Patrol Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1340, 200]
+    }
+  ],
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Patrol Counter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Patrol Counter": {
+      "main": [
+        [
+          {
+            "node": "Movement Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Movement Decision": {
+      "main": [
+        [
+          {
+            "node": "Action Decision",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Action Decision": {
+      "main": [
+        [
+          {
+            "node": "Move Forward",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Rotate 90°",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Forward": {
+      "main": [
+        [
+          {
+            "node": "Log Patrol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Rotate 90°": {
+      "main": [
+        [
+          {
+            "node": "Log Patrol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Patrol": {
+      "main": [
+        [
+          {
+            "node": "Delay Forward",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Delay Rotate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Forward": {
+      "main": [
+        [
+          {
+            "node": "Patrol Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Delay Rotate": {
+      "main": [
+        [
+          {
+            "node": "Patrol Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "saveExecutionProgress": true,
+    "saveManualExecutions": true,
+    "saveDataErrorExecution": "all",
+    "executionOrder": "v1"
+  },
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    }
+  ]
+}

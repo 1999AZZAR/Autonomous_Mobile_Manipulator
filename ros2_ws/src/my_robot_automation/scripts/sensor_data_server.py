@@ -27,15 +27,43 @@ class SensorDataServer(Node):
             GetSensorData, 'get_sensor_data', self.get_sensor_data_callback
         )
 
-        # Subscribers for sensor topics
-        self.distance_front_sub = self.create_subscription(
-            Float32, '/distance/front', self.distance_front_callback, 10
+        # Subscribers for sensor topics (6x laser distance sensors)
+        self.distance_left_front_sub = self.create_subscription(
+            Range, '/distance/left_front', self.distance_left_front_callback, 10
+        )
+        self.distance_left_back_sub = self.create_subscription(
+            Range, '/distance/left_back', self.distance_left_back_callback, 10
+        )
+        self.distance_right_front_sub = self.create_subscription(
+            Range, '/distance/right_front', self.distance_right_front_callback, 10
+        )
+        self.distance_right_back_sub = self.create_subscription(
+            Range, '/distance/right_back', self.distance_right_back_callback, 10
         )
         self.distance_back_left_sub = self.create_subscription(
-            Float32, '/distance/back_left', self.distance_back_left_callback, 10
+            Range, '/distance/back_left', self.distance_back_left_callback, 10
         )
         self.distance_back_right_sub = self.create_subscription(
-            Float32, '/distance/back_right', self.distance_back_right_callback, 10
+            Range, '/distance/back_right', self.distance_back_right_callback, 10
+        )
+
+        # HC-SR04 Ultrasonic sensors (2x front)
+        self.ultrasonic_front_left_sub = self.create_subscription(
+            Range, '/ultrasonic/front_left', self.ultrasonic_front_left_callback, 10
+        )
+        self.ultrasonic_front_right_sub = self.create_subscription(
+            Range, '/ultrasonic/front_right', self.ultrasonic_front_right_callback, 10
+        )
+
+        # Line sensors (3x individual)
+        self.line_sensor_left_sub = self.create_subscription(
+            Int32, '/line_sensor/left', self.line_sensor_left_callback, 10
+        )
+        self.line_sensor_center_sub = self.create_subscription(
+            Int32, '/line_sensor/center', self.line_sensor_center_callback, 10
+        )
+        self.line_sensor_right_sub = self.create_subscription(
+            Int32, '/line_sensor/right', self.line_sensor_right_callback, 10
         )
         self.line_sensor_sub = self.create_subscription(
             Int32, '/line_sensor/raw', self.line_sensor_callback, 10
@@ -52,10 +80,17 @@ class SensorDataServer(Node):
 
         # Current sensor data storage
         self.sensor_data = SensorData()
-        self.last_distance_front = 10.0
+        self.last_distance_left_front = 10.0
+        self.last_distance_left_back = 10.0
+        self.last_distance_right_front = 10.0
+        self.last_distance_right_back = 10.0
         self.last_distance_back_left = 10.0
         self.last_distance_back_right = 10.0
-        self.last_line_sensor = 0
+        self.last_ultrasonic_front_left = 4.0
+        self.last_ultrasonic_front_right = 4.0
+        self.last_line_sensor_left = 0
+        self.last_line_sensor_center = 0
+        self.last_line_sensor_right = 0
         self.last_imu = Imu()
         self.last_battery = BatteryState()
         self.last_tf_luna = Range()
@@ -71,15 +106,22 @@ class SensorDataServer(Node):
         self.sensor_data.header.stamp = now
         self.sensor_data.header.frame_id = 'base_link'
 
-        # Distance sensors (default to max range)
-        self.sensor_data.ultrasonic_front = 10.0
-        self.sensor_data.ultrasonic_back_left = 10.0
-        self.sensor_data.ultrasonic_back_right = 10.0
+        # Laser distance sensors (default to max range)
+        self.sensor_data.distance_left_front = 10.0
+        self.sensor_data.distance_left_back = 10.0
+        self.sensor_data.distance_right_front = 10.0
+        self.sensor_data.distance_right_back = 10.0
+        self.sensor_data.distance_back_left = 10.0
+        self.sensor_data.distance_back_right = 10.0
 
-        # IR sensors (default to max range)
-        self.sensor_data.ir_front = 5.0
-        self.sensor_data.ir_left = 5.0
-        self.sensor_data.ir_right = 5.0
+        # HC-SR04 ultrasonic sensors (default to max range)
+        self.sensor_data.ultrasonic_front_left = 4.0
+        self.sensor_data.ultrasonic_front_right = 4.0
+
+        # Line sensors (default to no line detected)
+        self.sensor_data.line_sensor_left = 0
+        self.sensor_data.line_sensor_center = 0
+        self.sensor_data.line_sensor_right = 0
 
         # TF-Luna LIDAR (default to max range)
         self.sensor_data.tf_luna_distance = 8.0
@@ -118,44 +160,92 @@ class SensorDataServer(Node):
         self.sensor_data.battery_healthy = True
         self.sensor_data.tf_luna_healthy = True
 
-    def distance_front_callback(self, msg):
-        """Callback for front distance sensor"""
-        self.last_distance_front = msg.data
-        self.sensor_data.ultrasonic_front = msg.data
+    def distance_left_front_callback(self, msg):
+        """Callback for left front laser distance sensor"""
+        self.last_distance_left_front = msg.range
+        self.sensor_data.distance_left_front = msg.range
+
+    def distance_left_back_callback(self, msg):
+        """Callback for left back laser distance sensor"""
+        self.last_distance_left_back = msg.range
+        self.sensor_data.distance_left_back = msg.range
+
+    def distance_right_front_callback(self, msg):
+        """Callback for right front laser distance sensor"""
+        self.last_distance_right_front = msg.range
+        self.sensor_data.distance_right_front = msg.range
+
+    def distance_right_back_callback(self, msg):
+        """Callback for right back laser distance sensor"""
+        self.last_distance_right_back = msg.range
+        self.sensor_data.distance_right_back = msg.range
 
     def distance_back_left_callback(self, msg):
-        """Callback for back left distance sensor"""
-        self.last_distance_back_left = msg.data
-        self.sensor_data.ultrasonic_back_left = msg.data
+        """Callback for back left laser distance sensor"""
+        self.last_distance_back_left = msg.range
+        self.sensor_data.distance_back_left = msg.range
 
     def distance_back_right_callback(self, msg):
-        """Callback for back right distance sensor"""
-        self.last_distance_back_right = msg.data
-        self.sensor_data.ultrasonic_back_right = msg.data
+        """Callback for back right laser distance sensor"""
+        self.last_distance_back_right = msg.range
+        self.sensor_data.distance_back_right = msg.range
 
-    def line_sensor_callback(self, msg):
-        """Callback for line sensor"""
-        self.last_line_sensor = msg.data
-        self.sensor_data.line_sensor_raw = msg.data
+    def ultrasonic_front_left_callback(self, msg):
+        """Callback for front left HC-SR04 ultrasonic sensor"""
+        self.last_ultrasonic_front_left = msg.range
+        self.sensor_data.ultrasonic_front_left = msg.range
 
-        # Process line sensor data
-        # Assume 8-bit sensor array, calculate position
-        sensor_bits = msg.data & 0xFF  # Get lower 8 bits
-        if sensor_bits == 0:
-            self.sensor_data.line_detected = False
+    def ultrasonic_front_right_callback(self, msg):
+        """Callback for front right HC-SR04 ultrasonic sensor"""
+        self.last_ultrasonic_front_right = msg.range
+        self.sensor_data.ultrasonic_front_right = msg.range
+
+    def line_sensor_left_callback(self, msg):
+        """Callback for left line sensor"""
+        self.last_line_sensor_left = msg.data
+        self.sensor_data.line_sensor_left = msg.data
+        self.update_line_sensor_position()
+
+    def line_sensor_center_callback(self, msg):
+        """Callback for center line sensor"""
+        self.last_line_sensor_center = msg.data
+        self.sensor_data.line_sensor_center = msg.data
+        self.update_line_sensor_position()
+
+    def line_sensor_right_callback(self, msg):
+        """Callback for right line sensor"""
+        self.last_line_sensor_right = msg.data
+        self.sensor_data.line_sensor_right = msg.data
+        self.update_line_sensor_position()
+
+    def update_line_sensor_position(self):
+        """Update line sensor position calculation based on 3 individual sensors"""
+        left = self.sensor_data.line_sensor_left
+        center = self.sensor_data.line_sensor_center
+        right = self.sensor_data.line_sensor_right
+
+        # Calculate line position (-1 to 1, where 0 is center)
+        line_detected = left or center or right
+        self.sensor_data.line_detected = line_detected
+
+        if not line_detected:
             self.sensor_data.line_position = 0.0
+        elif left and center and right:
+            self.sensor_data.line_position = 0.0  # All sensors on line - centered
+        elif left and center:
+            self.sensor_data.line_position = -0.3  # Slightly left
+        elif center and right:
+            self.sensor_data.line_position = 0.3   # Slightly right
+        elif left and right:
+            self.sensor_data.line_position = 0.0   # Line between sensors
+        elif left:
+            self.sensor_data.line_position = -0.8  # Far left
+        elif right:
+            self.sensor_data.line_position = 0.8   # Far right
+        elif center:
+            self.sensor_data.line_position = 0.0   # Perfect center
         else:
-            self.sensor_data.line_detected = True
-            # Calculate weighted average position
-            total_weight = 0
-            weighted_sum = 0
-            for i in range(8):
-                if sensor_bits & (1 << i):
-                    weight = i - 3.5  # Center at 0, range -3.5 to 3.5
-                    total_weight += 1
-                    weighted_sum += weight
-            if total_weight > 0:
-                self.sensor_data.line_position = weighted_sum / total_weight / 3.5  # Normalize to -1.0 to 1.0
+            self.sensor_data.line_position = 0.0   # No line detected
 
     def imu_callback(self, msg):
         """Callback for IMU data"""

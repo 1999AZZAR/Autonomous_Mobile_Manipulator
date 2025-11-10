@@ -1,0 +1,406 @@
+{
+  "name": "IR Proximity Sensor Monitoring",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "continuous_monitoring",
+              "value": "{{$parameter.continuous_monitoring}}"
+            }
+          ]
+        }
+      },
+      "name": "Configure Monitoring",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        240,
+        300
+      ],
+      "id": "sensor_ultrasonic_001"
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "api/robot/status",
+        "options": {}
+      },
+      "name": "Get Sensor Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        460,
+        300
+      ],
+      "id": "sensor_ultrasonic_002"
+    },
+    {
+      "parameters": {
+        "values": {
+          "number": [
+            {
+              "name": "ultrasonic_distance",
+              "value": "={{ $json.ultrasonic_front }}"
+            }
+          ]
+        }
+      },
+      "name": "Extract Ultrasonic Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        680,
+        300
+      ],
+      "id": "sensor_ultrasonic_003"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.ultrasonic_distance }}",
+              "value2": "={{ $json.safety_threshold || 0.5 }}",
+              "operation": "smallerEqual"
+            }
+          ]
+        }
+      },
+      "name": "Check Obstacle Threshold",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        900,
+        300
+      ],
+      "id": "sensor_ultrasonic_004"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "api/robot/emergency-stop",
+        "bodyContentType": "raw",
+        "sendBody": true,
+        "body": "{}",
+        "options": {}
+      },
+      "name": "Trigger Emergency Stop",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        1120,
+        160
+      ],
+      "id": "sensor_ultrasonic_005"
+    },
+    {
+      "parameters": {
+        "message": "\ud83d\udea8 OBSTACLE DETECTED! Distance: {{ $json.ultrasonic_distance }}m - EMERGENCY STOP ACTIVATED",
+        "level": "warning"
+      },
+      "name": "Log Obstacle Alert",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        160
+      ],
+      "id": "sensor_ultrasonic_006"
+    },
+    {
+      "parameters": {
+        "values": {
+          "boolean": [
+            {
+              "name": "obstacle_detected",
+              "value": true
+            }
+          ],
+          "number": [
+            {
+              "name": "detected_distance",
+              "value": "={{ $json.ultrasonic_distance }}"
+            }
+          ]
+        }
+      },
+      "name": "Safe Distance - Continue",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        1120,
+        440
+      ],
+      "id": "sensor_ultrasonic_007"
+    },
+    {
+      "parameters": {
+        "message": "\u2705 Ultrasonic monitoring: Distance {{ $json.ultrasonic_distance }}m - Safe",
+        "level": "info"
+      },
+      "name": "Log Safe Status",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        1340,
+        440
+      ],
+      "id": "sensor_ultrasonic_008"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ $json.continuous_monitoring }}",
+              "value2": true,
+              "operation": "equal"
+            }
+          ]
+        }
+      },
+      "name": "Continue Monitoring?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [
+        1560,
+        300
+      ],
+      "id": "sensor_ultrasonic_009"
+    },
+    {
+      "parameters": {
+        "amount": 2,
+        "unit": "seconds"
+      },
+      "name": "Wait Before Next Check",
+      "type": "@n8n/n8n-nodes-base.wait",
+      "typeVersion": 1,
+      "position": [
+        1780,
+        160
+      ],
+      "id": "sensor_ultrasonic_010"
+    },
+    {
+      "parameters": {
+        "message": "\ud83d\udd04 Ultrasonic monitoring cycle completed. Distance: {{ $json.ultrasonic_distance }}m",
+        "level": "info"
+      },
+      "name": "Log Monitoring Cycle",
+      "type": "n8n-nodes-base.noOp",
+      "typeVersion": 1,
+      "position": [
+        2000,
+        160
+      ],
+      "id": "sensor_ultrasonic_011"
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "monitoring_status",
+              "value": "completed"
+            }
+          ]
+        }
+      },
+      "name": "Monitoring Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.2,
+      "position": [
+        1780,
+        440
+      ],
+      "id": "sensor_ultrasonic_012"
+    },
+    {
+      "parameters": {},
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        240,
+        300
+      ],
+      "id": "f8e93bbc-b71f-4eae-a635-c08886a140a8"
+    }
+  ],
+  "connections": {
+    "Configure Monitoring": {
+      "main": [
+        [
+          {
+            "node": "Get Sensor Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Sensor Status": {
+      "main": [
+        [
+          {
+            "node": "Extract Ultrasonic Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Ultrasonic Data": {
+      "main": [
+        [
+          {
+            "node": "Check Obstacle Threshold",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Obstacle Threshold": {
+      "main": [
+        [
+          {
+            "node": "Trigger Emergency Stop",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Obstacle Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Safe Distance - Continue",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Safe Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trigger Emergency Stop": {
+      "main": [
+        [
+          {
+            "node": "Continue Monitoring?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Obstacle Alert": {
+      "main": [
+        [
+          {
+            "node": "Continue Monitoring?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Safe Distance - Continue": {
+      "main": [
+        [
+          {
+            "node": "Continue Monitoring?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Safe Status": {
+      "main": [
+        [
+          {
+            "node": "Continue Monitoring?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Continue Monitoring?": {
+      "main": [
+        [
+          {
+            "node": "Wait Before Next Check",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Log Monitoring Cycle",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Monitoring Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait Before Next Check": {
+      "main": [
+        [
+          {
+            "node": "Get Sensor Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Monitoring Cycle": {
+      "main": [
+        [
+          {
+            "node": "Get Sensor Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "sensor_ultrasonic_001": {
+      "main": [
+        [
+          {
+            "node": "f8e93bbc-b71f-4eae-a635-c08886a140a8",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "pinData": {},
+  "versionId": "12345678-1234-1234-1234-123456789012"
+}

@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/status",
+        "url": "http://localhost:5000/api/robot/status",
         "options": {}
       },
       "id": "check-robot-status",
@@ -51,7 +51,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/emergency-stop",
+        "url": "http://localhost:5000/api/robot/emergency-stop",
         "options": {
           "bodyContentType": "json"
         },
@@ -65,7 +65,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "url": "http://localhost:5000/api/robot/stop",
         "options": {
           "bodyContentType": "json"
         },
@@ -104,7 +104,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/status",
+        "url": "http://localhost:5000/api/robot/status",
         "options": {}
       },
       "id": "verify-stop",

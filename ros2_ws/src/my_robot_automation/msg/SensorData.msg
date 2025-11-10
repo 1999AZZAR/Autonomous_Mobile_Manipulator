@@ -1,15 +1,22 @@
 # Sensor data message
 std_msgs/Header header
 
-# Distance sensors (meters)
-float32 ultrasonic_front
-float32 ultrasonic_back_left
-float32 ultrasonic_back_right
+# Laser Distance sensors (6x - wall alignment)
+float32 distance_left_front
+float32 distance_left_back
+float32 distance_right_front
+float32 distance_right_back
+float32 distance_back_left
+float32 distance_back_right
 
-# IR proximity sensors (meters)
-float32 ir_front
-float32 ir_left
-float32 ir_right
+# HC-SR04 Ultrasonic sensors (2x front)
+float32 ultrasonic_front_left
+float32 ultrasonic_front_right
+
+# Line sensors (3x individual)
+int32 line_sensor_left
+int32 line_sensor_center
+int32 line_sensor_right
 
 # TF-Luna LIDAR sensor (single-point)
 float32 tf_luna_distance

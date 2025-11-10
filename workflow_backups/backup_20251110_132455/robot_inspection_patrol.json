@@ -1,0 +1,632 @@
+{
+  "name": "Automated Inspection Patrol",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-initial-status",
+      "name": "Get Initial Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "patrol_speed",
+              "value": "={{ $json.body.patrol_speed || 0.2 }}"
+            },
+            {
+              "name": "inspection_duration",
+              "value": "={{ $json.body.inspection_duration || 3 }}"
+            },
+            {
+              "name": "waypoints",
+              "value": "={{ $json.body.waypoints || 'forward,left,forward,right,forward' }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-patrol-params",
+      "name": "Extract Patrol Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "current_waypoint",
+              "value": "1"
+            },
+            {
+              "name": "total_waypoints",
+              "value": "={{ $json.waypoints.split(',').length }}"
+            },
+            {
+              "name": "waypoint_list",
+              "value": "={{ $json.waypoints.split(',') }}"
+            }
+          ]
+        }
+      },
+      "id": "initialize-patrol",
+      "name": "Initialize Patrol",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "check-sensors-start",
+      "name": "Check Sensors (Start)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.ultrasonic_front }}",
+              "operation": "less",
+              "value2": 0.5
+            }
+          ]
+        }
+      },
+      "id": "check-obstacle",
+      "name": "Check for Obstacles",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1120, 100]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/emergency-stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "obstacle-emergency",
+      "name": "Obstacle Emergency Stop",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 60]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "alert_message",
+              "value": "🚨 OBSTACLE DETECTED - Patrol stopped for safety"
+            }
+          ]
+        }
+      },
+      "id": "obstacle-alert",
+      "name": "Obstacle Alert",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1560, 60]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "current_movement",
+              "value": "={{ $json.waypoint_list[$json.current_waypoint - 1] }}"
+            }
+          ]
+        }
+      },
+      "id": "get-current-movement",
+      "name": "Get Current Movement",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [1120, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.current_movement }}",
+              "operation": "equal",
+              "value2": "forward"
+            }
+          ]
+        }
+      },
+      "id": "is-forward",
+      "name": "Is Forward Movement?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 180]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.current_movement }}",
+              "operation": "equal",
+              "value2": "left"
+            }
+          ]
+        }
+      },
+      "id": "is-left",
+      "name": "Is Left Turn?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 280]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.current_movement }}",
+              "operation": "equal",
+              "value2": "right"
+            }
+          ]
+        }
+      },
+      "id": "is-right",
+      "name": "Is Right Turn?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [1340, 380]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": {{ $json.patrol_speed }}\n}"
+      },
+      "id": "move-forward",
+      "name": "Move Forward",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 180]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"direction\": \"left\",\n  \"speed\": {{ $json.patrol_speed }}\n}"
+      },
+      "id": "turn-left",
+      "name": "Turn Left",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 280]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"direction\": \"right\",\n  \"speed\": {{ $json.patrol_speed }}\n}"
+      },
+      "id": "turn-right",
+      "name": "Turn Right",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1560, 380]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-movement",
+      "name": "Stop Movement",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1780, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "inspect-area",
+      "name": "Inspect Area (Get Sensor Data)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2000, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "inspection_report",
+              "value": "Waypoint {{ $json.current_waypoint }}: Ultrasonic={{ $json.ultrasonic_front }}m, IR={{ $json.ir_front }}m, Line={{ $json.line_sensor }}"
+            }
+          ]
+        }
+      },
+      "id": "log-inspection",
+      "name": "Log Inspection Data",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2220, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "current_waypoint",
+              "value": "={{ $json.current_waypoint + 1 }}"
+            }
+          ]
+        }
+      },
+      "id": "increment-waypoint",
+      "name": "Increment Waypoint",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [2440, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "number": [
+            {
+              "value1": "={{ $json.current_waypoint }}",
+              "operation": "lessEqual",
+              "value2": "={{ $json.total_waypoints }}"
+            }
+          ]
+        }
+      },
+      "id": "check-waypoints-remaining",
+      "name": "Check Waypoints Remaining",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [2660, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-final-status",
+      "name": "Get Final Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [2880, 400]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "result",
+              "value": "Automated inspection patrol completed successfully - visited {{ $json.total_waypoints }} waypoints, monitored sensors, and avoided obstacles"
+            }
+          ]
+        }
+      },
+      "id": "patrol-complete",
+      "name": "Patrol Complete",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [3100, 400]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Initial Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Initial Status": {
+      "main": [
+        [
+          {
+            "node": "Extract Patrol Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Patrol Parameters": {
+      "main": [
+        [
+          {
+            "node": "Initialize Patrol",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Initialize Patrol": {
+      "main": [
+        [
+          {
+            "node": "Check Sensors (Start)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Sensors (Start)": {
+      "main": [
+        [
+          {
+            "node": "Check for Obstacles",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Current Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check for Obstacles": {
+      "main": [
+        [
+          {
+            "node": "Obstacle Emergency Stop",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Obstacle Emergency Stop": {
+      "main": [
+        [
+          {
+            "node": "Obstacle Alert",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Movement": {
+      "main": [
+        [
+          {
+            "node": "Is Forward Movement?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Left Turn?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Right Turn?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Forward Movement?": {
+      "main": [
+        [
+          {
+            "node": "Move Forward",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Left Turn?": {
+      "main": [
+        [
+          {
+            "node": "Turn Left",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Right Turn?": {
+      "main": [
+        [
+          {
+            "node": "Turn Right",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Move Forward": {
+      "main": [
+        [
+          {
+            "node": "Stop Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Left": {
+      "main": [
+        [
+          {
+            "node": "Stop Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Right": {
+      "main": [
+        [
+          {
+            "node": "Stop Movement",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop Movement": {
+      "main": [
+        [
+          {
+            "node": "Inspect Area (Get Sensor Data)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Inspect Area (Get Sensor Data)": {
+      "main": [
+        [
+          {
+            "node": "Log Inspection Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Inspection Data": {
+      "main": [
+        [
+          {
+            "node": "Increment Waypoint",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Increment Waypoint": {
+      "main": [
+        [
+          {
+            "node": "Check Waypoints Remaining",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check Waypoints Remaining": {
+      "main": [
+        [
+          {
+            "node": "Check Sensors (Start)",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 1
+          }
+        ]
+      ]
+    },
+    "Get Final Status": {
+      "main": [
+        [
+          {
+            "node": "Patrol Complete",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "combination-workflow",
+      "name": "Combination Workflow"
+    },
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "inspection-patrol",
+      "name": "Inspection Patrol"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
+}

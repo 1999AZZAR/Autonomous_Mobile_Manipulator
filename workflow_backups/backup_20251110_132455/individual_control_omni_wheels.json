@@ -1,0 +1,291 @@
+{
+  "name": "Control Omni Wheels (3-Wheel Movement)",
+  "active": false,
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual-trigger",
+      "name": "Manual Trigger",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [20, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-status",
+      "name": "Get Current Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "values": {
+          "string": [
+            {
+              "name": "movement_command",
+              "value": "={{ (() => {\n  const cmd = ($json.body.movement_command || 'forward').toLowerCase().trim();\n  // Map common input variations to valid movement commands\n  const commandMap = {\n    'forward': 'forward',\n    'move forward': 'forward',\n    'go forward': 'forward',\n    'backward': 'backward',\n    'move backward': 'backward',\n    'go backward': 'backward',\n    'back': 'backward',\n    'move back': 'backward',\n    'go back': 'backward',\n    'strafe left': 'strafe_left',\n    'left': 'strafe_left',\n    'go left': 'strafe_left',\n    'strafe right': 'strafe_right',\n    'right': 'strafe_right',\n    'go right': 'strafe_right'\n  };\n  return commandMap[cmd] || 'forward';\n})() }}"
+            },
+            {
+              "name": "speed",
+              "value": "={{ $json.body.speed || 0.5 }}"
+            }
+          ]
+        }
+      },
+      "id": "extract-params",
+      "name": "Extract Movement Parameters",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.movement_command }}",
+              "operation": "equal",
+              "value2": "turn_left"
+            }
+          ]
+        }
+      },
+      "id": "is-turn-left",
+      "name": "Is Turn Left?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "string": [
+            {
+              "value1": "={{ $json.movement_command }}",
+              "operation": "equal",
+              "value2": "turn_right"
+            }
+          ]
+        }
+      },
+      "id": "is-turn-right",
+      "name": "Is Turn Right?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"direction\": \"left\",\n  \"speed\": {{ $json.speed || 0.5 }}\n}"
+      },
+      "id": "turn-left",
+      "name": "Turn Left",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"direction\": \"right\",\n  \"speed\": {{ $json.speed || 0.5 }}\n}"
+      },
+      "id": "turn-right",
+      "name": "Turn Right",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [900, 400]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/move",
+        "method": "POST",
+        "options": {
+          "bodyContentType": "json",
+          "headers": {
+            "Content-Type": "application/json"
+          }
+        },
+        "sendBody": true,
+        "bodyParametersJson": "{\n  \"direction\": \"{{ ['forward', 'backward', 'strafe_left', 'strafe_right'].includes($json.movement_command) ? $json.movement_command : 'forward' }}\",\n  \"speed\": {{ $json.speed || 0.5 }}\n}"
+      },
+      "id": "move-linear",
+      "name": "Linear Movement (Forward/Backward/Strafe)",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "method": "POST",
+        "options": {}
+      },
+      "id": "stop-robot",
+      "name": "Stop Robot",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://100.74.72.71:5000/api/robot/status",
+        "method": "GET",
+        "options": {}
+      },
+      "id": "get-final-status",
+      "name": "Get Final Status",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1340, 300]
+    }
+  ],
+  "connections": {
+    "Manual Trigger": {
+      "main": [
+        [
+          {
+            "node": "Get Current Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Current Status": {
+      "main": [
+        [
+          {
+            "node": "Extract Movement Parameters",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Movement Parameters": {
+      "main": [
+        [
+          {
+            "node": "Is Turn Left?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Is Turn Right?",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Linear Movement (Forward/Backward/Strafe)",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Turn Left?": {
+      "main": [
+        [
+          {
+            "node": "Turn Left",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Is Turn Right?": {
+      "main": [
+        [
+          {
+            "node": "Turn Right",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Left": {
+      "main": [
+        [
+          {
+            "node": "Stop Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Turn Right": {
+      "main": [
+        [
+          {
+            "node": "Stop Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Linear Movement (Forward/Backward/Strafe)": {
+      "main": [
+        [
+          {
+            "node": "Stop Robot",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Stop Robot": {
+      "main": [
+        [
+          {
+            "node": "Get Final Status",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "staticData": null,
+  "tags": [
+    {
+      "createdAt": "2025-10-13T16:30:00.000Z",
+      "updatedAt": "2025-10-13T16:30:00.000Z",
+      "id": "individual-control",
+      "name": "Individual Control"
+    }
+  ],
+  "triggerCount": 0,
+  "updatedAt": "2025-10-13T16:30:00.000Z",
+  "versionId": "1"
+}

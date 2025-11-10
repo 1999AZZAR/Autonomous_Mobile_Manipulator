@@ -47,11 +47,11 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/move",
+        "url": "http://localhost:5000/api/robot/move",
         "options": {
           "bodyContentType": "json"
         },
-        "bodyParametersJson": "{\n  \"direction\": \"forward\",\n  \"speed\": 0.5\n}"
+        "bodyParametersJson": "{\n  \"linear_x\": 0.5,\n  \"linear_y\": 0.0,\n  \"angular_z\": 0.0\n}"
       },
       "id": "move-forward",
       "name": "Move Forward",
@@ -79,11 +79,11 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/move",
+        "url": "http://localhost:5000/api/robot/move",
         "options": {
           "bodyContentType": "json"
         },
-        "bodyParametersJson": "{\n  \"direction\": \"backward\",\n  \"speed\": 0.5\n}"
+        "bodyParametersJson": "{\n  \"linear_x\": -0.5,\n  \"linear_y\": 0.0,\n  \"angular_z\": 0.0\n}"
       },
       "id": "move-backward",
       "name": "Move Backward",
@@ -111,11 +111,11 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "url": "http://localhost:5000/api/robot/turn",
         "options": {
           "bodyContentType": "json"
         },
-        "bodyParametersJson": "{\n  \"direction\": \"left\",\n  \"speed\": 0.3\n}"
+        "bodyParametersJson": "{\n  \"linear_x\": 0.0,\n  \"linear_y\": 0.0,\n  \"angular_z\": 0.3\n}"
       },
       "id": "turn-left",
       "name": "Turn Left",
@@ -143,11 +143,11 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/turn",
+        "url": "http://localhost:5000/api/robot/turn",
         "options": {
           "bodyContentType": "json"
         },
-        "bodyParametersJson": "{\n  \"direction\": \"right\",\n  \"speed\": 0.3\n}"
+        "bodyParametersJson": "{\n  \"linear_x\": 0.0,\n  \"linear_y\": 0.0,\n  \"angular_z\": -0.3\n}"
       },
       "id": "turn-right",
       "name": "Turn Right",
@@ -175,7 +175,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/stop",
+        "url": "http://localhost:5000/api/robot/stop",
         "options": {
           "bodyContentType": "json"
         },
@@ -189,7 +189,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/status",
+        "url": "http://localhost:5000/api/robot/status",
         "options": {}
       },
       "id": "get-status",
