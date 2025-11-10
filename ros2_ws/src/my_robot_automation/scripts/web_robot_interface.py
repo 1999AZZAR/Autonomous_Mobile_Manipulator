@@ -418,6 +418,10 @@ HTML_TEMPLATE = """
                         <i class="fas fa-chart-line"></i>
                         <span>Status</span>
                     </a>
+                    <a href="#hardware" class="nav-tab" onclick="showTab('hardware')">
+                        <i class="fas fa-microchip"></i>
+                        <span>Hardware</span>
+                    </a>
                 </nav>
             </aside>
 
@@ -781,13 +785,235 @@ HTML_TEMPLATE = """
                         </div>
                     </div>
                 </div>
+
+                <!-- Hardware Tab -->
+                <div id="hardware" class="tab-content">
+                    <div class="control-panels">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-microchip"></i>
+                                <h3>Hardware Specifications</h3>
+                            </div>
+                            
+                            <div class="control-group">
+                                <h4>Robot Configuration</h4>
+                                <div class="status-grid">
+                                    <div class="status-card">
+                                        <h4>Shape</h4>
+                                        <div class="value">Hexagonal</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Drive System</h4>
+                                        <div class="value">3 Omni Wheels</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Control Platform</h4>
+                                        <div class="value">Raspberry Pi 5</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Sensors</h4>
+                                <div class="status-grid">
+                                    <div class="status-card">
+                                        <h4>Laser Distance</h4>
+                                        <div class="value">6 units (VL53L0X)</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Ultrasonic</h4>
+                                        <div class="value">2x HC-SR04</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Line Sensors</h4>
+                                        <div class="value">3 Individual IR</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>TF-Luna LIDAR</h4>
+                                        <div class="value">Single-Point</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>IMU</h4>
+                                        <div class="value">MPU6050</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Camera</h4>
+                                        <div class="value">USB (Gripper)</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Actuators</h4>
+                                <div class="status-grid">
+                                    <div class="status-card">
+                                        <h4>Omni Wheels</h4>
+                                        <div class="value">3 Motors</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Gripper System</h4>
+                                        <div class="value">4 Components</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Containers</h4>
+                                        <div class="value">4 Servos</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-sitemap"></i>
+                                <h3>GPIO Pinout - Raspberry Pi 5</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Omni Wheel Motors (3x)</h4>
+                                <div class="log-panel" style="max-height: 150px; color: #10b981;">
+GPIO17 (11) - Front Left Wheel DIR
+GPIO27 (13) - Front Left Wheel PWM
+GPIO22 (15) - Front Right Wheel DIR
+GPIO23 (16) - Front Right Wheel PWM
+GPIO24 (18) - Back Wheel DIR
+GPIO25 (22) - Back Wheel PWM
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Gripper System Servos (3x + 1 Motor)</h4>
+                                <div class="log-panel" style="max-height: 150px; color: #10b981;">
+GPIO18 (12) - Gripper Tilt Servo (PWM)
+GPIO19 (35) - Gripper Open/Close Servo (PWM)
+GPIO21 (40) - Gripper Extension Servo (360°, PWM)
+GPIO12 (32) - Gripper Lifter DIR
+GPIO13 (33) - Gripper Lifter PWM
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Laser Distance Sensors (6x VL53L0X)</h4>
+                                <div class="log-panel" style="max-height: 150px; color: #10b981;">
+GPIO2 (3)  - SDA (I2C Data)
+GPIO3 (5)  - SCL (I2C Clock)
+
+TCA9548A I2C Multiplexer Channels:
+  CH0: Front Left Laser
+  CH1: Front Right Laser
+  CH2: Left Front Laser
+  CH3: Left Back Laser
+  CH4: Right Front Laser
+  CH5: Right Back Laser
+  CH6: Back Left Laser
+  CH7: Back Right Laser
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>HC-SR04 Ultrasonic Sensors (2x)</h4>
+                                <div class="log-panel" style="max-height: 100px; color: #10b981;">
+GPIO4  (7)  - Front Left TRIG
+GPIO14 (8)  - Front Left ECHO (voltage divider)
+GPIO15 (10) - Front Right TRIG
+GPIO17 (11) - Front Right ECHO (voltage divider)
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Line Sensors (3x IR)</h4>
+                                <div class="log-panel" style="max-height: 100px; color: #10b981;">
+GPIO5  (29) - Left Line Sensor
+GPIO6  (31) - Center Line Sensor
+GPIO20 (38) - Right Line Sensor
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Container Load Sensors (4x)</h4>
+                                <div class="log-panel" style="max-height: 100px; color: #10b981;">
+GPIO7  (26) - Left Front Container
+GPIO8  (24) - Left Back Container
+GPIO16 (36) - Right Front Container
+GPIO26 (37) - Right Back Container
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>IMU & Hardware Controls</h4>
+                                <div class="log-panel" style="max-height: 100px; color: #10b981;">
+IMU (MPU6050) - I2C Bus 1 (shared, addr 0x68)
+  GPIO2 (3)  - SDA
+  GPIO3 (5)  - SCL
+
+Hardware Buttons:
+  GPIO0 (27) - Emergency Stop
+  GPIO1 (28) - Start Button
+  GPIO9 (21) - Mode Select
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>USB Interfaces</h4>
+                                <div class="log-panel" style="max-height: 80px; color: #10b981;">
+USB1 - TF-Luna LIDAR (Serial/USB)
+USB2 - USB Camera (Object Recognition)
+USB3 - Reserved
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-plug"></i>
+                                <h3>Power Distribution</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Power Rails</h4>
+                                <div class="status-grid">
+                                    <div class="status-card">
+                                        <h4>Input Voltage</h4>
+                                        <div class="value">12V DC</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Current Rating</h4>
+                                        <div class="value">5A minimum</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>5V Rail</h4>
+                                        <div class="value">RPi + Sensors</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>3.3V Rail</h4>
+                                        <div class="value">I2C Devices</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>12V Rail</h4>
+                                        <div class="value">Motors</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Safety Notes</h4>
+                                <div class="log-panel" style="max-height: 120px; color: #f59e0b;">
+⚠️ Use voltage dividers for HC-SR04 ECHO pins (5V → 3.3V)
+⚠️ Check all connections before powering on
+⚠️ Ensure common ground between all components
+⚠️ Use appropriate fuses for motor circuits
+⚠️ Emergency stop button must be easily accessible
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </main>
         </div>
     </div>
 
     <script>
         // Configuration
-        const API_BASE = 'http://localhost:5000';
+        const API_BASE = 'http://127.0.0.1:5000';
         let currentSpeed = 0.5;
         let systemStatus = {};
 
