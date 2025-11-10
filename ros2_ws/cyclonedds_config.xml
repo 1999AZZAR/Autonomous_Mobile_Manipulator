@@ -7,11 +7,46 @@
       <MaxMessageSize>65500B</MaxMessageSize>
       <FragmentSize>4000B</FragmentSize>
       <Transport>udp</Transport>
+      
+      <!-- Performance Optimizations -->
+      <UseIPv6>false</UseIPv6>
+      <EnableMulticastLoopback>true</EnableMulticastLoopback>
+      
+      <!-- Thread Configuration for Performance -->
+      <ThreadPool>
+        <Size>4</Size>
+      </ThreadPool>
     </General>
 
     <Discovery>
       <ParticipantIndex>auto</ParticipantIndex>
       <LeaseDuration>10s</LeaseDuration>
+      <!-- Fast discovery for responsive startup -->
+      <SPDPInterval>250ms</SPDPInterval>
+      <SPDPMulticastAddress>239.255.0.1</SPDPMulticastAddress>
     </Discovery>
+
+    <Internal>
+      <!-- Heartbeat configuration for reliability -->
+      <HeartbeatInterval>100ms</HeartbeatInterval>
+      <AckDelay>10ms</AckDelay>
+      <NackDelay>10ms</NackDelay>
+      <RetransmitMergeInterval>5ms</RetransmitMergeInterval>
+      
+      <!-- Scheduling priority -->
+      <SchedulePriority>default</SchedulePriority>
+      
+      <!-- Socket buffer sizes for high throughput -->
+      <SocketReceiveBufferSize min="2MB" max="10MB"/>
+      <SocketSendBufferSize min="2MB"/>
+    </Internal>
+
+    <Tracing>
+      <!-- Enable tracing for debugging (can be disabled in production) -->
+      <Verbosity>config</Verbosity>
+      <Category>discovery,info</Category>
+      <OutputFile>/root/ros2_ws/logs/cyclonedds_${CYCLONEDDS_PID}.log</OutputFile>
+      <AppendToFile>true</AppendToFile>
+    </Tracing>
   </Domain>
 </CycloneDDS>

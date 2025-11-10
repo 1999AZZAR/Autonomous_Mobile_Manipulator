@@ -3,6 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from rclpy.executors import MultiThreadedExecutor
+from rclpy.qos import QoSProfile, ReliabilityPolicy, DurabilityPolicy, HistoryPolicy
 import threading
 import json
 import time
@@ -22,6 +23,35 @@ from my_robot_automation.srv import (
     GetSensorData, GetTaskStatus, CancelTask, GetNavigationStatus
 )
 from my_robot_automation.msg import RobotStatus, SafetyStatus, SensorData, TaskStatus, NavigationStatus
+
+# QoS Profiles for optimal performance and reliability
+QOS_RELIABLE_TRANSIENT = QoSProfile(
+    reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.TRANSIENT_LOCAL,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=10
+)
+
+QOS_BEST_EFFORT = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    durability=DurabilityPolicy.VOLATILE,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=5
+)
+
+QOS_SENSOR_DATA = QoSProfile(
+    reliability=ReliabilityPolicy.BEST_EFFORT,
+    durability=DurabilityPolicy.VOLATILE,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=1  # Only latest sensor data needed
+)
+
+QOS_COMMANDS = QoSProfile(
+    reliability=ReliabilityPolicy.RELIABLE,
+    durability=DurabilityPolicy.VOLATILE,
+    history=HistoryPolicy.KEEP_LAST,
+    depth=10
+)
 
 class RESTAPIServer(Node):
     """REST API server for robot control via HTTP"""
@@ -50,20 +80,20 @@ class RESTAPIServer(Node):
         self.cancel_task_client = self.create_client(CancelTask, 'cancel_task')
         self.navigation_status_client = self.create_client(GetNavigationStatus, 'get_navigation_status')
 
-        # Picker system publishers (matching pick_place_server.py)
-        self.gripper_pub = self.create_publisher(Bool, '/picker/gripper', 10)
-        self.gripper_tilt_pub = self.create_publisher(Float32, '/picker/gripper_tilt', 10)
-        self.gripper_neck_pub = self.create_publisher(Float32, '/picker/gripper_neck', 10)
-        self.gripper_base_pub = self.create_publisher(Float32, '/picker/gripper_base', 10)
+        # Picker system publishers (matching pick_place_server.py) - RELIABLE for commands
+        self.gripper_pub = self.create_publisher(Bool, '/picker/gripper', QOS_COMMANDS)
+        self.gripper_tilt_pub = self.create_publisher(Float32, '/picker/gripper_tilt', QOS_COMMANDS)
+        self.gripper_neck_pub = self.create_publisher(Float32, '/picker/gripper_neck', QOS_COMMANDS)
+        self.gripper_base_pub = self.create_publisher(Float32, '/picker/gripper_base', QOS_COMMANDS)
 
-        # Container system publishers
-        self.container_left_front_pub = self.create_publisher(String, '/containers/left_front', 10)
-        self.container_left_back_pub = self.create_publisher(String, '/containers/left_back', 10)
-        self.container_right_front_pub = self.create_publisher(String, '/containers/right_front', 10)
-        self.container_right_back_pub = self.create_publisher(String, '/containers/right_back', 10)
+        # Container system publishers - RELIABLE for commands
+        self.container_left_front_pub = self.create_publisher(String, '/containers/left_front', QOS_COMMANDS)
+        self.container_left_back_pub = self.create_publisher(String, '/containers/left_back', QOS_COMMANDS)
+        self.container_right_front_pub = self.create_publisher(String, '/containers/right_front', QOS_COMMANDS)
+        self.container_right_back_pub = self.create_publisher(String, '/containers/right_back', QOS_COMMANDS)
 
-        # Movement control publisher
-        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', 10)
+        # Movement control publisher - RELIABLE for commands
+        self.cmd_vel_pub = self.create_publisher(Twist, '/cmd_vel', QOS_COMMANDS)
         
         # Wait for services
         self.wait_for_services()

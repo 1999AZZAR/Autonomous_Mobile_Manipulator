@@ -292,6 +292,40 @@ HTML_TEMPLATE = """
             color: #64748b;
         }
 
+        .activity-log-footer {
+            margin-top: 20px;
+            background: var(--dark);
+            border-radius: 8px;
+            padding: 12px;
+            border: 1px solid #374151;
+        }
+
+        .activity-log-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            color: #10b981;
+            font-weight: 600;
+            font-size: 0.875rem;
+        }
+
+        .activity-log-content {
+            background: #0f172a;
+            border-radius: 4px;
+            padding: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            max-height: 150px;
+            overflow-y: auto;
+            color: #10b981;
+        }
+
+        .activity-log-content .log-entry {
+            margin-bottom: 2px;
+            line-height: 1.4;
+        }
+
         .automation-panel {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -613,6 +647,15 @@ HTML_TEMPLATE = """
                                 <div class="value-display" id="current-mode">Current Mode: <span id="mode-display">UNKNOWN</span></div>
                             </div>
                         </div>
+
+                        <!-- Activity Log -->
+                        <div class="activity-log-footer">
+                            <div class="activity-log-header">
+                                <i class="fas fa-stream"></i>
+                                <span>Activity Stream</span>
+                            </div>
+                            <div class="activity-log-content" id="log-panel"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -700,6 +743,15 @@ HTML_TEMPLATE = """
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Activity Log -->
+                        <div class="activity-log-footer">
+                            <div class="activity-log-header">
+                                <i class="fas fa-stream"></i>
+                                <span>Activity Stream</span>
+                            </div>
+                            <div class="activity-log-content" id="log-panel-gripper"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -755,6 +807,15 @@ HTML_TEMPLATE = """
                                     </button>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Activity Log -->
+                        <div class="activity-log-footer">
+                            <div class="activity-log-header">
+                                <i class="fas fa-stream"></i>
+                                <span>Activity Stream</span>
+                            </div>
+                            <div class="activity-log-content" id="log-panel-containers"></div>
                         </div>
                     </div>
                 </div>
@@ -901,6 +962,15 @@ HTML_TEMPLATE = """
                             </div>
 
                             <div class="log-panel" id="robot-log-panel" style="max-height: 200px;">Loading...</div>
+                        </div>
+
+                        <!-- Activity Log -->
+                        <div class="activity-log-footer">
+                            <div class="activity-log-header">
+                                <i class="fas fa-stream"></i>
+                                <span>Activity Stream</span>
+                            </div>
+                            <div class="activity-log-content" id="log-panel-status"></div>
                         </div>
                     </div>
                 </div>
@@ -1062,6 +1132,15 @@ HTML_TEMPLATE = """
                                     <div class="value" id="container-right-back">Empty</div>
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Activity Log -->
+                        <div class="activity-log-footer">
+                            <div class="activity-log-header">
+                                <i class="fas fa-stream"></i>
+                                <span>Activity Stream</span>
+                            </div>
+                            <div class="activity-log-content" id="log-panel-sensors"></div>
                         </div>
                     </div>
                 </div>
@@ -1285,6 +1364,15 @@ USB3 - Reserved
                                 </div>
                             </div>
                         </div>
+
+                        <!-- Activity Log -->
+                        <div class="activity-log-footer">
+                            <div class="activity-log-header">
+                                <i class="fas fa-stream"></i>
+                                <span>Activity Stream</span>
+                            </div>
+                            <div class="activity-log-content" id="log-panel-hardware"></div>
+                        </div>
                     </div>
                 </div>
 
@@ -1447,6 +1535,15 @@ USB3 - Reserved
                                     <!-- Saved paths will appear here -->
                                 </div>
                             </div>
+                        </div>
+
+                        <!-- Activity Log -->
+                        <div class="activity-log-footer">
+                            <div class="activity-log-header">
+                                <i class="fas fa-stream"></i>
+                                <span>Activity Stream</span>
+                            </div>
+                            <div class="activity-log-content" id="log-panel-path"></div>
                         </div>
                     </div>
                 </div>
@@ -1856,13 +1953,36 @@ USB3 - Reserved
 
         // Logging
         function addLog(message) {
-            const logPanel = document.getElementById('log-panel');
             const timestamp = new Date().toLocaleTimeString();
-            const logEntry = document.createElement('div');
-            logEntry.className = 'log-entry';
-            logEntry.innerHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
-            logPanel.appendChild(logEntry);
-            logPanel.scrollTop = logPanel.scrollHeight;
+            const logHTML = `<span class="log-timestamp">[${timestamp}]</span> ${message}`;
+            
+            // Add to all activity log panels across all tabs
+            const logPanels = [
+                'log-panel',           // Movement tab
+                'log-panel-gripper',   // Gripper tab
+                'log-panel-containers',// Containers tab
+                'log-panel-status',    // Status tab
+                'log-panel-path',      // Path Planning tab
+                'log-panel-sensors',   // Sensors tab
+                'log-panel-hardware'   // Hardware tab
+            ];
+            
+            logPanels.forEach(panelId => {
+                const panel = document.getElementById(panelId);
+                if (panel) {
+                    const logEntry = document.createElement('div');
+                    logEntry.className = 'log-entry';
+                    logEntry.innerHTML = logHTML;
+                    panel.appendChild(logEntry);
+                    
+                    // Keep only last 50 entries per panel
+                    while (panel.children.length > 50) {
+                        panel.removeChild(panel.firstChild);
+                    }
+                    
+                    panel.scrollTop = panel.scrollHeight;
+                }
+            });
         }
 
         // Initialize
