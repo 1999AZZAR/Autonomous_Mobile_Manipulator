@@ -14,26 +14,31 @@ class RealRobotSensorActuator(Node):
         
         # Publishers for REAL sensor data based on notes.txt hardware configuration
         
-        # 1. Distance sensors (laser base) - Front, Back Left, Back Right
-        self.distance_front_pub = self.create_publisher(Range, '/distance/front', 10)
+        # 1. Laser Distance sensors (6x - wall alignment) - 2 per side
+        self.distance_left_front_pub = self.create_publisher(Range, '/distance/left_front', 10)
+        self.distance_left_back_pub = self.create_publisher(Range, '/distance/left_back', 10)
+        self.distance_right_front_pub = self.create_publisher(Range, '/distance/right_front', 10)
+        self.distance_right_back_pub = self.create_publisher(Range, '/distance/right_back', 10)
         self.distance_back_left_pub = self.create_publisher(Range, '/distance/back_left', 10)
         self.distance_back_right_pub = self.create_publisher(Range, '/distance/back_right', 10)
-        
-        # 2. Other sensors from notes.txt
-        # - 380 degree lidar sensor (RPLIDAR A1)
-        self.lidar_pub = self.create_publisher(LaserScan, '/scan', 10)
 
-        # - TF-Luna single-point lidar sensor
+        # 2. HC-SR04 Ultrasonic sensors (2x front)
+        self.ultrasonic_front_left_pub = self.create_publisher(Range, '/ultrasonic/front_left', 10)
+        self.ultrasonic_front_right_pub = self.create_publisher(Range, '/ultrasonic/front_right', 10)
+
+        # 3. Line sensors (3x individual, assembled side by side)
+        self.line_sensor_left_pub = self.create_publisher(Int32, '/line_sensor/left', 10)
+        self.line_sensor_center_pub = self.create_publisher(Int32, '/line_sensor/center', 10)
+        self.line_sensor_right_pub = self.create_publisher(Int32, '/line_sensor/right', 10)
+
+        # 4. TF-Luna single-point lidar sensor
         self.tf_luna_pub = self.create_publisher(Range, '/tf_luna/range', 10)
-        
-        # - Microsoft camera (USB) for object recognition
-        self.camera_pub = self.create_publisher(Image, '/camera/image_raw', 10)
-        
-        # - Line sensor for line-based navigation
-        self.line_sensor_pub = self.create_publisher(Int32, '/line_sensor/raw', 10)
-        
-        # - IMU sensor (MPU6050/BNO055)
+
+        # 5. MPU6050 IMU sensor
         self.imu_pub = self.create_publisher(Imu, '/imu/data', 10)
+
+        # 6. Gripper camera (USB based)
+        self.gripper_camera_pub = self.create_publisher(Image, '/gripper/camera/image_raw', 10)
         
         # Joint states for all actuators
         self.joint_pub = self.create_publisher(JointState, '/joint_states', 10)
@@ -82,13 +87,13 @@ class RealRobotSensorActuator(Node):
             String, '/hardware/mode', self.mode_callback, 10)
         
         # Timers for publishing sensor data
-        self.create_timer(0.1, self.publish_distance_sensors)   # 10Hz
-        self.create_timer(0.1, self.publish_lidar)             # 10Hz
-        self.create_timer(0.1, self.publish_tf_luna)           # 10Hz
-        self.create_timer(0.033, self.publish_camera)          # 30Hz
-        self.create_timer(0.2, self.publish_line_sensor)        # 5Hz
-        self.create_timer(0.1, self.publish_imu)                # 10Hz
-        self.create_timer(0.1, self.publish_joint_states)       # 10Hz
+        self.create_timer(0.066, self.publish_laser_distance_sensors)  # 15Hz
+        self.create_timer(0.1, self.publish_ultrasonic_sensors)         # 10Hz
+        self.create_timer(0.02, self.publish_line_sensors)              # 50Hz
+        self.create_timer(0.1, self.publish_tf_luna)                    # 10Hz
+        self.create_timer(0.1, self.publish_imu)                        # 10Hz
+        self.create_timer(0.033, self.publish_gripper_camera)           # 30Hz
+        self.create_timer(0.1, self.publish_joint_states)               # 10Hz
         
         # State variables based on notes.txt configuration
         self.robot_x = 0.0
@@ -119,29 +124,55 @@ class RealRobotSensorActuator(Node):
         self.robot_mode = "run"  # "train" or "run"
         
         self.get_logger().info('Real Robot Sensor/Actuator Node started - Updated for notes.txt configuration')
-        self.get_logger().info('SENSORS: Distance (3x), RPLIDAR A1, TF-Luna, Microsoft Camera, Line Sensor, IMU')
-        self.get_logger().info('ACTUATORS: 3x Omni Wheels, Picker System (4 components), 4x Containers')
+        self.get_logger().info('SENSORS: Laser Distance (6x), HC-SR04 Ultrasonic (2x), Line Sensors (3x), TF-Luna, MPU6050 IMU, Gripper Camera')
+        self.get_logger().info('ACTUATORS: 3x Omni Wheels (lf,rf,b), Gripper System (motor+servos), 4x Containers')
         self.get_logger().info('CONTROLS: Emergency, Start/Stop, Mode (Train/Run)')
     
     def cmd_vel_callback(self, msg):
-        """Handle velocity commands for 3x Omni wheels: Back, Front Left, Front Right"""
+        """Handle velocity commands for 3x Omni wheels: Left Front, Right Front, Back"""
         if self.emergency_stop:
             self.get_logger().warn('Emergency stop active - ignoring velocity commands')
             return
-            
-        # Omni wheel kinematics simulation for hexagonal robot
-        linear_x = msg.linear.x
-        linear_y = msg.linear.y  # Omni wheels support lateral movement
-        angular_z = msg.angular.z
-        
-        # Update robot position (omni wheel integration)
+
+        # Extract desired velocities
+        linear_x = msg.linear.x    # Forward/backward
+        linear_y = msg.linear.y    # Left/right (lateral movement)
+        angular_z = msg.angular.z  # Rotation
+
+        # Omni wheel kinematics for 3-wheeled robot (lf, rf, b configuration)
+        # Robot coordinate system: x=forward, y=left, z=up
+        # Wheel positions: lf at (d, w/2), rf at (d, -w/2), b at (-d, 0)
+        # where d = wheel distance from center, w = wheel separation
+
+        # Wheel velocities calculation for omni wheels
+        # V_wheel = V_robot + ω × r_wheel_to_center
+        # For 3 omni wheels in triangular configuration
+
+        wheel_base = 0.3  # Distance from center to wheels
+        wheel_separation = 0.25  # Distance between front wheels
+
+        # Calculate individual wheel velocities
+        # Left Front wheel
+        v_lf = linear_x - linear_y + angular_z * wheel_base
+
+        # Right Front wheel
+        v_rf = linear_x + linear_y - angular_z * wheel_base
+
+        # Back wheel (center rear)
+        v_b = linear_x - angular_z * wheel_base
+
+        # Update robot position using odometry
         dt = 0.1
-        self.robot_x += linear_x * dt
-        self.robot_y += linear_y * dt
+        self.robot_x += linear_x * dt * math.cos(self.robot_theta) - linear_y * dt * math.sin(self.robot_theta)
+        self.robot_y += linear_x * dt * math.sin(self.robot_theta) + linear_y * dt * math.cos(self.robot_theta)
         self.robot_theta += angular_z * dt
-        
-        self.get_logger().info(f'Omni wheels (Back, Front Left, Front Right): linear_x={linear_x:.2f}, linear_y={linear_y:.2f}, angular_z={angular_z:.2f}')
-        self.get_logger().info(f'Robot position: x={self.robot_x:.2f}, y={self.robot_y:.2f}, theta={self.robot_theta:.2f}')
+
+        # Normalize theta to [-pi, pi]
+        self.robot_theta = math.atan2(math.sin(self.robot_theta), math.cos(self.robot_theta))
+
+        self.get_logger().info(f'Omni wheels (LF, RF, B): linear_x={linear_x:.2f}, linear_y={linear_y:.2f}, angular_z={angular_z:.2f}')
+        self.get_logger().info(f'Wheel velocities: LF={v_lf:.2f}, RF={v_rf:.2f}, B={v_b:.2f}')
+        self.get_logger().info(f'Robot pose: x={self.robot_x:.2f}, y={self.robot_y:.2f}, theta={self.robot_theta:.2f}')
     
     def gripper_callback(self, msg):
         """Handle gripper commands (servo)"""
@@ -207,75 +238,97 @@ class RealRobotSensorActuator(Node):
         self.robot_mode = msg.data
         self.get_logger().info(f'Robot mode set to: {self.robot_mode}')
     
-    def publish_distance_sensors(self):
-        """Publish distance sensor data (laser base) - Front, Back Left, Back Right"""
-        # Front distance sensor
-        front_range = Range()
-        front_range.header.stamp = self.get_clock().now().to_msg()
-        front_range.header.frame_id = 'distance_front'
-        front_range.radiation_type = Range.INFRARED
-        front_range.field_of_view = 0.1  # ~5.7 degrees
-        front_range.min_range = 0.02
-        front_range.max_range = 4.0
-        front_range.range = 2.0 + 0.5 * math.sin(time.time())  # Simulated obstacle
-        self.distance_front_pub.publish(front_range)
-        
-        # Back left distance sensor
+    def publish_laser_distance_sensors(self):
+        """Publish laser distance sensor data (6x - wall alignment)"""
+        # Left front laser sensor
+        left_front_range = Range()
+        left_front_range.header.stamp = self.get_clock().now().to_msg()
+        left_front_range.header.frame_id = 'laser_left_front_link'
+        left_front_range.radiation_type = Range.INFRARED
+        left_front_range.field_of_view = 0.087  # ~5 degrees
+        left_front_range.min_range = 0.02
+        left_front_range.max_range = 4.0
+        left_front_range.range = 1.8 + 0.3 * math.sin(time.time() * 0.8)
+        self.distance_left_front_pub.publish(left_front_range)
+
+        # Left back laser sensor
+        left_back_range = Range()
+        left_back_range.header.stamp = self.get_clock().now().to_msg()
+        left_back_range.header.frame_id = 'laser_left_back_link'
+        left_back_range.radiation_type = Range.INFRARED
+        left_back_range.field_of_view = 0.087
+        left_back_range.min_range = 0.02
+        left_back_range.max_range = 4.0
+        left_back_range.range = 1.5  # Closer to wall
+        self.distance_left_back_pub.publish(left_back_range)
+
+        # Right front laser sensor
+        right_front_range = Range()
+        right_front_range.header.stamp = self.get_clock().now().to_msg()
+        right_front_range.header.frame_id = 'laser_right_front_link'
+        right_front_range.radiation_type = Range.INFRARED
+        right_front_range.field_of_view = 0.087
+        right_front_range.min_range = 0.02
+        right_front_range.max_range = 4.0
+        right_front_range.range = 2.2 + 0.4 * math.sin(time.time() * 0.6)
+        self.distance_right_front_pub.publish(right_front_range)
+
+        # Right back laser sensor
+        right_back_range = Range()
+        right_back_range.header.stamp = self.get_clock().now().to_msg()
+        right_back_range.header.frame_id = 'laser_right_back_link'
+        right_back_range.radiation_type = Range.INFRARED
+        right_back_range.field_of_view = 0.087
+        right_back_range.min_range = 0.02
+        right_back_range.max_range = 4.0
+        right_back_range.range = 1.9  # Closer to wall
+        self.distance_right_back_pub.publish(right_back_range)
+
+        # Back left laser sensor
         back_left_range = Range()
         back_left_range.header.stamp = self.get_clock().now().to_msg()
-        back_left_range.header.frame_id = 'distance_back_left'
+        back_left_range.header.frame_id = 'laser_back_left_link'
         back_left_range.radiation_type = Range.INFRARED
-        back_left_range.field_of_view = 0.1
+        back_left_range.field_of_view = 0.087
         back_left_range.min_range = 0.02
         back_left_range.max_range = 4.0
-        back_left_range.range = 1.5  # Wall on back left
+        back_left_range.range = 3.5  # Back wall
         self.distance_back_left_pub.publish(back_left_range)
-        
-        # Back right distance sensor
+
+        # Back right laser sensor
         back_right_range = Range()
         back_right_range.header.stamp = self.get_clock().now().to_msg()
-        back_right_range.header.frame_id = 'distance_back_right'
+        back_right_range.header.frame_id = 'laser_back_right_link'
         back_right_range.radiation_type = Range.INFRARED
-        back_right_range.field_of_view = 0.1
+        back_right_range.field_of_view = 0.087
         back_right_range.min_range = 0.02
         back_right_range.max_range = 4.0
-        back_right_range.range = 1.8  # Wall on back right
+        back_right_range.range = 3.2  # Back wall
         self.distance_back_right_pub.publish(back_right_range)
     
-    def publish_lidar(self):
-        """Publish RPLIDAR A1 380-degree LIDAR data"""
-        scan = LaserScan()
-        scan.header.stamp = self.get_clock().now().to_msg()
-        scan.header.frame_id = 'rplidar_a1'
-        
-        # RPLIDAR A1 parameters (380 degrees)
-        scan.angle_min = -math.pi * 190/180  # -190 degrees
-        scan.angle_max = math.pi * 190/180   # +190 degrees
-        scan.angle_increment = math.pi / 180.0  # 1 degree
-        scan.range_min = 0.1
-        scan.range_max = 12.0  # RPLIDAR A1 range
-        
-        # Generate LIDAR scan data for hexagonal robot environment
-        ranges = []
-        for i in range(381):  # 380 degrees + 1
-            angle = scan.angle_min + i * scan.angle_increment
-            
-            # Create realistic environment for hexagonal robot
-            if abs(angle) < 0.3:  # Front wall
-                range_val = 2.5 + 0.2 * math.sin(time.time())
-            elif abs(angle - math.pi/2) < 0.2:  # Left wall
-                range_val = 1.8
-            elif abs(angle + math.pi/2) < 0.2:  # Right wall
-                range_val = 2.2
-            elif abs(angle - math.pi) < 0.1:  # Back wall
-                range_val = 4.0
-            else:
-                range_val = 8.0 + 3.0 * math.sin(time.time() * 0.1 + angle)
-            
-            ranges.append(range_val)
-        
-        scan.ranges = ranges
-        self.lidar_pub.publish(scan)
+    def publish_ultrasonic_sensors(self):
+        """Publish HC-SR04 ultrasonic sensor data (2x front)"""
+        # Front left ultrasonic sensor
+        front_left_range = Range()
+        front_left_range.header.stamp = self.get_clock().now().to_msg()
+        front_left_range.header.frame_id = 'hcsr04_front_left_link'
+        front_left_range.radiation_type = Range.ULTRASOUND
+        front_left_range.field_of_view = 0.2618  # ~15 degrees
+        front_left_range.min_range = 0.02
+        front_left_range.max_range = 4.0
+        front_left_range.range = 2.8 + 0.6 * math.sin(time.time() * 0.4)
+        self.ultrasonic_front_left_pub.publish(front_left_range)
+
+        # Front right ultrasonic sensor
+        front_right_range = Range()
+        front_right_range.header.stamp = self.get_clock().now().to_msg()
+        front_right_range.header.frame_id = 'hcsr04_front_right_link'
+        front_right_range.radiation_type = Range.ULTRASOUND
+        front_right_range.field_of_view = 0.2618  # ~15 degrees
+        front_right_range.min_range = 0.02
+        front_right_range.max_range = 4.0
+        front_right_range.range = 3.1 + 0.5 * math.sin(time.time() * 0.5 + 0.5)
+        self.ultrasonic_front_right_pub.publish(front_right_range)
 
     def publish_tf_luna(self):
         """Publish TF-Luna single-point LIDAR data"""
@@ -306,37 +359,46 @@ class RealRobotSensorActuator(Node):
 
         self.tf_luna_pub.publish(range_msg)
 
-    def publish_camera(self):
-        """Publish Microsoft USB camera data for object recognition"""
+    def publish_gripper_camera(self):
+        """Publish gripper USB camera data for object recognition"""
         # Create dummy image data for object recognition
         image = Image()
         image.header.stamp = self.get_clock().now().to_msg()
-        image.header.frame_id = 'microsoft_camera'
+        image.header.frame_id = 'gripper_camera_link'
         image.height = 480
         image.width = 640
         image.encoding = 'rgb8'
         image.is_bigendian = False
         image.step = 640 * 3  # width * channels
-        
+
         # Generate dummy image data (simplified for object recognition)
         dummy_data = [128] * (640 * 480 * 3)  # Gray image
         image.data = dummy_data
-        
-        self.camera_pub.publish(image)
+
+        self.gripper_camera_pub.publish(image)
     
-    def publish_line_sensor(self):
-        """Publish line sensor data for line-based navigation"""
-        line_data = Int32()
-        # Simulate line sensor reading (bit pattern for multiple sensors)
-        # 0b11111111 = all sensors see line, 0b00000000 = no line detected
-        line_data.data = int(0b10101010 + 0b00000010 * math.sin(time.time()))
-        self.line_sensor_pub.publish(line_data)
+    def publish_line_sensors(self):
+        """Publish line sensor data for line-based navigation (3x sensors)"""
+        # Left line sensor
+        left_line_data = Int32()
+        left_line_data.data = 1 if math.sin(time.time() * 2.0) > 0.3 else 0  # Detect line periodically
+        self.line_sensor_left_pub.publish(left_line_data)
+
+        # Center line sensor
+        center_line_data = Int32()
+        center_line_data.data = 1 if math.sin(time.time() * 2.0 + 0.5) > 0.2 else 0  # Slightly offset
+        self.line_sensor_center_pub.publish(center_line_data)
+
+        # Right line sensor
+        right_line_data = Int32()
+        right_line_data.data = 1 if math.sin(time.time() * 2.0 + 1.0) > 0.3 else 0  # More offset
+        self.line_sensor_right_pub.publish(right_line_data)
     
     def publish_imu(self):
-        """Publish IMU sensor data (MPU6050/BNO055)"""
+        """Publish MPU6050 IMU sensor data"""
         imu = Imu()
         imu.header.stamp = self.get_clock().now().to_msg()
-        imu.header.frame_id = 'imu_link'
+        imu.header.frame_id = 'mpu6050_link'
         
         # Simulate IMU data
         imu.orientation.x = 0.0
@@ -364,41 +426,43 @@ class RealRobotSensorActuator(Node):
         
         # All actuator joints based on notes.txt
         joint_state.name = [
-            # 3x Omni wheel motors: Back, Front Left, Front Right
-            'omni_wheel_back', 'omni_wheel_front_left', 'omni_wheel_front_right',
-            # Picker system components
-            'gripper_servo', 'gripper_tilt_servo', 'gripper_neck_servo', 'gripper_base_motor',
+            # 3x Omni wheel motors: Left Front, Right Front, Back
+            'wheel_lf_joint', 'wheel_rf_joint', 'wheel_b_joint',
+            # Gripper system components
+            'gripper_base_joint', 'gripper_tilt_joint', 'gripper_claw_joint', 'gripper_extension_joint',
             # Container system (4 containers)
-            'container_left_front', 'container_left_back', 'container_right_front', 'container_right_back'
+            'container_left_front_joint', 'container_left_back_joint', 'container_right_front_joint', 'container_right_back_joint'
         ]
         
         # Joint positions
         joint_state.position = [
             # Omni wheel positions (simulated encoder readings)
-            self.robot_x + 0.1 * math.sin(time.time() * 0.5),  # back wheel
-            self.robot_x - 0.1 * math.sin(time.time() * 0.5),  # front left wheel  
-            self.robot_y + 0.1 * math.cos(time.time() * 0.3),  # front right wheel
-            # Picker system positions
-            float(self.gripper_open),  # gripper servo
-            self.gripper_tilt_angle,   # gripper tilt servo
-            self.gripper_neck_position, # gripper neck servo
-            self.gripper_base_height,  # gripper base motor
-            # Container positions
+            self.robot_x + 0.1 * math.sin(time.time() * 0.5),  # left front wheel
+            self.robot_y + 0.1 * math.cos(time.time() * 0.3),  # right front wheel
+            self.robot_x - 0.1 * math.sin(time.time() * 0.5),  # back wheel
+            # Gripper system positions
+            self.gripper_base_height,    # gripper base motor (up/down)
+            self.gripper_tilt_angle,     # gripper tilt servo
+            float(self.gripper_open),    # gripper claw servo (open/close)
+            self.gripper_neck_position,  # gripper extension servo (forward/backward)
+            # Container positions (simulated as binary: loaded/not loaded)
             float(self.container_left_front_load),   # left front container
             float(self.container_left_back_load),    # left back container
             float(self.container_right_front_load),  # right front container
             float(self.container_right_back_load)    # right back container
         ]
-        
+
         # Joint velocities (simulated)
         joint_state.velocity = [
             # Omni wheel velocities
-            0.1 * math.cos(time.time() * 0.5),   # back wheel
-            -0.1 * math.cos(time.time() * 0.5),  # front left wheel
-            0.1 * math.sin(time.time() * 0.3),   # front right wheel
-            # Picker system velocities
-            0.0, 0.0, 0.0, 0.0  # picker system velocities
-        ] + [0.0] * 4  # container velocities
+            0.1 * math.cos(time.time() * 0.5),   # left front wheel
+            0.1 * math.sin(time.time() * 0.3),   # right front wheel
+            -0.1 * math.cos(time.time() * 0.5),  # back wheel
+            # Gripper system velocities
+            0.0, 0.0, 0.0, 0.0,  # gripper system velocities (continuous joints)
+            # Container velocities
+            0.0, 0.0, 0.0, 0.0   # container velocities
+        ]
         
         # Joint efforts (simulated)
         joint_state.effort = [0.0] * len(joint_state.name)

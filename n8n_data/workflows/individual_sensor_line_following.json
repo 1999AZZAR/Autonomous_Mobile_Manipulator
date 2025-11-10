@@ -49,7 +49,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Simulate line sensor reading (0 = no line, 1 = line detected)\n// In real implementation, this would read from actual line sensor\nconst sensor_left = Math.random() > 0.7 ? 1 : 0;\nconst sensor_center = Math.random() > 0.5 ? 1 : 0;\nconst sensor_right = Math.random() > 0.7 ? 1 : 0;\n\n// Calculate line position (-1 to 1, where 0 is center)\nlet line_position = 0;\nif (sensor_left && !sensor_right) line_position = -0.8;\nelse if (sensor_right && !sensor_left) line_position = 0.8;\nelse if (sensor_center) line_position = 0;\nelse line_position = 0; // Lost line\n\nreturn {\n  sensor_left: sensor_left,\n  sensor_center: sensor_center,\n  sensor_right: sensor_right,\n  line_position: line_position,\n  line_detected: sensor_left || sensor_center || sensor_right\n};"
+        "functionCode": "// Process 3 individual line sensors (left, center, right)\n// In real implementation, this would read from /line_sensor/left, /line_sensor/center, /line_sensor/right\nconst sensor_left = $input.item.json.line_sensor_left || 0;\nconst sensor_center = $input.item.json.line_sensor_center || 0;\nconst sensor_right = $input.item.json.line_sensor_right || 0;\n\n// Calculate line position (-1 to 1, where 0 is center)\n// Left=-1, Center=0, Right=1\nlet line_position = 0;\nlet line_detected = sensor_left || sensor_center || sensor_right;\n\nif (sensor_left && sensor_center && sensor_right) {\n  line_position = 0; // All sensors on line - centered\n} else if (sensor_left && sensor_center) {\n  line_position = -0.3; // Slightly left\n} else if (sensor_center && sensor_right) {\n  line_position = 0.3; // Slightly right\n} else if (sensor_left && sensor_right) {\n  line_position = 0; // Line between sensors\n} else if (sensor_left) {\n  line_position = -0.8; // Far left\n} else if (sensor_right) {\n  line_position = 0.8; // Far right\n} else if (sensor_center) {\n  line_position = 0; // Perfect center\n} else {\n  line_position = 0; // No line detected\n}\n\nreturn {\n  sensor_left: sensor_left,\n  sensor_center: sensor_center,\n  sensor_right: sensor_right,\n  line_position: line_position,\n  line_detected: line_detected\n};"
       },
       "id": "process-line-sensors",
       "name": "Process Line Sensor Data",
@@ -87,7 +87,7 @@
     },
     {
       "parameters": {
-        "functionCode": "// Execute line following movement using individual wheel control\n// This simulates differential drive by controlling each wheel\n\nconst left_speed = $input.item.json.left_wheel_speed;\nconst right_speed = $input.item.json.right_wheel_speed;\n\n// For now, we'll use forward movement with slight turns\n// In a real implementation, this would control individual omni wheels\nif (Math.abs(left_speed - right_speed) < 0.1) {\n  // Go straight\n  return { action: 'forward', speed: left_speed, direction: 'straight' };\n} else if (left_speed < right_speed) {\n  // Turn right\n  return { action: 'turn', direction: 'right', speed: Math.abs(left_speed - right_speed) * 0.5, direction_type: 'slight_right' };\n} else {\n  // Turn left\n  return { action: 'turn', direction: 'left', speed: Math.abs(left_speed - right_speed) * 0.5, direction_type: 'slight_left' };\n}"
+        "functionCode": "// Execute line following movement using 3 omni wheels (lf, rf, b)\n// Omni wheels support both forward/backward and lateral movement\nconst line_pos = $input.item.json.line_position;\nconst base_speed = parseFloat($input.item.json.following_speed || 0.3);\nconst correction_gain = parseFloat($input.item.json.sensitivity || 0.8);\n\n// For omni wheels, we can use lateral movement to correct line following\n// Positive line_pos = line is to the right, need to move left (negative lateral)\nconst lateral_correction = -line_pos * correction_gain * base_speed;\nconst forward_speed = base_speed * 0.8; // Slightly reduce forward speed during correction\n\n// Calculate individual wheel velocities for 3 omni wheels\n// lf = left front, rf = right front, b = back\nconst wheel_lf = forward_speed - lateral_correction;\nconst wheel_rf = forward_speed + lateral_correction;\nconst wheel_b = forward_speed;\n\nreturn {\n  action: 'omni_move',\n  forward_speed: forward_speed,\n  lateral_speed: lateral_correction,\n  wheel_lf: wheel_lf,\n  wheel_rf: wheel_rf,\n  wheel_b: wheel_b,\n  correction: lateral_correction\n};"
       },
       "id": "execute-following-movement",
       "name": "Execute Following Movement",
@@ -106,7 +106,7 @@
           }
         },
         "sendBody": true,
-        "bodyParametersJson": "{\n  \"direction\": \"{{ ['forward', 'backward', 'strafe_left', 'strafe_right'].includes($json.direction) ? $json.direction : 'forward' }}\",\n  \"speed\": {{ $json.speed || 0.3 }}\n}"
+        "bodyParametersJson": "{\n  \"linear_x\": {{ $json.forward_speed || 0.3 }},\n  \"linear_y\": {{ $json.lateral_speed || 0.0 }},\n  \"angular_z\": 0.0\n}"
       },
       "id": "move-robot",
       "name": "Move Robot",

@@ -42,8 +42,16 @@
         "values": {
           "number": [
             {
-              "name": "ultrasonic_distance",
-              "value": "={{ $json.ultrasonic_front }}"
+              "name": "ultrasonic_front_left",
+              "value": "={{ $json.ultrasonic_front_left }}"
+            },
+            {
+              "name": "ultrasonic_front_right",
+              "value": "={{ $json.ultrasonic_front_right }}"
+            },
+            {
+              "name": "min_distance",
+              "value": "={{ Math.min($json.ultrasonic_front_left || 4.0, $json.ultrasonic_front_right || 4.0) }}"
             }
           ]
         }
@@ -62,7 +70,7 @@
         "conditions": {
           "number": [
             {
-              "value1": "={{ $json.ultrasonic_distance }}",
+              "value1": "={{ $json.min_distance }}",
               "value2": "={{ $json.safety_threshold || 0.5 }}",
               "operation": "smallerEqual"
             }
