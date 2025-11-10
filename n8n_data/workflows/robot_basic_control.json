@@ -48,10 +48,11 @@
     {
       "parameters": {
         "url": "http://127.0.0.1:5000/api/robot/move",
-        "options": {
-          "bodyContentType": "json"
-        },
-        "bodyParametersJson": "{\n  \"linear_x\": 0.5,\n  \"linear_y\": 0.0,\n  \"angular_z\": 0.0\n}"
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"linear_x\": 0.5,\n  \"linear_y\": 0.0,\n  \"angular_z\": 0.0\n}",
+        "options": {}
       },
       "id": "move-forward",
       "name": "Move Forward",
@@ -80,10 +81,11 @@
     {
       "parameters": {
         "url": "http://127.0.0.1:5000/api/robot/move",
-        "options": {
-          "bodyContentType": "json"
-        },
-        "bodyParametersJson": "{\n  \"linear_x\": -0.5,\n  \"linear_y\": 0.0,\n  \"angular_z\": 0.0\n}"
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"linear_x\": -0.5,\n  \"linear_y\": 0.0,\n  \"angular_z\": 0.0\n}",
+        "options": {}
       },
       "id": "move-backward",
       "name": "Move Backward",
@@ -112,10 +114,11 @@
     {
       "parameters": {
         "url": "http://127.0.0.1:5000/api/robot/turn",
-        "options": {
-          "bodyContentType": "json"
-        },
-        "bodyParametersJson": "{\n  \"linear_x\": 0.0,\n  \"linear_y\": 0.0,\n  \"angular_z\": 0.3\n}"
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"linear_x\": 0.0,\n  \"linear_y\": 0.0,\n  \"angular_z\": 0.3\n}",
+        "options": {}
       },
       "id": "turn-left",
       "name": "Turn Left",
@@ -144,10 +147,11 @@
     {
       "parameters": {
         "url": "http://127.0.0.1:5000/api/robot/turn",
-        "options": {
-          "bodyContentType": "json"
-        },
-        "bodyParametersJson": "{\n  \"linear_x\": 0.0,\n  \"linear_y\": 0.0,\n  \"angular_z\": -0.3\n}"
+        "method": "POST",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"linear_x\": 0.0,\n  \"linear_y\": 0.0,\n  \"angular_z\": -0.3\n}",
+        "options": {}
       },
       "id": "turn-right",
       "name": "Turn Right",

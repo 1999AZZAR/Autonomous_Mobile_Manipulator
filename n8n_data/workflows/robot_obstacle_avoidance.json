@@ -52,14 +52,11 @@
     {
       "parameters": {
         "url": "http://127.0.0.1:5000/api/robot/move",
-        "options": {
-          "bodyContentType": "json"
-        },
+        "method": "POST",
         "sendBody": true,
-        "bodyParametersJson": "{\n  \"direction\": \"{{ $json.direction }}\",\n  \"speed\": {{ $json.speed }}\n}",
-        "headers": {
-          "Content-Type": "application/json"
-        }
+        "specifyBody": "json",
+        "jsonBody": "={\n  \"direction\": \"{{ $json.direction }}\",\n  \"speed\": {{ $json.speed }}\n}",
+        "options": {}
       },
       "id": "move-robot",
       "name": "Move Robot",
