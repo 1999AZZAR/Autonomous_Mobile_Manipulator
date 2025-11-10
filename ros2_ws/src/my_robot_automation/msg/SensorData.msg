@@ -11,6 +11,11 @@ float32 ir_front
 float32 ir_left
 float32 ir_right
 
+# TF-Luna LIDAR sensor (single-point)
+float32 tf_luna_distance
+int32 tf_luna_strength
+float32 tf_luna_temperature
+
 # Line sensor data (bit pattern: 0b11111111 = all sensors see line)
 int32 line_sensor_raw
 bool line_detected
@@ -32,3 +37,4 @@ bool ir_healthy
 bool line_sensor_healthy
 bool imu_healthy
 bool battery_healthy
+bool tf_luna_healthy

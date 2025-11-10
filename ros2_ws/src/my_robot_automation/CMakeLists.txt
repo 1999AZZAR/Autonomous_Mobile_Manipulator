@@ -72,6 +72,7 @@ install(PROGRAMS
   scripts/task_management_server.py
   scripts/navigation_status_server.py
   scripts/sensor_simulator.py
+  scripts/tf_luna_sensor.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

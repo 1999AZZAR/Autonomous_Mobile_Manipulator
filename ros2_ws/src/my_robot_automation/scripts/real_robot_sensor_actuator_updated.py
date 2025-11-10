@@ -22,6 +22,9 @@ class RealRobotSensorActuator(Node):
         # 2. Other sensors from notes.txt
         # - 380 degree lidar sensor (RPLIDAR A1)
         self.lidar_pub = self.create_publisher(LaserScan, '/scan', 10)
+
+        # - TF-Luna single-point lidar sensor
+        self.tf_luna_pub = self.create_publisher(Range, '/tf_luna/range', 10)
         
         # - Microsoft camera (USB) for object recognition
         self.camera_pub = self.create_publisher(Image, '/camera/image_raw', 10)
@@ -81,6 +84,7 @@ class RealRobotSensorActuator(Node):
         # Timers for publishing sensor data
         self.create_timer(0.1, self.publish_distance_sensors)   # 10Hz
         self.create_timer(0.1, self.publish_lidar)             # 10Hz
+        self.create_timer(0.1, self.publish_tf_luna)           # 10Hz
         self.create_timer(0.033, self.publish_camera)          # 30Hz
         self.create_timer(0.2, self.publish_line_sensor)        # 5Hz
         self.create_timer(0.1, self.publish_imu)                # 10Hz
@@ -91,6 +95,11 @@ class RealRobotSensorActuator(Node):
         self.robot_y = 0.0
         self.robot_theta = 0.0
         self.battery_level = 100.0
+
+        # TF-Luna sensor state
+        self.tf_luna_distance = float('inf')
+        self.tf_luna_strength = 0
+        self.tf_luna_temperature = 0.0
         
         # Picker system state
         self.gripper_open = False
@@ -110,7 +119,7 @@ class RealRobotSensorActuator(Node):
         self.robot_mode = "run"  # "train" or "run"
         
         self.get_logger().info('Real Robot Sensor/Actuator Node started - Updated for notes.txt configuration')
-        self.get_logger().info('SENSORS: Distance (3x), RPLIDAR A1, Microsoft Camera, Line Sensor, IMU')
+        self.get_logger().info('SENSORS: Distance (3x), RPLIDAR A1, TF-Luna, Microsoft Camera, Line Sensor, IMU')
         self.get_logger().info('ACTUATORS: 3x Omni Wheels, Picker System (4 components), 4x Containers')
         self.get_logger().info('CONTROLS: Emergency, Start/Stop, Mode (Train/Run)')
     
@@ -204,7 +213,7 @@ class RealRobotSensorActuator(Node):
         front_range = Range()
         front_range.header.stamp = self.get_clock().now().to_msg()
         front_range.header.frame_id = 'distance_front'
-        front_range.radiation_type = Range.LASER
+        front_range.radiation_type = Range.INFRARED
         front_range.field_of_view = 0.1  # ~5.7 degrees
         front_range.min_range = 0.02
         front_range.max_range = 4.0
@@ -215,7 +224,7 @@ class RealRobotSensorActuator(Node):
         back_left_range = Range()
         back_left_range.header.stamp = self.get_clock().now().to_msg()
         back_left_range.header.frame_id = 'distance_back_left'
-        back_left_range.radiation_type = Range.LASER
+        back_left_range.radiation_type = Range.INFRARED
         back_left_range.field_of_view = 0.1
         back_left_range.min_range = 0.02
         back_left_range.max_range = 4.0
@@ -226,7 +235,7 @@ class RealRobotSensorActuator(Node):
         back_right_range = Range()
         back_right_range.header.stamp = self.get_clock().now().to_msg()
         back_right_range.header.frame_id = 'distance_back_right'
-        back_right_range.radiation_type = Range.LASER
+        back_right_range.radiation_type = Range.INFRARED
         back_right_range.field_of_view = 0.1
         back_right_range.min_range = 0.02
         back_right_range.max_range = 4.0
@@ -267,7 +276,36 @@ class RealRobotSensorActuator(Node):
         
         scan.ranges = ranges
         self.lidar_pub.publish(scan)
-    
+
+    def publish_tf_luna(self):
+        """Publish TF-Luna single-point LIDAR data"""
+        range_msg = Range()
+        range_msg.header.stamp = self.get_clock().now().to_msg()
+        range_msg.header.frame_id = 'tf_luna'
+
+        # TF-Luna specifications
+        range_msg.radiation_type = Range.INFRARED
+        range_msg.field_of_view = 0.087  # ~5 degrees in radians
+        range_msg.min_range = 0.1
+        range_msg.max_range = 8.0
+
+        # Simulate TF-Luna sensor reading (obstacle detection)
+        # In real implementation, this would read from actual TF-Luna sensor
+        base_distance = 3.0 + 1.5 * math.sin(time.time() * 0.5)
+        noise = 0.1 * (2 * math.sin(time.time() * 2.0) - 1)  # Add some noise
+        self.tf_luna_distance = max(range_msg.min_range, min(range_msg.max_range, base_distance + noise))
+
+        # Simulate signal strength and temperature
+        self.tf_luna_strength = int(30000 + 5000 * math.sin(time.time() * 0.3))
+        self.tf_luna_temperature = 25.0 + 5.0 * math.sin(time.time() * 0.1)
+
+        if self.tf_luna_distance >= range_msg.min_range and self.tf_luna_distance <= range_msg.max_range:
+            range_msg.range = self.tf_luna_distance
+        else:
+            range_msg.range = float('inf')
+
+        self.tf_luna_pub.publish(range_msg)
+
     def publish_camera(self):
         """Publish Microsoft USB camera data for object recognition"""
         # Create dummy image data for object recognition

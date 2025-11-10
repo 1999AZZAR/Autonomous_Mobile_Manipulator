@@ -46,6 +46,9 @@ class SensorDataServer(Node):
         self.battery_sub = self.create_subscription(
             BatteryState, '/battery/status', self.battery_callback, 10
         )
+        self.tf_luna_sub = self.create_subscription(
+            Range, '/tf_luna/range', self.tf_luna_callback, 10
+        )
 
         # Current sensor data storage
         self.sensor_data = SensorData()
@@ -55,6 +58,7 @@ class SensorDataServer(Node):
         self.last_line_sensor = 0
         self.last_imu = Imu()
         self.last_battery = BatteryState()
+        self.last_tf_luna = Range()
 
         # Initialize sensor data
         self.reset_sensor_data()
@@ -76,6 +80,11 @@ class SensorDataServer(Node):
         self.sensor_data.ir_front = 5.0
         self.sensor_data.ir_left = 5.0
         self.sensor_data.ir_right = 5.0
+
+        # TF-Luna LIDAR (default to max range)
+        self.sensor_data.tf_luna_distance = 8.0
+        self.sensor_data.tf_luna_strength = 0
+        self.sensor_data.tf_luna_temperature = 25.0
 
         # Line sensor (default to no line detected)
         self.sensor_data.line_sensor_raw = 0
@@ -107,6 +116,7 @@ class SensorDataServer(Node):
         self.sensor_data.line_sensor_healthy = True
         self.sensor_data.imu_healthy = True
         self.sensor_data.battery_healthy = True
+        self.sensor_data.tf_luna_healthy = True
 
     def distance_front_callback(self, msg):
         """Callback for front distance sensor"""
@@ -160,6 +170,16 @@ class SensorDataServer(Node):
         self.sensor_data.battery_voltage = msg.voltage
         self.sensor_data.battery_percentage = msg.percentage * 100.0  # Convert to percentage
         self.sensor_data.battery_low_warning = msg.percentage < 0.2  # Low if < 20%
+
+    def tf_luna_callback(self, msg):
+        """Callback for TF-Luna LIDAR sensor"""
+        self.last_tf_luna = msg
+        self.sensor_data.tf_luna_distance = msg.range
+        # Note: TF-Luna doesn't provide strength/temperature in Range message
+        # These would need to be obtained from the dedicated TF-Luna node
+        # For now, use defaults
+        self.sensor_data.tf_luna_strength = 30000  # Default strength
+        self.sensor_data.tf_luna_temperature = 25.0  # Default temperature
 
     def get_sensor_data_callback(self, request, response):
         """Service callback for getting sensor data"""

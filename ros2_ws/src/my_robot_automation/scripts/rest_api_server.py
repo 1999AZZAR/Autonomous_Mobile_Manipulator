@@ -150,7 +150,9 @@ class RESTAPIServer(Node):
                             'ir_right': sensor_dict['ir_right'],
                             'line_sensor': sensor_dict['line_sensor_raw'],
                             'battery_voltage': sensor_dict['battery_voltage'],
-                            'battery_percentage': sensor_dict['battery_percentage']
+                            'battery_percentage': sensor_dict['battery_percentage'],
+                            'tf_luna_distance': sensor_dict['tf_luna_distance'],
+                            'tf_luna_strength': sensor_dict['tf_luna_strength']
                         })
 
                     return jsonify(result)
@@ -1015,11 +1017,15 @@ class RESTAPIServer(Node):
             'battery_voltage': sensor_data.battery_voltage,
             'battery_percentage': sensor_data.battery_percentage,
             'battery_low_warning': sensor_data.battery_low_warning,
+            'tf_luna_distance': sensor_data.tf_luna_distance,
+            'tf_luna_strength': sensor_data.tf_luna_strength,
+            'tf_luna_temperature': sensor_data.tf_luna_temperature,
             'ultrasonic_healthy': sensor_data.ultrasonic_healthy,
             'ir_healthy': sensor_data.ir_healthy,
             'line_sensor_healthy': sensor_data.line_sensor_healthy,
             'imu_healthy': sensor_data.imu_healthy,
-            'battery_healthy': sensor_data.battery_healthy
+            'battery_healthy': sensor_data.battery_healthy,
+            'tf_luna_healthy': sensor_data.tf_luna_healthy
         }
 
     def task_status_to_dict(self, task_status):
