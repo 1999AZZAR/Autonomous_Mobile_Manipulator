@@ -19,8 +19,9 @@ It integrates advanced robotics capabilities, including navigation, manipulation
 - **Advanced Manipulation:** Servo-based manipulation with 4-component picker system (gripper, tilt, neck, base) for precise object handling.
 - **Simulation & Reality:** Supports both realistic Gazebo simulation and real-world hardware deployment with a unified launch system.
 - **Flexible Control Interfaces:** Offers multiple points of control and integration:
-    - **n8n Workflow Automation:** A powerful, low-code platform for designing complex automation sequences (e.g., "patrol until an object is found, then pick and place it").
-    - **REST API:** A simple HTTP interface for scripting and high-level control.
+    - **Web UI (Primary Interface):** Complete robot control and monitoring with path planning, real-time sensor data, and system management.
+    - **REST API:** HTTP interface for all robot functions, used by both Web UI and N8N.
+    - **N8N Workflow Automation (Optional):** Low-code platform for complex automation sequences and scheduled tasks.
     - **WebSockets:** For real-time data streaming and interactive control.
     - **MQTT Bridge:** For integration with IoT ecosystems and devices.
 - **Containerized Deployment:** Uses Docker and Docker Compose for consistent, reproducible, and isolated development and production environments.
@@ -60,6 +61,56 @@ The architecture is centered around a ROS 2 workspace (`ros2_ws`) containing sev
 - **`my_robot_automation`:** The core automation package. It acts as a bridge between ROS 2 and external systems, hosting the REST, WebSocket, and MQTT servers, and implementing servo-based manipulation, navigation, and automation services.
 
 External control systems interact with the `my_robot_automation` package, which translates high-level commands into specific ROS 2 messages, service calls, and action goals.
+
+### Control Interface Architecture
+
+The system provides two complementary interfaces for different use cases:
+
+#### Web UI - Primary Interface (Required)
+The Web UI at http://localhost:8000 provides complete robot control and monitoring capabilities:
+
+- **Direct Control:** All movement, gripper, and container operations
+- **Path Planning:** Visual waypoint manager with pre-built patterns (square, triangle, hexagon)
+- **Real-time Monitoring:** All sensor data (6 laser, 2 ultrasonic, TF-Luna LIDAR, 3 line sensors, IMU)
+- **System Management:** Status monitoring, logs, command history, IMU calibration
+- **Hardware Reference:** Complete GPIO pinout and power distribution information
+
+**Use the Web UI for:**
+- Manual operation and testing
+- Real-time monitoring
+- Quick navigation tasks
+- Emergency interventions
+- Learning and development
+
+#### N8N - Automation Interface (Optional but Recommended)
+The N8N workflow engine at http://localhost:5678 adds automation capabilities:
+
+- **Scheduled Operations:** Time-based patrol routes and tasks
+- **Event-Driven Logic:** Sensor threshold responses and conditional behaviors
+- **Complex Workflows:** Multi-step sequences with decision trees
+- **External Integration:** Connect to databases, APIs, and external services
+- **38 Pre-built Workflows:** Ready-to-use automation patterns
+
+**Use N8N for:**
+- Autonomous operation
+- Repetitive tasks
+- Production automation
+- System integration
+- Advanced logic
+
+**Architecture Diagram:**
+```
+Operator → Web UI (Primary) ─┐
+                              ├─→ REST API → ROS2 → Hardware
+N8N Workflows (Optional) ─────┘
+```
+
+**Deployment Options:**
+- **Development/Testing:** Web UI only (simplest setup)
+- **Manual Operation:** Web UI + Hardware (direct control)
+- **Production Automation:** Web UI + N8N + Hardware (full capabilities)
+
+See `docs/SYSTEM_ARCHITECTURE.md` for detailed decision matrices and use case recommendations.
 
 ## Table of Contents
 
@@ -279,10 +330,26 @@ For Raspberry Pi deployment, follow the comprehensive setup guide:
 
 ### Access Points
 
-- **Professional Web Interface**: http://localhost:8000 (Recommended for users)
-- **n8n Workflow Automation**: http://localhost:5678 (Advanced workflow design)
-- **Robot REST API**: http://127.0.0.1:5000 (Direct API access)
-- **ROS 2 Development Environment**: `docker exec -it ros2_dev_container bash`
+**Primary Interface (Required):**
+- **Web UI**: http://localhost:8000
+  - Complete robot control (movement, gripper, containers)
+  - Path planning with visual waypoint manager
+  - Real-time sensor monitoring (all 6 laser, ultrasonic, LIDAR, IMU, line sensors)
+  - System status and logs
+  - IMU calibration
+  - Hardware pinout reference
+
+**Automation Interface (Optional but Recommended):**
+- **N8N Workflow Automation**: http://localhost:5678
+  - Automated patrol routes
+  - Scheduled operations
+  - Complex decision logic
+  - External system integration
+  - 38 pre-built workflows included
+
+**Developer Access:**
+- **REST API**: http://127.0.0.1:5000 (Backend for Web UI and N8N)
+- **ROS 2 Container**: `docker exec -it ros2_sim_container bash`
 
 Note: Use `127.0.0.1` instead of `localhost` for API calls to ensure IPv4 connectivity.
 

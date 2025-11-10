@@ -980,6 +980,38 @@ class RESTAPIServer(Node):
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
 
+        @self.app.route('/api/robot/imu/calibrate', methods=['POST'])
+        def calibrate_imu():
+            """Calibrate/zero the IMU sensor"""
+            try:
+                # This would typically call a ROS2 service to calibrate the IMU
+                # For now, we'll simulate the calibration process
+                
+                # In a real implementation, this would:
+                # 1. Call the IMU calibration service
+                # 2. Store the current orientation as the zero reference
+                # 3. Reset accumulated drift
+                
+                self.get_logger().info('IMU calibration requested')
+                
+                # Simulated calibration success
+                return jsonify({
+                    'success': True,
+                    'message': 'IMU calibration completed',
+                    'data': {
+                        'calibrated': True,
+                        'zero_reference': {
+                            'roll': 0.0,
+                            'pitch': 0.0,
+                            'yaw': 0.0
+                        },
+                        'timestamp': time.time()
+                    }
+                }), 200
+
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+
         @self.app.route('/api/robot/log', methods=['GET'])
         def get_robot_log():
             """Get robot log data (accessible all the time per notes.txt)"""

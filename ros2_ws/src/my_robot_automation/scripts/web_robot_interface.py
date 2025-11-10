@@ -358,6 +358,99 @@ HTML_TEMPLATE = """
             display: block;
         }
 
+        .waypoint-container {
+            background: var(--dark);
+            border-radius: 8px;
+            padding: 8px;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .waypoint-item {
+            background: var(--light);
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-left: 3px solid var(--primary);
+        }
+
+        .waypoint-info {
+            flex: 1;
+        }
+
+        .waypoint-coords {
+            font-size: 0.875rem;
+            color: var(--secondary);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .waypoint-actions button {
+            background: none;
+            border: none;
+            color: var(--danger);
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+
+        .waypoint-actions button:hover {
+            background: rgba(239, 68, 68, 0.1);
+        }
+
+        .input-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            font-size: 0.875rem;
+            color: var(--secondary);
+            margin-bottom: 4px;
+        }
+
+        .input-field {
+            background: var(--light);
+            border: 1px solid #374151;
+            border-radius: 6px;
+            padding: 8px 12px;
+            color: var(--dark);
+            font-size: 0.875rem;
+        }
+
+        .input-field:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .checkbox-group {
+            margin: 12px 0;
+        }
+
+        .checkbox-group label {
+            display: flex;
+            align-items: center;
+            color: var(--secondary);
+            cursor: pointer;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            margin-right: 8px;
+            width: 18px;
+            height: 18px;
+            cursor: pointer;
+        }
+
         @media (max-width: 1024px) {
             .main-grid {
                 grid-template-columns: 1fr;
@@ -417,6 +510,10 @@ HTML_TEMPLATE = """
                     <a href="#status" class="nav-tab" onclick="showTab('status')">
                         <i class="fas fa-chart-line"></i>
                         <span>Status</span>
+                    </a>
+                    <a href="#path-planning" class="nav-tab" onclick="showTab('path-planning')">
+                        <i class="fas fa-route"></i>
+                        <span>Path Planning</span>
                     </a>
                     <a href="#sensors" class="nav-tab" onclick="showTab('sensors')">
                         <i class="fas fa-radar"></i>
@@ -932,6 +1029,12 @@ HTML_TEMPLATE = """
                                         <div class="value" id="imu-accel-y">-- m/s²</div>
                                     </div>
                                 </div>
+                                <div style="margin-top: 16px;">
+                                    <button class="control-btn warning" onclick="calibrateIMU()" style="width: 100%;">
+                                        <i class="fas fa-crosshairs"></i> Calibrate IMU (Set Zero)
+                                    </button>
+                                    <div id="imu-calibration-status" style="margin-top: 8px; text-align: center; color: #10b981; font-size: 0.875rem;"></div>
+                                </div>
                             </div>
                         </div>
 
@@ -1179,6 +1282,169 @@ USB3 - Reserved
 ⚠️ Ensure common ground between all components
 ⚠️ Use appropriate fuses for motor circuits
 ⚠️ Emergency stop button must be easily accessible
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Path Planning Tab -->
+                <div id="path-planning" class="tab-content">
+                    <div class="control-panels">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-map-marked-alt"></i>
+                                <span>Waypoint Manager</span>
+                            </div>
+                            
+                            <div class="control-group">
+                                <h4>Add Waypoint</h4>
+                                <div class="input-grid">
+                                    <div class="input-group">
+                                        <label>X Position (m)</label>
+                                        <input type="number" id="waypoint-x" step="0.1" value="0.0" class="input-field">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Y Position (m)</label>
+                                        <input type="number" id="waypoint-y" step="0.1" value="0.0" class="input-field">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Z Position (m)</label>
+                                        <input type="number" id="waypoint-z" step="0.1" value="0.0" class="input-field">
+                                    </div>
+                                </div>
+                                <button class="control-btn" onclick="addWaypoint()">
+                                    <i class="fas fa-plus"></i> Add Waypoint
+                                </button>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Quick Patterns</h4>
+                                <div class="button-grid" style="grid-template-columns: repeat(2, 1fr);">
+                                    <button class="control-btn" onclick="loadSquarePattern()">
+                                        <i class="fas fa-square"></i> Square (2x2m)
+                                    </button>
+                                    <button class="control-btn" onclick="loadTrianglePattern()">
+                                        <i class="fas fa-play"></i> Triangle
+                                    </button>
+                                    <button class="control-btn" onclick="loadHexagonPattern()">
+                                        <i class="fas fa-hexagon"></i> Hexagon
+                                    </button>
+                                    <button class="control-btn" onclick="loadLinePattern()">
+                                        <i class="fas fa-minus"></i> Straight Line
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Waypoint List</h4>
+                                <div id="waypoint-list" class="waypoint-container">
+                                    <!-- Waypoints will be added here -->
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Path Execution Settings</h4>
+                                <div class="input-grid">
+                                    <div class="input-group">
+                                        <label>Speed (m/s)</label>
+                                        <input type="number" id="patrol-speed" step="0.1" value="0.5" min="0.1" max="2.0" class="input-field">
+                                    </div>
+                                    <div class="input-group">
+                                        <label>Cycles</label>
+                                        <input type="number" id="patrol-cycles" step="1" value="1" min="1" max="10" class="input-field">
+                                    </div>
+                                </div>
+                                <div class="checkbox-group">
+                                    <label>
+                                        <input type="checkbox" id="return-to-start" checked>
+                                        Return to Start Position
+                                    </label>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Execute Path</h4>
+                                <div class="button-grid" style="grid-template-columns: 1fr 1fr;">
+                                    <button class="control-btn success" onclick="executePatrol()">
+                                        <i class="fas fa-play"></i> Start Patrol
+                                    </button>
+                                    <button class="control-btn danger" onclick="clearWaypoints()">
+                                        <i class="fas fa-trash"></i> Clear All
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-compass"></i>
+                                <span>Path Status & Visualization</span>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Current Path Execution</h4>
+                                <div class="status-grid">
+                                    <div class="status-card">
+                                        <h4>Status</h4>
+                                        <div class="value" id="path-status">Idle</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Waypoints</h4>
+                                        <div class="value" id="path-waypoint-count">0</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Progress</h4>
+                                        <div class="value" id="path-progress">0%</div>
+                                    </div>
+                                    <div class="status-card">
+                                        <h4>Distance</h4>
+                                        <div class="value" id="path-distance">0.0m</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Path Visualization</h4>
+                                <canvas id="path-canvas" width="600" height="600" style="border: 2px solid #374151; border-radius: 8px; background: #1f2937; width: 100%; max-width: 600px;"></canvas>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Navigation Controls</h4>
+                                <div class="button-grid" style="grid-template-columns: repeat(2, 1fr);">
+                                    <button class="control-btn" onclick="goToWaypoint()">
+                                        <i class="fas fa-map-pin"></i> Go to Point
+                                    </button>
+                                    <button class="control-btn" onclick="returnHome()">
+                                        <i class="fas fa-home"></i> Return Home
+                                    </button>
+                                    <button class="control-btn warning" onclick="pausePatrol()">
+                                        <i class="fas fa-pause"></i> Pause
+                                    </button>
+                                    <button class="control-btn danger" onclick="stopPatrol()">
+                                        <i class="fas fa-stop"></i> Stop
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Saved Paths</h4>
+                                <div class="input-grid">
+                                    <div class="input-group">
+                                        <label>Path Name</label>
+                                        <input type="text" id="path-name" placeholder="Enter path name" class="input-field">
+                                    </div>
+                                </div>
+                                <div class="button-grid" style="grid-template-columns: 1fr 1fr;">
+                                    <button class="control-btn" onclick="savePath()">
+                                        <i class="fas fa-save"></i> Save Path
+                                    </button>
+                                    <button class="control-btn" onclick="loadPath()">
+                                        <i class="fas fa-folder-open"></i> Load Path
+                                    </button>
+                                </div>
+                                <div id="saved-paths-list" class="waypoint-container" style="margin-top: 10px;">
+                                    <!-- Saved paths will appear here -->
                                 </div>
                             </div>
                         </div>
@@ -1495,6 +1761,42 @@ USB3 - Reserved
             }
         }
 
+        // IMU Calibration
+        async function calibrateIMU() {
+            try {
+                const statusDiv = document.getElementById('imu-calibration-status');
+                statusDiv.textContent = 'Calibrating IMU...';
+                statusDiv.style.color = '#f59e0b';
+
+                const response = await fetch(`${API_BASE}/api/robot/imu/calibrate`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' }
+                });
+
+                const result = await response.json();
+                
+                if (result.success) {
+                    statusDiv.textContent = '✓ IMU Calibrated - Zero reference set';
+                    statusDiv.style.color = '#10b981';
+                    addLog('IMU calibration completed successfully');
+                    
+                    // Clear message after 3 seconds
+                    setTimeout(() => {
+                        statusDiv.textContent = '';
+                    }, 3000);
+                } else {
+                    statusDiv.textContent = '✗ Calibration failed: ' + (result.error || 'Unknown error');
+                    statusDiv.style.color = '#ef4444';
+                    addLog('IMU calibration failed: ' + result.error);
+                }
+            } catch (error) {
+                const statusDiv = document.getElementById('imu-calibration-status');
+                statusDiv.textContent = '✗ Calibration error: ' + error.message;
+                statusDiv.style.color = '#ef4444';
+                addLog('IMU calibration error: ' + error.message);
+            }
+        }
+
         function updateStatusDisplay() {
             const statusGrid = document.getElementById('status-grid');
             const data = systemStatus.data || {};
@@ -1583,6 +1885,423 @@ USB3 - Reserved
         // Update commands and logs every 3 seconds
         setInterval(updateLastCommands, 3000);
         setInterval(updateRobotLog, 3000);
+
+        // Path Planning Functions
+        let waypoints = [];
+        let savedPaths = JSON.parse(localStorage.getItem('robotPaths') || '{}');
+        let pathCanvas = null;
+        let pathContext = null;
+
+        // Initialize canvas when path-planning tab is shown
+        function initializeCanvas() {
+            if (!pathCanvas) {
+                pathCanvas = document.getElementById('path-canvas');
+                if (pathCanvas) {
+                    pathContext = pathCanvas.getContext('2d');
+                    updatePathVisualization();
+                }
+            }
+        }
+
+        // Add waypoint
+        function addWaypoint() {
+            const x = parseFloat(document.getElementById('waypoint-x').value);
+            const y = parseFloat(document.getElementById('waypoint-y').value);
+            const z = parseFloat(document.getElementById('waypoint-z').value);
+
+            waypoints.push({ position: { x, y, z } });
+            updateWaypointList();
+            updatePathVisualization();
+            addLog(`Waypoint added: (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+        }
+
+        // Remove waypoint
+        function removeWaypoint(index) {
+            waypoints.splice(index, 1);
+            updateWaypointList();
+            updatePathVisualization();
+            addLog(`Waypoint ${index + 1} removed`);
+        }
+
+        // Update waypoint list display
+        function updateWaypointList() {
+            const listContainer = document.getElementById('waypoint-list');
+            listContainer.innerHTML = '';
+
+            if (waypoints.length === 0) {
+                listContainer.innerHTML = '<div style="color: #64748b; text-align: center; padding: 20px;">No waypoints added yet</div>';
+                document.getElementById('path-waypoint-count').textContent = '0';
+                return;
+            }
+
+            waypoints.forEach((wp, index) => {
+                const item = document.createElement('div');
+                item.className = 'waypoint-item';
+                item.innerHTML = `
+                    <div class="waypoint-info">
+                        <div style="font-weight: 600; margin-bottom: 4px;">Waypoint ${index + 1}</div>
+                        <div class="waypoint-coords">x: ${wp.position.x.toFixed(2)}, y: ${wp.position.y.toFixed(2)}, z: ${wp.position.z.toFixed(2)}</div>
+                    </div>
+                    <div class="waypoint-actions">
+                        <button onclick="removeWaypoint(${index})"><i class="fas fa-times"></i></button>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+
+            document.getElementById('path-waypoint-count').textContent = waypoints.length;
+        }
+
+        // Clear all waypoints
+        function clearWaypoints() {
+            waypoints = [];
+            updateWaypointList();
+            updatePathVisualization();
+            addLog('All waypoints cleared');
+        }
+
+        // Load pattern functions
+        function loadSquarePattern() {
+            waypoints = [
+                { position: { x: 2.0, y: 0.0, z: 0.0 } },
+                { position: { x: 2.0, y: 2.0, z: 0.0 } },
+                { position: { x: 0.0, y: 2.0, z: 0.0 } },
+                { position: { x: 0.0, y: 0.0, z: 0.0 } }
+            ];
+            updateWaypointList();
+            updatePathVisualization();
+            addLog('Loaded square pattern (2x2m)');
+        }
+
+        function loadTrianglePattern() {
+            waypoints = [
+                { position: { x: 2.0, y: 0.0, z: 0.0 } },
+                { position: { x: 1.0, y: 2.0, z: 0.0 } },
+                { position: { x: 0.0, y: 0.0, z: 0.0 } }
+            ];
+            updateWaypointList();
+            updatePathVisualization();
+            addLog('Loaded triangle pattern');
+        }
+
+        function loadHexagonPattern() {
+            const radius = 1.5;
+            waypoints = [];
+            for (let i = 0; i < 6; i++) {
+                const angle = (Math.PI / 3) * i;
+                waypoints.push({
+                    position: {
+                        x: radius * Math.cos(angle),
+                        y: radius * Math.sin(angle),
+                        z: 0.0
+                    }
+                });
+            }
+            updateWaypointList();
+            updatePathVisualization();
+            addLog('Loaded hexagon pattern');
+        }
+
+        function loadLinePattern() {
+            waypoints = [
+                { position: { x: 0.0, y: 0.0, z: 0.0 } },
+                { position: { x: 3.0, y: 0.0, z: 0.0 } }
+            ];
+            updateWaypointList();
+            updatePathVisualization();
+            addLog('Loaded straight line pattern (3m)');
+        }
+
+        // Visualize path on canvas
+        function updatePathVisualization() {
+            initializeCanvas();
+            if (!pathContext) return;
+
+            const canvas = pathCanvas;
+            const ctx = pathContext;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw grid
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 1;
+            const gridSize = 50;
+            for (let i = 0; i < canvas.width; i += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(i, 0);
+                ctx.lineTo(i, canvas.height);
+                ctx.stroke();
+            }
+            for (let i = 0; i < canvas.height; i += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, i);
+                ctx.lineTo(canvas.width, i);
+                ctx.stroke();
+            }
+
+            // Draw origin
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            const scale = 50; // 50 pixels = 1 meter
+
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX - 20, centerY);
+            ctx.lineTo(centerX + 20, centerY);
+            ctx.moveTo(centerX, centerY - 20);
+            ctx.lineTo(centerX, centerY + 20);
+            ctx.stroke();
+
+            if (waypoints.length === 0) return;
+
+            // Draw path
+            ctx.strokeStyle = '#3b82f6';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            waypoints.forEach((wp, index) => {
+                const x = centerX + (wp.position.x * scale);
+                const y = centerY - (wp.position.y * scale);
+                if (index === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            });
+            ctx.stroke();
+
+            // Draw waypoints
+            waypoints.forEach((wp, index) => {
+                const x = centerX + (wp.position.x * scale);
+                const y = centerY - (wp.position.y * scale);
+
+                // Waypoint circle
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath();
+                ctx.arc(x, y, 8, 0, 2 * Math.PI);
+                ctx.fill();
+
+                // Waypoint number
+                ctx.fillStyle = '#ffffff';
+                ctx.font = 'bold 12px sans-serif';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText((index + 1).toString(), x, y);
+            });
+
+            // Calculate total distance
+            let totalDistance = 0;
+            for (let i = 1; i < waypoints.length; i++) {
+                const dx = waypoints[i].position.x - waypoints[i-1].position.x;
+                const dy = waypoints[i].position.y - waypoints[i-1].position.y;
+                totalDistance += Math.sqrt(dx * dx + dy * dy);
+            }
+            document.getElementById('path-distance').textContent = totalDistance.toFixed(2) + 'm';
+        }
+
+        // Execute patrol
+        async function executePatrol() {
+            if (waypoints.length === 0) {
+                alert('Please add waypoints first!');
+                return;
+            }
+
+            const speed = parseFloat(document.getElementById('patrol-speed').value);
+            const cycles = parseInt(document.getElementById('patrol-cycles').value);
+            const returnToStart = document.getElementById('return-to-start').checked;
+
+            const patrolData = {
+                waypoints: waypoints,
+                patrol_speed: speed,
+                patrol_cycles: cycles,
+                return_to_start: returnToStart
+            };
+
+            try {
+                document.getElementById('path-status').textContent = 'Executing...';
+                const response = await fetch(`${API_BASE}/api/robot/patrol`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(patrolData)
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    addLog(`Patrol started: ${waypoints.length} waypoints, ${cycles} cycle(s)`);
+                    document.getElementById('path-status').textContent = 'Active';
+                    document.getElementById('path-progress').textContent = '0%';
+                } else {
+                    addLog(`Patrol failed: ${result.error || 'Unknown error'}`);
+                    document.getElementById('path-status').textContent = 'Failed';
+                }
+            } catch (error) {
+                addLog(`Patrol error: ${error.message}`);
+                document.getElementById('path-status').textContent = 'Error';
+            }
+        }
+
+        // Navigation control functions
+        async function goToWaypoint() {
+            const x = parseFloat(document.getElementById('waypoint-x').value);
+            const y = parseFloat(document.getElementById('waypoint-y').value);
+            const z = parseFloat(document.getElementById('waypoint-z').value);
+
+            const singleWaypoint = [{ position: { x, y, z } }];
+
+            try {
+                const response = await fetch(`${API_BASE}/api/robot/patrol`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        waypoints: singleWaypoint,
+                        patrol_speed: parseFloat(document.getElementById('patrol-speed').value),
+                        patrol_cycles: 1,
+                        return_to_start: false
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    addLog(`Going to point (${x.toFixed(2)}, ${y.toFixed(2)}, ${z.toFixed(2)})`);
+                } else {
+                    addLog(`Navigation failed: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                addLog(`Navigation error: ${error.message}`);
+            }
+        }
+
+        async function returnHome() {
+            const homeWaypoint = [{ position: { x: 0.0, y: 0.0, z: 0.0 } }];
+
+            try {
+                const response = await fetch(`${API_BASE}/api/robot/patrol`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        waypoints: homeWaypoint,
+                        patrol_speed: 0.5,
+                        patrol_cycles: 1,
+                        return_to_start: false
+                    })
+                });
+
+                const result = await response.json();
+                if (result.success) {
+                    addLog('Returning to home position (0, 0, 0)');
+                } else {
+                    addLog(`Return home failed: ${result.error || 'Unknown error'}`);
+                }
+            } catch (error) {
+                addLog(`Return home error: ${error.message}`);
+            }
+        }
+
+        function pausePatrol() {
+            addLog('Pause functionality requires ROS2 action cancellation');
+            // This would need ROS2 action server cancellation support
+        }
+
+        function stopPatrol() {
+            emergencyStop();
+            document.getElementById('path-status').textContent = 'Stopped';
+            addLog('Patrol stopped (emergency stop triggered)');
+        }
+
+        // Save/Load path functions
+        function savePath() {
+            const pathName = document.getElementById('path-name').value.trim();
+            if (!pathName) {
+                alert('Please enter a path name');
+                return;
+            }
+
+            if (waypoints.length === 0) {
+                alert('No waypoints to save');
+                return;
+            }
+
+            savedPaths[pathName] = {
+                waypoints: JSON.parse(JSON.stringify(waypoints)),
+                created: new Date().toISOString()
+            };
+
+            localStorage.setItem('robotPaths', JSON.stringify(savedPaths));
+            updateSavedPathsList();
+            addLog(`Path "${pathName}" saved with ${waypoints.length} waypoints`);
+            document.getElementById('path-name').value = '';
+        }
+
+        function loadPath() {
+            const pathName = document.getElementById('path-name').value.trim();
+            if (!pathName) {
+                alert('Please enter a path name to load');
+                return;
+            }
+
+            if (savedPaths[pathName]) {
+                waypoints = JSON.parse(JSON.stringify(savedPaths[pathName].waypoints));
+                updateWaypointList();
+                updatePathVisualization();
+                addLog(`Path "${pathName}" loaded with ${waypoints.length} waypoints`);
+            } else {
+                alert(`Path "${pathName}" not found`);
+            }
+        }
+
+        function deleteSavedPath(pathName) {
+            delete savedPaths[pathName];
+            localStorage.setItem('robotPaths', JSON.stringify(savedPaths));
+            updateSavedPathsList();
+            addLog(`Path "${pathName}" deleted`);
+        }
+
+        function updateSavedPathsList() {
+            const listContainer = document.getElementById('saved-paths-list');
+            listContainer.innerHTML = '';
+
+            const pathNames = Object.keys(savedPaths);
+            if (pathNames.length === 0) {
+                listContainer.innerHTML = '<div style="color: #64748b; text-align: center; padding: 10px;">No saved paths</div>';
+                return;
+            }
+
+            pathNames.forEach(name => {
+                const path = savedPaths[name];
+                const item = document.createElement('div');
+                item.className = 'waypoint-item';
+                item.innerHTML = `
+                    <div class="waypoint-info">
+                        <div style="font-weight: 600;">${name}</div>
+                        <div class="waypoint-coords">${path.waypoints.length} waypoints</div>
+                    </div>
+                    <div class="waypoint-actions">
+                        <button onclick="document.getElementById('path-name').value='${name}'; loadPath();" style="color: #3b82f6; margin-right: 8px;">
+                            <i class="fas fa-folder-open"></i>
+                        </button>
+                        <button onclick="deleteSavedPath('${name}')">
+                            <i class="fas fa-trash"></i>
+                        </button>
+                    </div>
+                `;
+                listContainer.appendChild(item);
+            });
+        }
+
+        // Initialize path planning when tab is opened
+        const originalShowTab = showTab;
+        showTab = function(tabName) {
+            originalShowTab(tabName);
+            if (tabName === 'path-planning') {
+                initializeCanvas();
+                updateWaypointList();
+                updateSavedPathsList();
+            }
+        };
+
+        // Initialize saved paths list
+        updateSavedPathsList();
     </script>
 </body>
 </html>
