@@ -22,6 +22,11 @@ This directory contains comprehensive documentation for the Autonomous Mobile Ma
 - **[Troubleshooting](./troubleshooting/)** - Common issues and solutions
 - **[Contributing Guide](../CONTRIBUTING.md)** - How to contribute to the project
 
+### Verification Reports
+- **[API Verification Report](./api/API_VERIFICATION_REPORT.md)** - Complete API verification against hardware specifications
+- **[Workflow Cleanup Report](./workflow/WORKFLOW_CLEANUP_REPORT.md)** - Workflow management and corrections  
+- **[Connection Fix Report](./workflow/CONNECTION_FIX_REPORT.md)** - IPv4/IPv6 connectivity resolution
+
 ### Integration Guides
 - **[LabVIEW Integration](./labview-integration/)** - LabVIEW system integration
 - **[Software Configuration](./software/)** - Software setup and configuration

@@ -91,14 +91,18 @@ External control systems interact with the `my_robot_automation` package, which 
 
 ### Sensors
 
-- **Distance sensors** (laser base): 3 units for obstacle detection
-  - Front distance sensor
-  - Back left distance sensor
-  - Back right distance sensor
-- **380° LIDAR sensor** (RPLIDAR A1): For mapping and navigation
-- **Microsoft USB Camera**: For object recognition and computer vision
-- **Line sensor**: For line-based navigation capabilities
-- **IMU sensor** (MPU6050/BNO055): For orientation and motion sensing
+- **Laser distance sensors**: 6 units for wall alignment and obstacle detection
+  - 2 on left side (left front, left back)
+  - 2 on right side (right front, right back)
+  - 2 on back (back left, back right)
+- **Ultrasonic sensors** (HC-SR04): 2 units for front obstacle detection
+  - Front left ultrasonic sensor
+  - Front right ultrasonic sensor
+- **Line sensors**: 3 individual sensors assembled side by side
+  - Left, center, and right sensors for line following and alignment
+- **TF-Luna LIDAR**: Single-point LIDAR sensor with I2C/UART interface
+- **IMU sensor** (MPU6050): For orientation and motion sensing
+- **USB Camera**: Gripper-mounted camera for object recognition
 
 ### Actuators & Manipulation
 
@@ -275,10 +279,12 @@ For Raspberry Pi deployment, follow the comprehensive setup guide:
 
 ### Access Points
 
-- **Professional Web Interface**: http://localhost:8000 *(Recommended for users)*
-- **n8n Workflow Automation**: http://localhost:5678 *(Advanced workflow design)*
-- **Robot REST API**: http://localhost:5000 *(Direct API access)*
+- **Professional Web Interface**: http://localhost:8000 (Recommended for users)
+- **n8n Workflow Automation**: http://localhost:5678 (Advanced workflow design)
+- **Robot REST API**: http://127.0.0.1:5000 (Direct API access)
 - **ROS 2 Development Environment**: `docker exec -it ros2_dev_container bash`
+
+Note: Use `127.0.0.1` instead of `localhost` for API calls to ensure IPv4 connectivity.
 
 ### Startup Scripts
 
@@ -377,7 +383,7 @@ The system includes comprehensive n8n workflows matching the actual robot hardwa
 - **Control Servo**: Individual servo positioning (legacy)
 - **Get Robot Status**: Comprehensive status monitoring and reporting
 
-All workflows use HTTP API calls to the robot's comprehensive REST interface at `http://10.0.3.1:5000`, providing full integration between n8n automation and ROS2 robotic control.
+All workflows use HTTP API calls to the robot's comprehensive REST interface at `http://127.0.0.1:5000`, providing full integration between n8n automation and ROS2 robotic control.
 
 ## API Documentation
 
@@ -387,17 +393,17 @@ The robot provides a comprehensive REST API on port 5000 for external control, f
 
 ```bash
 # Health check
-curl http://localhost:5000/health
+curl http://127.0.0.1:5000/health
 
 # Get comprehensive robot status
-curl http://localhost:5000/api/robot/status
+curl http://127.0.0.1:5000/api/robot/status
 ```
 
 ### Robot Mode Management
 
 ```bash
 # Set robot operating mode
-curl -X POST http://localhost:5000/api/robot/mode \
+curl -X POST http://127.0.0.1:5000/api/robot/mode \
   -H "Content-Type: application/json" \
   -d '{"mode": "AUTONOMOUS", "reason": "Starting automated operation"}'
 
@@ -408,44 +414,44 @@ curl -X POST http://localhost:5000/api/robot/mode \
 
 ```bash
 # Move robot in cardinal directions
-curl -X POST http://localhost:5000/api/robot/move \
+curl -X POST http://127.0.0.1:5000/api/robot/move \
   -H "Content-Type: application/json" \
   -d '{"direction": "forward", "speed": 0.5}'
 
 # Turn robot left/right
-curl -X POST http://localhost:5000/api/robot/turn \
+curl -X POST http://127.0.0.1:5000/api/robot/turn \
   -H "Content-Type: application/json" \
   -d '{"direction": "left", "speed": 0.3}'
 
 # Strafe movement (omni-directional)
-curl -X POST http://localhost:5000/api/robot/move \
+curl -X POST http://127.0.0.1:5000/api/robot/move \
   -H "Content-Type: application/json" \
   -d '{"direction": "strafe_left", "speed": 0.4}'
 
 # Stop all movement
-curl -X POST http://localhost:5000/api/robot/stop
+curl -X POST http://127.0.0.1:5000/api/robot/stop
 ```
 
 ### Picker System Control
 
 ```bash
 # Control gripper (open/close)
-curl -X POST http://localhost:5000/api/robot/picker/gripper \
+curl -X POST http://127.0.0.1:5000/api/robot/picker/gripper \
   -H "Content-Type: application/json" \
   -d '{"command": "open"}'
 
 # Control gripper tilt
-curl -X POST http://localhost:5000/api/robot/picker/gripper_tilt \
+curl -X POST http://127.0.0.1:5000/api/robot/picker/gripper_tilt \
   -H "Content-Type: application/json" \
   -d '{"angle": 15}'
 
 # Control gripper neck position
-curl -X POST http://localhost:5000/api/robot/picker/gripper_neck \
+curl -X POST http://127.0.0.1:5000/api/robot/picker/gripper_neck \
   -H "Content-Type: application/json" \
   -d '{"position": 0.5}'
 
 # Control gripper base height
-curl -X POST http://localhost:5000/api/robot/picker/gripper_base \
+curl -X POST http://127.0.0.1:5000/api/robot/picker/gripper_base \
   -H "Content-Type: application/json" \
   -d '{"height": 0.3}'
 ```
@@ -454,22 +460,22 @@ curl -X POST http://localhost:5000/api/robot/picker/gripper_base \
 
 ```bash
 # Control left front container
-curl -X POST http://localhost:5000/api/robot/containers/left_front \
+curl -X POST http://127.0.0.1:5000/api/robot/containers/left_front \
   -H "Content-Type: application/json" \
   -d '{"action": "load"}'
 
 # Control left back container
-curl -X POST http://localhost:5000/api/robot/containers/left_back \
+curl -X POST http://127.0.0.1:5000/api/robot/containers/left_back \
   -H "Content-Type: application/json" \
   -d '{"action": "unload"}'
 
 # Control right front container
-curl -X POST http://localhost:5000/api/robot/containers/right_front \
+curl -X POST http://127.0.0.1:5000/api/robot/containers/right_front \
   -H "Content-Type: application/json" \
   -d '{"action": "load"}'
 
 # Control right back container
-curl -X POST http://localhost:5000/api/robot/containers/right_back \
+curl -X POST http://127.0.0.1:5000/api/robot/containers/right_back \
   -H "Content-Type: application/json" \
   -d '{"action": "unload"}'
 ```
@@ -478,17 +484,17 @@ curl -X POST http://localhost:5000/api/robot/containers/right_back \
 
 ```bash
 # Emergency stop
-curl -X POST http://localhost:5000/api/robot/hardware/emergency \
+curl -X POST http://127.0.0.1:5000/api/robot/hardware/emergency \
   -H "Content-Type: application/json" \
   -d '{"action": "stop"}'
 
 # Start/stop robot
-curl -X POST http://localhost:5000/api/robot/hardware/start_stop \
+curl -X POST http://127.0.0.1:5000/api/robot/hardware/start_stop \
   -H "Content-Type: application/json" \
   -d '{"action": "start"}'
 
 # Set robot mode
-curl -X POST http://localhost:5000/api/robot/hardware/mode \
+curl -X POST http://127.0.0.1:5000/api/robot/hardware/mode \
   -H "Content-Type: application/json" \
   -d '{"mode": "run"}'
 ```
@@ -497,7 +503,7 @@ curl -X POST http://localhost:5000/api/robot/hardware/mode \
 
 ```bash
 # Legacy servo control (for compatibility)
-curl -X POST http://localhost:5000/api/robot/servo \
+curl -X POST http://127.0.0.1:5000/api/robot/servo \
   -H "Content-Type: application/json" \
   -d '{"servo": 1, "angle": 90}'
 
@@ -509,7 +515,7 @@ curl -X POST http://localhost:5000/api/robot/servo \
 
 ```bash
 # Execute pick and place operation
-curl -X POST http://localhost:5000/api/robot/pick-place \
+curl -X POST http://127.0.0.1:5000/api/robot/pick-place \
   -H "Content-Type: application/json" \
   -d '{
     "pickup_location": {
@@ -523,7 +529,7 @@ curl -X POST http://localhost:5000/api/robot/pick-place \
   }'
 
 # Execute autonomous patrol
-curl -X POST http://localhost:5000/api/robot/patrol \
+curl -X POST http://127.0.0.1:5000/api/robot/patrol \
   -H "Content-Type: application/json" \
   -d '{
     "waypoints": [
@@ -536,7 +542,7 @@ curl -X POST http://localhost:5000/api/robot/patrol \
   }'
 
 # Execute obstacle avoidance navigation
-curl -X POST http://localhost:5000/api/robot/obstacle-avoidance \
+curl -X POST http://127.0.0.1:5000/api/robot/obstacle-avoidance \
   -H "Content-Type: application/json" \
   -d '{
     "target_location": {
@@ -551,17 +557,17 @@ curl -X POST http://localhost:5000/api/robot/obstacle-avoidance \
 
 ```bash
 # Emergency stop (immediate halt)
-curl -X POST http://localhost:5000/api/robot/emergency-stop \
+curl -X POST http://127.0.0.1:5000/api/robot/emergency-stop \
   -H "Content-Type: application/json" \
   -d '{"activate": true, "reason": "Safety emergency"}'
 
 # Activate emergency stop
-curl -X POST http://localhost:5000/api/robot/emergency-stop \
+curl -X POST http://127.0.0.1:5000/api/robot/emergency-stop \
   -H "Content-Type: application/json" \
   -d '{"activate": true, "reason": "Manual emergency stop", "force": true}'
 
 # Deactivate emergency stop
-curl -X POST http://localhost:5000/api/robot/emergency-stop \
+curl -X POST http://127.0.0.1:5000/api/robot/emergency-stop \
   -H "Content-Type: application/json" \
   -d '{"activate": false, "reason": "Emergency resolved"}'
 ```
@@ -570,17 +576,17 @@ curl -X POST http://localhost:5000/api/robot/emergency-stop \
 
 ```bash
 # Robot control webhook (for n8n workflows)
-curl -X POST http://localhost:5000/webhook/robot-control \
+curl -X POST http://127.0.0.1:5000/webhook/robot-control \
   -H "Content-Type: application/json" \
   -d '{"command": "forward"}'
 
 # Emergency stop webhook
-curl -X POST http://localhost:5000/webhook/emergency-stop \
+curl -X POST http://127.0.0.1:5000/webhook/emergency-stop \
   -H "Content-Type: application/json" \
   -d '{"activate": true, "reason": "Workflow emergency"}'
 
 # Pick and place webhook
-curl -X POST http://localhost:5000/webhook/robot/pick_place \
+curl -X POST http://127.0.0.1:5000/webhook/robot/pick_place \
   -H "Content-Type: application/json" \
   -d '{
     "pickup_location": {"position": {"x": 1.0, "y": 0.0, "z": 0.0}},
@@ -592,21 +598,30 @@ curl -X POST http://localhost:5000/webhook/robot/pick_place \
 
 ```bash
 # Get comprehensive robot status (includes safety systems and sensor data)
-curl http://localhost:5000/api/robot/status
+curl http://127.0.0.1:5000/api/robot/status
 
 # Get detailed sensor data
-curl http://localhost:5000/api/robot/sensors
+curl http://127.0.0.1:5000/api/robot/sensors
 
 # Get active tasks
-curl http://localhost:5000/api/robot/tasks
+curl http://127.0.0.1:5000/api/robot/tasks
 
 # Cancel a running task
-curl -X POST http://localhost:5000/api/robot/tasks/task_123/cancel \
+curl -X POST http://127.0.0.1:5000/api/robot/tasks/task_123/cancel \
   -H "Content-Type: application/json" \
   -d '{"reason": "User requested cancellation"}'
 
 # Get navigation status
-curl http://localhost:5000/api/robot/navigation/status
+curl http://127.0.0.1:5000/api/robot/navigation/status
+
+# Get IMU position (accessible all time as per specification)
+curl http://127.0.0.1:5000/api/robot/imu/position
+
+# Get robot log (accessible all time as per specification)
+curl http://127.0.0.1:5000/api/robot/log
+
+# Get last 3 commands (accessible all time as per specification)
+curl http://127.0.0.1:5000/api/robot/commands/last
 ```
 
 ## Development Guide
@@ -705,7 +720,7 @@ docker compose up -d
 # Verify deployment
 docker compose ps
 curl http://localhost:5678  # n8n interface
-curl http://localhost:5000  # robot API
+curl http://127.0.0.1:5000/health  # robot API
 
 # Import and manage n8n workflows
 ./workflow_management_tools.sh import-enhanced  # Import enhanced control workflows
@@ -786,12 +801,17 @@ Comprehensive documentation is available:
 - **[Raspberry Pi Setup](docs/deployment/raspberry_pi_setup.md)** - ARM64 deployment guide for production hardware
 - **[Deployment Guide](docs/deployment/)** - Production deployment procedures and containerization
 - **[Troubleshooting Guide](docs/troubleshooting/)** - Common issues, solutions, and debugging procedures
-
 - **[Workflows README](docs/README.md)** - Documentation overview and navigation guide
+
+#### **System Verification Reports**
+
+- **[API Verification Report](docs/api/API_VERIFICATION_REPORT.md)** - Complete API verification against hardware specifications
+- **[Workflow Cleanup Report](docs/workflow/WORKFLOW_CLEANUP_REPORT.md)** - Workflow management and corrections
+- **[Connection Fix Report](docs/workflow/CONNECTION_FIX_REPORT.md)** - IPv4/IPv6 connectivity resolution
 
 #### **n8n Workflow Automation**
 
-The system includes **33+ pre-configured n8n workflows** covering:
+The system includes **38 pre-configured n8n workflows** covering:
 
 **Combination Workflows:**
 
@@ -804,7 +824,7 @@ The system includes **33+ pre-configured n8n workflows** covering:
 
 - Control Omni Wheels (3-wheel system), Control Picker System (4 components)
 - Control Container System (4 containers), Hardware Controls, Sensor Monitoring
-- All workflows use HTTP API calls to `http://localhost:5000` for full ROS2 integration
+- All workflows use HTTP API calls to `http://127.0.0.1:5000` for full ROS2 integration
 
 #### **Control System Features**
 
