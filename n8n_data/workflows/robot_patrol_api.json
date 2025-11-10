@@ -24,33 +24,12 @@
     },
     {
       "parameters": {
-        "values": {
-          "string": [
-            {
-              "name": "waypoints",
-              "value": "={{ $json.body.waypoints || '[{\"position\": {\"x\": 2.0, \"y\": 0.0, \"z\": 0.0}}, {\"position\": {\"x\": 2.0, \"y\": 2.0, \"z\": 0.0}}, {\"position\": {\"x\": 0.0, \"y\": 2.0, \"z\": 0.0}}, {\"position\": {\"x\": 0.0, \"y\": 0.0, \"z\": 0.0}}]' }}"
-            },
-            {
-              "name": "patrol_speed",
-              "value": "={{ $json.body.patrol_speed || 0.5 }}"
-            },
-            {
-              "name": "patrol_cycles",
-              "value": "={{ $json.body.patrol_cycles || 1 }}"
-            }
-          ],
-          "boolean": [
-            {
-              "name": "return_to_start",
-              "value": "={{ $json.body.return_to_start }}"
-            }
-          ]
-        }
+        "jsCode": "// Set default patrol waypoints for a square pattern\nconst defaultWaypoints = [\n  {\"position\": {\"x\": 2.0, \"y\": 0.0, \"z\": 0.0}},\n  {\"position\": {\"x\": 2.0, \"y\": 2.0, \"z\": 0.0}},\n  {\"position\": {\"x\": 0.0, \"y\": 2.0, \"z\": 0.0}},\n  {\"position\": {\"x\": 0.0, \"y\": 0.0, \"z\": 0.0}}\n];\n\nreturn {\n  waypoints: defaultWaypoints,\n  patrol_speed: 0.5,\n  patrol_cycles: 1,\n  return_to_start: true\n};"
       },
       "id": "extract-patrol-params",
-      "name": "Extract Patrol Parameters",
-      "type": "n8n-nodes-base.set",
-      "typeVersion": 3.2,
+      "name": "Set Patrol Parameters",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
       "position": [460, 300]
     },
     {
@@ -61,7 +40,7 @@
           "bodyContentType": "json"
         },
         "sendBody": true,
-        "bodyParametersJson": "{\n  \"waypoints\": {{ $json.waypoints || '[{\"position\": {\"x\": 2.0, \"y\": 0.0, \"z\": 0.0}}, {\"position\": {\"x\": 2.0, \"y\": 2.0, \"z\": 0.0}}, {\"position\": {\"x\": 0.0, \"y\": 2.0, \"z\": 0.0}}, {\"position\": {\"x\": 0.0, \"y\": 0.0, \"z\": 0.0}}]' }},\n  \"patrol_speed\": {{ $json.patrol_speed || 0.5 }},\n  \"patrol_cycles\": {{ $json.patrol_cycles || 1 }},\n  \"return_to_start\": {{ $json.return_to_start || true }}\n}"
+        "bodyParametersJson": "={{ JSON.stringify($json) }}"
       },
       "id": "execute-patrol",
       "name": "Execute Patrol",
