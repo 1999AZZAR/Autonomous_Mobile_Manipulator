@@ -232,35 +232,50 @@ class RESTAPIServer(Node):
 
         @self.app.route('/api/robot/move', methods=['POST'])
         def move_robot():
-            """Move robot in specified direction"""
+            """Move robot with omni-wheel control (linear_x, linear_y, angular_z)"""
             try:
                 data = request.get_json()
-                direction = data.get('direction', '').lower()
-                speed = float(data.get('speed', 0.5))
 
-                if direction not in ['forward', 'backward', 'strafe_left', 'strafe_right']:
-                    return jsonify({
-                        'success': False,
-                        'error': 'Invalid direction. Must be forward, backward, strafe_left, or strafe_right'
-                    }), 400
+                # Support both old format (direction/speed) and new format (linear_x/linear_y/angular_z)
+                if 'direction' in data:
+                    # Legacy support for old workflows
+                    direction = data.get('direction', '').lower()
+                    speed = float(data.get('speed', 0.5))
 
-                twist = Twist()
-                if direction == 'forward':
-                    twist.linear.x = speed
-                elif direction == 'backward':
-                    twist.linear.x = -speed
-                elif direction == 'strafe_left':
-                    twist.linear.y = speed
-                elif direction == 'strafe_right':
-                    twist.linear.y = -speed
+                    if direction not in ['forward', 'backward', 'strafe_left', 'strafe_right']:
+                        return jsonify({
+                            'success': False,
+                            'error': 'Invalid direction. Must be forward, backward, strafe_left, or strafe_right'
+                        }), 400
+
+                    twist = Twist()
+                    if direction == 'forward':
+                        twist.linear.x = speed
+                    elif direction == 'backward':
+                        twist.linear.x = -speed
+                    elif direction == 'strafe_left':
+                        twist.linear.y = speed
+                    elif direction == 'strafe_right':
+                        twist.linear.y = -speed
+                else:
+                    # New omni-wheel format
+                    linear_x = float(data.get('linear_x', 0.0))
+                    linear_y = float(data.get('linear_y', 0.0))
+                    angular_z = float(data.get('angular_z', 0.0))
+
+                    twist = Twist()
+                    twist.linear.x = linear_x
+                    twist.linear.y = linear_y
+                    twist.angular.z = angular_z
 
                 self.cmd_vel_pub.publish(twist)
 
                 return jsonify({
                     'success': True,
-                    'message': f'Robot moving {direction} at speed {speed}',
-                    'direction': direction,
-                    'speed': speed
+                    'message': f'Robot movement command sent (x={twist.linear.x:.2f}, y={twist.linear.y:.2f}, rot={twist.angular.z:.2f})',
+                    'linear_x': twist.linear.x,
+                    'linear_y': twist.linear.y,
+                    'angular_z': twist.angular.z
                 })
 
             except Exception as e:
@@ -268,31 +283,57 @@ class RESTAPIServer(Node):
 
         @self.app.route('/api/robot/turn', methods=['POST'])
         def turn_robot():
-            """Turn robot left or right"""
+            """Turn robot with angular velocity control"""
             try:
                 data = request.get_json()
-                direction = data.get('direction', '').lower()
-                speed = float(data.get('speed', 0.5))
 
-                if direction not in ['left', 'right']:
+                # Support both old format (direction/speed) and new format (angular_z)
+                if 'direction' in data:
+                    # Legacy support for old workflows
+                    direction = data.get('direction', '').lower()
+                    speed = float(data.get('speed', 0.5))
+
+                    if direction not in ['left', 'right']:
+                        return jsonify({
+                            'success': False,
+                            'error': 'Invalid direction. Must be left or right'
+                        }), 400
+
+                    twist = Twist()
+                    if direction == 'left':
+                        twist.angular.z = speed
+                    elif direction == 'right':
+                        twist.angular.z = -speed
+
+                    message = f'Robot turning {direction} at speed {speed}'
+                    response_data = {'direction': direction, 'speed': speed}
+
+                elif 'angular_z' in data:
+                    # New format with angular_z
+                    angular_z = float(data.get('angular_z', 0.0))
+                    linear_x = float(data.get('linear_x', 0.0))
+                    linear_y = float(data.get('linear_y', 0.0))
+
+                    twist = Twist()
+                    twist.linear.x = linear_x
+                    twist.linear.y = linear_y
+                    twist.angular.z = angular_z
+
+                    message = f'Robot rotation command sent (rot={angular_z:.2f})'
+                    response_data = {'angular_z': angular_z, 'linear_x': linear_x, 'linear_y': linear_y}
+
+                else:
                     return jsonify({
                         'success': False,
-                        'error': 'Invalid direction. Must be left or right'
+                        'error': 'Missing parameters. Use either direction/speed or angular_z/linear_x/linear_y'
                     }), 400
-
-                twist = Twist()
-                if direction == 'left':
-                    twist.angular.z = speed
-                elif direction == 'right':
-                    twist.angular.z = -speed
 
                 self.cmd_vel_pub.publish(twist)
 
                 return jsonify({
                     'success': True,
-                    'message': f'Robot turning {direction} at speed {speed}',
-                    'direction': direction,
-                    'speed': speed
+                    'message': message,
+                    **response_data
                 })
 
             except Exception as e:

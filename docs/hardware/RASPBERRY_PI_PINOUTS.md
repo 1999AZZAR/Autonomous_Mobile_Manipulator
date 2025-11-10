@@ -51,79 +51,105 @@ Raspberry Pi 5 GPIO Header (40-pin)
 - **12V → 5V**: DC-DC converter (5A minimum) for motor drivers
 - **5V → 3.3V**: AMS1117-3.3 or similar for sensors
 
-## GPIO Pin Assignments
+## GPIO Pin Assignments (Hexagonal Robot Architecture)
 
-### **Motor Drivers (4x TB6600 or similar)**
+### **Motor Drivers (L298N or similar - 3x for Omni Wheels + 1x for Gripper)**
 
 ```bash
 # Omni Wheel Motors (3x)
-GPIO17 (11) - All Motors ENABLE
-GPIO18 (12) - Wheel 1 STEP
-GPIO22 (15) - Wheel 1 DIR
-GPIO19 (35) - Wheel 2 STEP
-GPIO24 (18) - Wheel 2 DIR
-GPIO21 (40) - Wheel 3 STEP
-GPIO26 (37) - Wheel 3 DIR
+GPIO17 (11) - Front Left Wheel DIR
+GPIO27 (13) - Front Left Wheel PWM
+GPIO22 (15) - Front Right Wheel DIR
+GPIO23 (16) - Front Right Wheel PWM
+GPIO24 (18) - Back Wheel DIR
+GPIO25 (22) - Back Wheel PWM
 
-# Lifter Motor (1x)
-GPIO25 (22) - Lifter ENABLE
-GPIO27 (13) - Lifter STEP
-GPIO23 (16) - Lifter DIR
+# Gripper Lifter Motor (1x DC Motor)
+GPIO12 (32) - Gripper Lifter DIR
+GPIO13 (33) - Gripper Lifter PWM
 ```
 
-### **Servo Motors (5x)**
+### **Servo Motors (3x for Gripper System)**
 
 ```bash
-# Picker System Servos
-GPIO14 (8)  - Gripper Servo (Open/Close)
-GPIO15 (10) - Gripper Tilt Servo
-GPIO18 (12) - Gripper Neck Servo (Continuous)
-GPIO19 (35) - Gripper Base Servo (Rotation)
-GPIO21 (40) - Container Actuators
+# Gripper System Servos
+GPIO18 (12) - Gripper Tilt Servo (PWM)
+GPIO19 (35) - Gripper Open/Close Servo (PWM)
+GPIO21 (40) - Gripper Extension Servo (360° continuous, PWM)
 ```
 
-### **Distance Sensors (3x Laser)**
+### **Laser Distance Sensors (6x VL53L0X - I2C Multiplexed)**
 
 ```bash
-# Front Distance Sensor
-GPIO12 (32) - Front Sensor Input
+# I2C Bus (Default Raspberry Pi I2C)
+GPIO2 (3)  - SDA (I2C Data)
+GPIO3 (5)  - SCL (I2C Clock)
 
-# Back Left Distance Sensor
-GPIO13 (33) - Back Left Sensor Input
-
-# Back Right Distance Sensor
-GPIO16 (36) - Back Right Sensor Input
+# TCA9548A I2C Multiplexer (addresses 6 sensors)
+# Sensor Channels:
+# TCA9548A CH0: Front Left Laser Sensor
+# TCA9548A CH1: Front Right Laser Sensor
+# TCA9548A CH2: Left Front Laser Sensor
+# TCA9548A CH3: Left Back Laser Sensor
+# TCA9548A CH4: Right Front Laser Sensor
+# TCA9548A CH5: Right Back Laser Sensor
+# TCA9548A CH6: Back Left Laser Sensor
+# TCA9548A CH7: Back Right Laser Sensor
 ```
 
-### **Line Sensor (Digital)**
+### **HC-SR04 Ultrasonic Sensors (2x Front)**
 
 ```bash
-GPIO20 (38) - Line Sensor Raw Data
+# Front Left Ultrasonic Sensor
+GPIO4 (7)   - Front Left TRIG
+GPIO14 (8)  - Front Left ECHO (with voltage divider)
+
+# Front Right Ultrasonic Sensor
+GPIO15 (10) - Front Right TRIG
+GPIO17 (11) - Front Right ECHO (with voltage divider)
 ```
 
-### **Container Load Sensors (4x)**
+### **Line Sensors (3x Individual IR Sensors)**
 
 ```bash
-GPIO4  (7)  - Left Front Container
-GPIO5  (29) - Left Back Container
-GPIO6  (31) - Right Front Container
-GPIO7  (26) - Right Back Container
+GPIO5 (29)  - Left Line Sensor (Digital Input)
+GPIO6 (31)  - Center Line Sensor (Digital Input)
+GPIO20 (38) - Right Line Sensor (Digital Input)
 ```
 
-### **IMU Sensor (MPU6050/BNO055)**
+### **Container Load Sensors (4x Limit Switches)**
 
 ```bash
-# I2C Interface (Bus 1)
+GPIO7 (26)  - Left Front Container (Limit Switch)
+GPIO8 (24)  - Left Back Container (Limit Switch)
+GPIO16 (36) - Right Front Container (Limit Switch)
+GPIO26 (37) - Right Back Container (Limit Switch)
+```
+
+### **IMU Sensor (MPU6050)**
+
+```bash
+# I2C Interface (Bus 1 - shared with laser sensors)
 GPIO2  (3)  - SDA (I2C Data)
 GPIO3  (5)  - SCL (I2C Clock)
+# Note: IMU uses separate I2C address (0x68) from laser sensors
+```
+
+### **Hardware Control Buttons**
+
+```bash
+GPIO0 (27)  - Emergency Stop Button
+GPIO1 (28)  - Start Button
+GPIO9 (21)  - Mode Select Button (Train/Run)
 ```
 
 ### **USB Interfaces**
 
 ```bash
 # USB Ports (Hardware)
-USB1 - RPLIDAR A1 (380° LiDAR)
-USB2 - Microsoft USB Camera
+USB1 - TF-Luna LIDAR (Serial/USB)
+USB2 - Microsoft USB Camera (for object recognition)
+USB3 - Optional: RPLIDAR backup (if needed)
 ```
 
 ## Hardware Connections
@@ -131,99 +157,150 @@ USB2 - Microsoft USB Camera
 ### **Motor Driver Connections (L298N or similar)**
 
 ```bash
-# Motor Driver 1 (Back Wheel)
-IN1: GPIO17 (11)
-IN2: GPIO27 (13) - Direction control
-ENA: GPIO27 (13) - PWM Speed (ENA pin)
+# Motor Driver 1 - Front Left Omni Wheel
+IN1: GPIO17 (11) - Direction (Forward)
+IN2: GPIO27 (13) - Direction (Reverse)
+ENA: GPIO27 (13) - PWM Speed Control
 
-# Motor Driver 2 (Front Left Wheel)
-IN3: GPIO24 (18)
-IN4: GPIO25 (22) - Direction control
-ENB: GPIO25 (22) - PWM Speed (ENB pin)
+# Motor Driver 2 - Front Right Omni Wheel
+IN3: GPIO22 (15) - Direction (Forward)
+IN4: GPIO23 (16) - Direction (Reverse)
+ENB: GPIO23 (16) - PWM Speed Control
 
-# Motor Driver 3 (Front Right Wheel)
-IN1: GPIO16 (36)
-IN2: GPIO26 (37) - Direction control
-ENA: GPIO26 (37) - PWM Speed (ENA pin)
+# Motor Driver 3 - Back Omni Wheel
+IN1: GPIO24 (18) - Direction (Forward)
+IN2: GPIO25 (22) - Direction (Reverse)
+ENA: GPIO25 (22) - PWM Speed Control
 
-# Lifter Motor Driver
-IN1: GPIO12 (32)
-IN2: GPIO13 (33) - Direction control
-ENA: GPIO13 (33) - PWM Speed (ENA pin)
+# Motor Driver 4 - Gripper Lifter (DC Motor)
+IN1: GPIO12 (32) - Direction (Up)
+IN2: GPIO13 (33) - Direction (Down)
+ENA: GPIO13 (33) - PWM Speed Control
 
 # Power Connections (12V)
 All motor drivers connect to 12V supply
 Logic pins connect to 5V from Raspberry Pi
+Ground pins connect to common GND
 ```
 
 ### **Sensor Connections**
 
-#### **Ultrasonic Sensors (HC-SR04)**
+#### **HC-SR04 Ultrasonic Sensors (2x Front)**
 
 ```bash
-# Power: 5V, GND
-# Front Sensor:
-TRIG: GPIO4 (7)  - Connect to Trig pin
-ECHO: GPIO14 (8) - Connect to Echo pin (with voltage divider)
+# Power: 5V, GND for both sensors
 
-# Back Left Sensor:
+# Front Left Ultrasonic Sensor:
+TRIG: GPIO4 (7)   - Connect to Trig pin
+ECHO: GPIO14 (8)  - Connect to Echo pin (with voltage divider)
+
+# Front Right Ultrasonic Sensor:
 TRIG: GPIO15 (10) - Connect to Trig pin
 ECHO: GPIO17 (11) - Connect to Echo pin (voltage divider)
 
-# Back Right Sensor:
-TRIG: GPIO18 (12) - Connect to Trig pin
-ECHO: GPIO27 (13) - Connect to Echo pin (voltage divider)
-
 # Voltage Divider for Echo Pins (5V → 3.3V)
-# 1kΩ resistor from Echo to GPIO
+# Required for both sensors:
+# 1kΩ resistor from Echo to GPIO pin
 # 2kΩ resistor from Echo to GND
 ```
 
-#### **IR Proximity Sensors (Sharp GP2Y0A21YK)**
+#### **Laser Distance Sensors (6x VL53L0X)**
 
 ```bash
-# Analog output connects to MCP3008 ADC
-# MCP3008 Connections:
-VDD:  3.3V
-VREF: 3.3V
-AGND: GND
-CLK:  GPIO11 (23)
-DOUT: GPIO9  (21)
-DIN:  GPIO10 (19)
-CS:   GPIO8  (24)
+# I2C Multiplexer Setup (TCA9548A)
+# TCA9548A I2C Address: 0x70 (default)
+SDA: GPIO2 (3)  - Connect to TCA9548A SDA
+SCL: GPIO3 (5)  - Connect to TCA9548A SCL
+GND: GND
+VCC: 3.3V
+A0-A2: GND (address 0x70)
 
-# Sensor Connections to MCP3008:
-CH0: Front IR Sensor
-CH1: Left IR Sensor
-CH2: Right IR Sensor
+# Individual VL53L0X Sensors (all at address 0x29)
+# Connect each sensor to TCA9548A channels:
+TCA_CH0: Front Left Laser Sensor
+TCA_CH1: Front Right Laser Sensor
+TCA_CH2: Left Front Laser Sensor
+TCA_CH3: Left Back Laser Sensor
+TCA_CH4: Right Front Laser Sensor
+TCA_CH5: Right Back Laser Sensor
+TCA_CH6: Back Left Laser Sensor
+TCA_CH7: Back Right Laser Sensor
+
+# Each VL53L0X: VCC=3.3V, GND, SDA, SCL (to multiplexer)
 ```
 
-#### **Line Sensor Array**
+#### **Individual Line Sensors (3x IR Sensors)**
 
 ```bash
-# 8-sensor line following array
-# Uses 74HC165 shift register for parallel-to-serial conversion
-
-# 74HC165 Connections:
-QH:  GPIO10 (19) - Serial output to Raspberry Pi
-CLK: GPIO9  (21) - Clock signal
-SH/LD: GPIO8 (24) - Shift/Load control
-CLK_INH: GPIO11 (23) - Clock inhibit
-
-# Sensor inputs (QH to A) connect to individual IR sensors
+# Simple digital IR line sensors (TCRT5000 or similar)
 # Each sensor: 3-pin (VCC, GND, OUT)
-# OUT: Digital signal (HIGH = line detected, LOW = no line)
+
+# Left Line Sensor:
+OUT: GPIO5 (29)  - Digital input (HIGH = line detected)
+
+# Center Line Sensor:
+OUT: GPIO6 (31)  - Digital input (HIGH = line detected)
+
+# Right Line Sensor:
+OUT: GPIO20 (38) - Digital input (HIGH = line detected)
+
+# All sensors: VCC=5V, GND=common GND
 ```
 
 #### **IMU Sensor (MPU6050)**
 
 ```bash
-# I2C Connection (default Raspberry Pi I2C bus)
+# I2C Connection (shared bus with laser sensors)
 SDA: GPIO2 (3)  - Connect to MPU6050 SDA
 SCL: GPIO3 (5)  - Connect to MPU6050 SCL
-VCC: 3.3V or 5V (check module specifications)
+VCC: 3.3V (recommended for stability)
 GND: GND
-INT: GPIO4 (7)  - Interrupt pin (optional)
+INT: GPIO9 (21) - Interrupt pin (optional, for motion detection)
+
+# Note: MPU6050 I2C address is 0x68 (different from VL53L0X sensors)
+```
+
+#### **Container Load Sensors (4x Limit Switches)**
+
+```bash
+# Limit switches for detecting objects in containers
+# Each switch: 3-pin (COM, NO, NC) or 2-pin (momentary contact)
+
+# Left Front Container:
+SIGNAL: GPIO7 (26)  - Connect to COM/NO terminal
+GND: Common GND
+
+# Left Back Container:
+SIGNAL: GPIO8 (24)  - Connect to COM/NO terminal
+GND: Common GND
+
+# Right Front Container:
+SIGNAL: GPIO16 (36) - Connect to COM/NO terminal
+GND: Common GND
+
+# Right Back Container:
+SIGNAL: GPIO26 (37) - Connect to COM/NO terminal
+GND: Common GND
+
+# All switches: VCC=5V, GND=common GND
+```
+
+#### **Hardware Control Buttons**
+
+```bash
+# Emergency stop (normally open, pulled up)
+EMERGENCY_STOP: GPIO0 (27) - Connect to button COM
+GND: Common GND
+
+# Start button (normally open, pulled up)
+START_BUTTON: GPIO1 (28) - Connect to button COM
+GND: Common GND
+
+# Mode select button (normally open, pulled up)
+MODE_BUTTON: GPIO9 (21) - Connect to button COM (shared with IMU INT)
+GND: Common GND
+
+# All buttons: Internal pull-up resistors enabled in software
 ```
 
 ## Software Configuration
@@ -331,30 +408,35 @@ Some pins are assigned to multiple functions. Prioritize based on hardware capab
 - **Software limits** for all actuators
 - **Watchdog timer** for system health monitoring
 
-## Hardware Shopping List
+## Hardware Shopping List (Hexagonal Robot Architecture)
 
 ### **Core Components**
 
-- Raspberry Pi 5
-- 5x MG996R Servo Motors
-- 3x DC Motors with Encoders (for omni wheels)
-- 1x DC Motor for Lifter
-- 3x L298N Motor Drivers
-- 3x HC-SR04 Ultrasonic Sensors
-- 3x Sharp GP2Y0A21YK IR Sensors
-- 8x IR Line Sensors
-- MPU6050 IMU Sensor
-- MCP3008 ADC Converter
-- 74HC165 Shift Register
-- Power Supply (12V, 5A)
+- **Raspberry Pi 5** with Ubuntu Server 24.04 LTS
+- **3x Omni Wheel Motors** (DC motors with encoders, 12V)
+- **1x DC Motor** for gripper lifter (12V)
+- **4x L298N Motor Drivers** (for 3 omni wheels + 1 lifter)
+- **3x Servo Motors** for gripper system (MG996R or similar)
+- **6x VL53L0X Laser Distance Sensors** (for wall alignment)
+- **2x HC-SR04 Ultrasonic Sensors** (for front obstacle detection)
+- **3x IR Line Sensors** (TCRT5000 or similar, individual sensors)
+- **MPU6050 IMU Sensor** (for orientation)
+- **TCA9548A I2C Multiplexer** (for laser sensors)
+- **4x Limit Switches** (for container detection)
+- **USB Camera** (Microsoft LifeCam or similar for object recognition)
+- **TF-Luna LIDAR** (single-point distance sensor, USB/serial)
+- **Power Supply** (12V DC, 5A minimum)
 
 ### **Supporting Components**
 
-- Jumper wires, breadboards
-- Voltage regulators (12V→5V, 5V→3.3V)
-- Resistors for voltage dividers
-- Capacitors for noise filtering
-- Heat sinks and cooling fans
+- Jumper wires and Dupont connectors
+- Breadboard or custom PCB for connections
+- **Voltage regulators**: 12V→5V (5A), 5V→3.3V (1A)
+- **Resistors**: 1kΩ and 2kΩ (for ultrasonic voltage dividers)
+- **Capacitors**: 10µF, 100nF (for motor driver noise filtering)
+- **Heat sinks** and cooling fans for motor drivers
+- **Terminal blocks** for power distribution
+- **Push buttons** (3x) for emergency stop, start, and mode selection
 
 ## Ready for Implementation
 
