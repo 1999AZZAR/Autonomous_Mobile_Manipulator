@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -74,7 +74,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -104,7 +104,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/emergency-stop",
+        "url": "http://100.74.72.71:5000/api/robot/emergency-stop",
         "method": "POST",
         "options": {}
       },
@@ -204,7 +204,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/move",
+        "url": "http://100.74.72.71:5000/api/robot/move",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -223,7 +223,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/turn",
+        "url": "http://100.74.72.71:5000/api/robot/turn",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -242,7 +242,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/turn",
+        "url": "http://100.74.72.71:5000/api/robot/turn",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -261,7 +261,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/stop",
+        "url": "http://100.74.72.71:5000/api/robot/stop",
         "method": "POST",
         "options": {}
       },
@@ -273,7 +273,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -337,7 +337,7 @@
     },
     {
       "parameters": {
-        "url": "http://127.0.0.1:5000/api/robot/status",
+        "url": "http://100.74.72.71:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
