@@ -12,7 +12,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
@@ -53,7 +53,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/picker/gripper",
+        "url": "http://127.0.0.1:5000/api/robot/picker/gripper",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -72,7 +72,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_tilt",
+        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_tilt",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -91,7 +91,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_neck",
+        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_neck",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -110,7 +110,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/picker/gripper_base",
+        "url": "http://127.0.0.1:5000/api/robot/picker/gripper_base",
         "method": "POST",
         "options": {
           "bodyContentType": "json",
@@ -129,7 +129,7 @@
     },
     {
       "parameters": {
-        "url": "http://100.74.72.71:5000/api/robot/status",
+        "url": "http://127.0.0.1:5000/api/robot/status",
         "method": "GET",
         "options": {}
       },
