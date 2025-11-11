@@ -1583,12 +1583,16 @@ USB3 - Reserved
     <script>
         // Configuration - Use current hostname for API calls
         // This allows access from any device on the network
-        const API_BASE = `http://${window.location.hostname}:5000`;
+        // Web interface (sensors, IMU) runs on port 8000
+        // ROS2 control server runs on port 5000
+        const WEB_API_BASE = `http://${window.location.hostname}:8000`;
+        const ROS2_API_BASE = `http://${window.location.hostname}:5000`;
         let currentSpeed = 0.5;
         let systemStatus = {};
         
-        // Log the API endpoint being used
-        console.log(`API Base URL: ${API_BASE}`);
+        // Log the API endpoints being used
+        console.log(`Web API Base URL: ${WEB_API_BASE}`);
+        console.log(`ROS2 API Base URL: ${ROS2_API_BASE}`);
 
         // Tab switching
         function showTab(tabName) {
@@ -1599,7 +1603,7 @@ USB3 - Reserved
             event.target.classList.add('active');
         }
 
-        // API call helper
+        // API call helper - defaults to ROS2 control server
         async function apiCall(endpoint, method = 'GET', data = null) {
             try {
                 const config = {
@@ -1613,7 +1617,7 @@ USB3 - Reserved
                     config.body = JSON.stringify(data);
                 }
 
-                const response = await fetch(`${API_BASE}${endpoint}`, config);
+                const response = await fetch(`${ROS2_API_BASE}${endpoint}`, config);
                 const result = await response.json();
 
                 addLog(`${method} ${endpoint}: ${result.message || result.success ? 'Success' : 'Failed'}`);
@@ -1736,7 +1740,7 @@ USB3 - Reserved
         // Status updates
         async function updateStatus() {
             try {
-                const response = await fetch(`${API_BASE}/api/robot/status`);
+                const response = await fetch(`${WEB_API_BASE}/api/robot/status`);
                 systemStatus = await response.json();
 
                 if (systemStatus.success) {
@@ -1752,7 +1756,7 @@ USB3 - Reserved
         // Sensor data updates
         async function updateSensorData() {
             try {
-                const response = await fetch(`${API_BASE}/api/robot/sensors`);
+                const response = await fetch(`${WEB_API_BASE}/api/robot/sensors`);
                 const sensorData = await response.json();
 
                 if (sensorData.success && sensorData.data) {
@@ -1803,7 +1807,7 @@ USB3 - Reserved
         // IMU data updates
         async function updateIMUData() {
             try {
-                const response = await fetch(`${API_BASE}/api/robot/imu/position`);
+                const response = await fetch(`${WEB_API_BASE}/api/robot/imu/position`);
                 const imuData = await response.json();
 
                 if (imuData.success && imuData.data) {
@@ -1840,7 +1844,7 @@ USB3 - Reserved
         // Last commands update
         async function updateLastCommands() {
             try {
-                const response = await fetch(`${API_BASE}/api/robot/commands/last`);
+                const response = await fetch(`${WEB_API_BASE}/api/robot/commands/last`);
                 const commandData = await response.json();
 
                 if (commandData.success && commandData.data && commandData.data.commands) {
@@ -1867,7 +1871,7 @@ USB3 - Reserved
         // Robot log update
         async function updateRobotLog() {
             try {
-                const response = await fetch(`${API_BASE}/api/robot/log`);
+                const response = await fetch(`${WEB_API_BASE}/api/robot/log`);
                 const logData = await response.json();
 
                 if (logData.success && logData.data && logData.data.logs) {
@@ -1898,7 +1902,7 @@ USB3 - Reserved
                 statusDiv.textContent = 'Calibrating IMU...';
                 statusDiv.style.color = '#f59e0b';
 
-                const response = await fetch(`${API_BASE}/api/robot/imu/calibrate`, {
+                const response = await fetch(`${WEB_API_BASE}/api/robot/imu/calibrate`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' }
                 });
@@ -2273,7 +2277,7 @@ USB3 - Reserved
 
             try {
                 document.getElementById('path-status').textContent = 'Executing...';
-                const response = await fetch(`${API_BASE}/api/robot/patrol`, {
+                const response = await fetch(`${ROS2_API_BASE}/api/robot/patrol`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(patrolData)
@@ -2303,7 +2307,7 @@ USB3 - Reserved
             const singleWaypoint = [{ position: { x, y, z } }];
 
             try {
-                const response = await fetch(`${API_BASE}/api/robot/patrol`, {
+                const response = await fetch(`${ROS2_API_BASE}/api/robot/patrol`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2329,7 +2333,7 @@ USB3 - Reserved
             const homeWaypoint = [{ position: { x: 0.0, y: 0.0, z: 0.0 } }];
 
             try {
-                const response = await fetch(`${API_BASE}/api/robot/patrol`, {
+                const response = await fetch(`${ROS2_API_BASE}/api/robot/patrol`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
