@@ -2523,57 +2523,82 @@ class GPIOController:
         # Initialize GPIO if not in simulation mode
         if not self.simulation_mode and GPIOZERO_AVAILABLE:
             try:
+                print("Attempting to initialize GPIO Controller...")
+
+                # Check if we're on a Raspberry Pi or have GPIO access
+                try:
+                    with open('/proc/cpuinfo', 'r') as f:
+                        cpuinfo = f.read()
+                        if 'Raspberry Pi' not in cpuinfo:
+                            print("WARNING: Not running on Raspberry Pi - GPIO may not work")
+                except:
+                    print("WARNING: Cannot check CPU info - GPIO may not work")
+
+                # Check pigpiod service
+                import subprocess
+                try:
+                    result = subprocess.run(['pgrep', 'pigpiod'], capture_output=True, text=True)
+                    if result.returncode != 0:
+                        print("WARNING: pigpiod daemon not running - GPIO may not work")
+                        print("Try: sudo systemctl start pigpiod")
+                except:
+                    print("WARNING: Cannot check pigpiod status")
+
                 # Use pigpio for better PWM control
+                print("Creating PiGPIOFactory...")
                 factory = PiGPIOFactory()
-                
+
                 # Initialize servo motors
+                print("Initializing servo motors...")
                 self.servos['gripper_tilt'] = AngularServo(
                     self.PINS['GRIPPER_TILT'],
                     min_angle=0,
                     max_angle=180,
                     pin_factory=factory
                 )
-                
+
                 self.servos['gripper_open_close'] = AngularServo(
                     self.PINS['GRIPPER_OPEN_CLOSE'],
                     min_angle=0,
                     max_angle=180,
                     pin_factory=factory
                 )
-                
+
                 # Continuous rotation servo for neck
                 self.servos['gripper_neck'] = Servo(
                     self.PINS['GRIPPER_NECK'],
                     pin_factory=factory
                 )
-                
+
                 self.servos['gripper_base'] = AngularServo(
                     self.PINS['GRIPPER_BASE'],
                     min_angle=0,
                     max_angle=180,
                     pin_factory=factory
                 )
-                
+
                 # Initialize omni wheel motors
+                print("Initializing omni wheel motors...")
                 self.motors['front_left'] = Motor(
                     forward=self.PINS['MOTOR_FL_DIR'],
                     backward=self.PINS['MOTOR_FL_PWM'],
                     pin_factory=factory
                 )
-                
+
                 self.motors['front_right'] = Motor(
                     forward=self.PINS['MOTOR_FR_DIR'],
                     backward=self.PINS['MOTOR_FR_PWM'],
                     pin_factory=factory
                 )
-                
+
                 self.motors['back'] = Motor(
                     forward=self.PINS['MOTOR_BACK_DIR'],
                     backward=self.PINS['MOTOR_BACK_PWM'],
                     pin_factory=factory
                 )
-                
+
                 # Initialize container servos
+                print("Initializing container servos...")
                 for container_id in ['left_front', 'left_back', 'right_front', 'right_back']:
                     pin_key = f"CONTAINER_{container_id.upper().replace('_', '')[:2]}"
                     self.containers[container_id] = AngularServo(
@@ -2582,16 +2607,25 @@ class GPIOController:
                         max_angle=180,
                         pin_factory=factory
                     )
-                
+
                 self.gpio_initialized = True
-                print("GPIO Controller initialized successfully")
-                
+                print("✓ GPIO Controller initialized successfully!")
+                print(f"  - Servos: {len(self.servos)} initialized")
+                print(f"  - Motors: {len(self.motors)} initialized")
+                print(f"  - Containers: {len(self.containers)} initialized")
+
             except Exception as e:
-                print(f"ERROR: Failed to initialize GPIO: {str(e)}")
+                print(f"✗ ERROR: Failed to initialize GPIO: {str(e)}")
+                print("Falling back to SIMULATION mode")
+                import traceback
+                traceback.print_exc()
                 self.simulation_mode = True
                 self.gpio_initialized = False
         else:
-            print("GPIO Controller running in SIMULATION mode")
+            if not GPIOZERO_AVAILABLE:
+                print("GPIO libraries not available - running in SIMULATION mode")
+            else:
+                print("GPIO Controller running in SIMULATION mode")
     
     def control_gripper(self, command):
         """Control gripper open/close"""
