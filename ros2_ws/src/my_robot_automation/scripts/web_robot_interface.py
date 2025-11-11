@@ -10,6 +10,7 @@ import math
 import os
 import json
 import requests
+import random
 from datetime import datetime
 
 # Try to import spidev, but allow graceful degradation
@@ -2881,11 +2882,84 @@ class WebRobotInterface(Node):
         self.gpio = GPIOController(simulation_mode=self.simulation_mode)
         self.get_logger().info(f'GPIO Controller initialized (simulation={self.simulation_mode})')
 
+        # Initialize sensors and peripherals
+        self.initialize_sensors()
+
         # Initialize Flask web interface
         self.initialize_flask_app()
 
         # Initialize ROS2 actuator services
         self.initialize_actuator_services()
+
+        # Initialize ROS2 actuator clients for Flask API calls
+        self.initialize_actuator_clients()
+
+    def initialize_sensors(self):
+        """Initialize sensors and peripherals"""
+        # Initialize SPI interface for ADC (MCP3008)
+        self.spi = None
+        self.spi_initialized = False
+
+        if not self.simulation_mode and SPIDEV_AVAILABLE:
+            try:
+                self.spi = spidev.SpiDev()
+                self.spi.open(0, 0)  # bus 0, device 0
+                self.spi.max_speed_hz = 1350000
+                self.spi.mode = 0
+                self.spi_initialized = True
+                self.get_logger().info('SPI interface initialized successfully')
+            except Exception as e:
+                self.get_logger().error(f'Failed to initialize SPI: {str(e)}')
+                self.spi_initialized = False
+        else:
+            if not SPIDEV_AVAILABLE:
+                self.get_logger().info('spidev module not available')
+            else:
+                self.get_logger().info('SPI will be simulated')
+
+        # Define sensor channels (ADC channels for distance sensors)
+        self.sensor_channels = {
+            'front_left': 0,
+            'front_center': 1,
+            'front_right': 2,
+            'back_left': 3,
+            'back_center': 4,
+            'back_right': 5,
+            'side_left': 6,
+            'side_right': 7
+        }
+
+        # Sensor health tracking
+        self.sensor_health = {name: {'status': 'unknown', 'last_read': None, 'error_count': 0}
+                             for name in self.sensor_channels.keys()}
+
+        # ADC reference voltage (typically 3.3V on Raspberry Pi)
+        self.adc_vref = 3.3
+        self.adc_resolution = 1024
+
+        # Simulation data (for testing without hardware)
+        self.sim_counter = 0
+
+        # Initialize MPU6050 IMU sensor
+        self.imu = None
+        self.imu_initialized = False
+
+        if not self.simulation_mode and MPU6050_AVAILABLE:
+            try:
+                self.imu = MPU6050Reader(address=0x68)
+                self.imu_initialized = self.imu.initialized
+                if self.imu_initialized:
+                    self.get_logger().info('MPU6050 IMU initialized successfully')
+                else:
+                    self.get_logger().warn('MPU6050 found but initialization failed')
+            except Exception as e:
+                self.get_logger().error(f'Failed to initialize MPU6050: {str(e)}')
+                self.imu_initialized = False
+        else:
+            if not MPU6050_AVAILABLE:
+                self.get_logger().info('MPU6050Reader module not available')
+            else:
+                self.get_logger().info('IMU data will be simulated')
 
     def initialize_flask_app(self):
         """Initialize Flask web application"""
@@ -2950,6 +3024,27 @@ class WebRobotInterface(Node):
         def control_container_endpoint(container_id):
             return self._control_container_endpoint(container_id)
 
+        # Additional routes for web interface compatibility
+        @self.app.route('/api/robot/status')
+        def get_robot_status():
+            return self._get_status()
+
+        @self.app.route('/api/robot/sensors')
+        def get_sensors():
+            return self._get_sensors()
+
+        @self.app.route('/api/robot/imu/position')
+        def get_imu_position():
+            return self._get_imu_position()
+
+        @self.app.route('/api/robot/commands/last')
+        def get_last_command():
+            return self._get_last_command()
+
+        @self.app.route('/api/robot/log')
+        def get_log():
+            return self._get_log()
+
         self.get_logger().info('Flask web interface initialized')
 
     def initialize_actuator_services(self):
@@ -2965,6 +3060,29 @@ class WebRobotInterface(Node):
             ControlContainer, 'actuator/control_container', self.ros2_control_container_callback)
 
         self.get_logger().info('ROS2 actuator services created')
+
+    def initialize_actuator_clients(self):
+        """Initialize ROS2 service clients for actuator control"""
+        # Create ROS2 service clients
+        self.control_gripper_client = self.create_client(
+            ControlGripper, 'actuator/control_gripper')
+        self.set_gripper_tilt_client = self.create_client(
+            SetGripperTilt, 'actuator/set_gripper_tilt')
+        self.move_robot_client = self.create_client(
+            MoveRobot, 'actuator/move_robot')
+        self.control_container_client = self.create_client(
+            ControlContainer, 'actuator/control_container')
+
+        # Wait for services to be available
+        self.get_logger().info('Waiting for ROS2 actuator services...')
+        try:
+            self.control_gripper_client.wait_for_service(timeout_sec=5.0)
+            self.set_gripper_tilt_client.wait_for_service(timeout_sec=5.0)
+            self.move_robot_client.wait_for_service(timeout_sec=5.0)
+            self.control_container_client.wait_for_service(timeout_sec=5.0)
+            self.get_logger().info('ROS2 actuator service clients initialized')
+        except Exception as e:
+            self.get_logger().error(f'Failed to initialize actuator clients: {str(e)}')
 
     def ros2_control_gripper_callback(self, request, response):
         """ROS2 service callback for gripper control"""
@@ -3790,7 +3908,371 @@ class WebRobotInterface(Node):
     def __del__(self):
         """Destructor to ensure cleanup"""
         self.cleanup()
-    
+
+    # Flask endpoint implementations
+    def _get_status(self):
+        """Get robot status"""
+        return jsonify({
+            'success': True,
+            'data': {
+                'mode': 'MANUAL',
+                'emergency_stop': False,
+                'battery_voltage': 24.0,
+                'system_status': 'operational',
+                'simulation_mode': self.simulation_mode,
+                'spi_initialized': self.spi_initialized if hasattr(self, 'spi_initialized') else False,
+                'imu_initialized': self.imu_initialized if hasattr(self, 'imu_initialized') else False,
+                'actuators_available': True
+            },
+            'timestamp': time.time()
+        })
+
+    def _get_sensors(self):
+        """Get sensor data"""
+        try:
+            sensor_data = self.read_all_sensors()
+            return jsonify({
+                'success': True,
+                'data': sensor_data,
+                'timestamp': time.time()
+            })
+        except Exception as e:
+            self.get_logger().error(f'Sensor read error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'timestamp': time.time()
+            }), 500
+
+    def _get_imu_position(self):
+        """Get IMU position data"""
+        try:
+            imu_data = self.read_imu_data()
+            if imu_data:
+                return jsonify({
+                    'success': True,
+                    'data': imu_data,
+                    'timestamp': time.time()
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'IMU data not available',
+                    'timestamp': time.time()
+                }), 503
+        except Exception as e:
+            self.get_logger().error(f'IMU read error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'timestamp': time.time()
+            }), 500
+
+    def _get_last_command(self):
+        """Get last executed command"""
+        return jsonify({
+            'success': True,
+            'data': {
+                'command': 'none',
+                'timestamp': time.time(),
+                'status': 'completed'
+            },
+            'timestamp': time.time()
+        })
+
+    def _get_log(self):
+        """Get system log"""
+        return jsonify({
+            'success': True,
+            'data': [],
+            'timestamp': time.time()
+        })
+
+    # Flask endpoint implementations for actuator control
+    def _control_gripper_endpoint(self):
+        """Handle gripper control POST request"""
+        try:
+            data = request.get_json()
+            command = data.get('command')
+
+            # Create service request
+            request_msg = ControlGripper.Request()
+            request_msg.command = command
+
+            # Call ROS2 service
+            future = self.control_gripper_client.call_async(request_msg)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+            if future.done():
+                response = future.result()
+                return jsonify({
+                    'success': response.success,
+                    'message': response.message,
+                    'status': response.status
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Service call timeout'
+                }), 504
+
+        except Exception as e:
+            self.get_logger().error(f'Gripper control error: {str(e)}')
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def _set_gripper_tilt_endpoint(self):
+        """Handle gripper tilt control POST request"""
+        try:
+            data = request.get_json()
+            angle = data.get('angle', 90)
+
+            # Create service request
+            request_msg = SetGripperTilt.Request()
+            request_msg.angle = float(angle)
+
+            # Call ROS2 service
+            future = self.set_gripper_tilt_client.call_async(request_msg)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+            if future.done():
+                response = future.result()
+                return jsonify({
+                    'success': response.success,
+                    'message': response.message,
+                    'current_angle': response.current_angle
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Service call timeout'
+                }), 504
+
+        except Exception as e:
+            self.get_logger().error(f'Gripper tilt error: {str(e)}')
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def _move_robot_endpoint(self):
+        """Handle robot movement POST request"""
+        try:
+            data = request.get_json()
+            direction = data.get('direction')
+            speed = data.get('speed', 0.5)
+            duration = data.get('duration', 0.0)
+
+            # Create service request
+            request_msg = MoveRobot.Request()
+            request_msg.direction = direction
+            request_msg.speed = float(speed)
+            request_msg.duration = float(duration)
+
+            # Call ROS2 service
+            future = self.move_robot_client.call_async(request_msg)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+            if future.done():
+                response = future.result()
+                return jsonify({
+                    'success': response.success,
+                    'message': response.message,
+                    'status': response.status
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Service call timeout'
+                }), 504
+
+        except Exception as e:
+            self.get_logger().error(f'Move robot error: {str(e)}')
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def _stop_robot_endpoint(self):
+        """Handle robot stop POST request"""
+        try:
+            # Create service request for stop
+            request_msg = MoveRobot.Request()
+            request_msg.direction = "stop"
+            request_msg.speed = 0.0
+            request_msg.duration = 0.0
+
+            # Call ROS2 service
+            future = self.move_robot_client.call_async(request_msg)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+            if future.done():
+                response = future.result()
+                return jsonify({
+                    'success': response.success,
+                    'message': response.message,
+                    'status': response.status
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Service call timeout'
+                }), 504
+
+        except Exception as e:
+            self.get_logger().error(f'Stop robot error: {str(e)}')
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def _set_gripper_neck_endpoint(self):
+        """Handle gripper neck control POST request"""
+        try:
+            data = request.get_json()
+            angle = data.get('angle', 90)
+
+            success = self.gpio.set_gripper_neck(angle)
+            return jsonify({'success': success, 'message': f'Gripper neck set to {angle}°'})
+        except Exception as e:
+            self.get_logger().error(f'Gripper neck error: {str(e)}')
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def _set_gripper_base_endpoint(self):
+        """Handle gripper base control POST request"""
+        try:
+            data = request.get_json()
+            angle = data.get('angle', 90)
+
+            success = self.gpio.set_gripper_base(angle)
+            return jsonify({'success': success, 'message': f'Gripper base set to {angle}°'})
+        except Exception as e:
+            self.get_logger().error(f'Gripper base error: {str(e)}')
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def _home_servos_endpoint(self):
+        """Handle servo homing POST request"""
+        try:
+            success = self.gpio.home_servos()
+            return jsonify({'success': success, 'message': 'Servos homed'})
+        except Exception as e:
+            self.get_logger().error(f'Home servos error: {str(e)}')
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def _control_container_endpoint(self, container_id):
+        """Handle container control POST request"""
+        try:
+            data = request.get_json()
+            action = data.get('action')
+
+            # Create service request
+            request_msg = ControlContainer.Request()
+            request_msg.container_id = int(container_id)
+            request_msg.action = action
+
+            # Call ROS2 service
+            future = self.control_container_client.call_async(request_msg)
+            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+            if future.done():
+                response = future.result()
+                return jsonify({
+                    'success': response.success,
+                    'message': response.message,
+                    'container_id': response.container_id,
+                    'status': response.status
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Service call timeout'
+                }), 504
+
+        except Exception as e:
+            self.get_logger().error(f'Container control error: {str(e)}')
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def read_all_sensors(self):
+        """Read all distance sensor values"""
+        if self.simulation_mode:
+            # Generate simulated sensor data
+            self.sim_counter += 0.1
+            sensor_data = {}
+            for name, channel in self.sensor_channels.items():
+                # Simulate distance readings (20-200cm)
+                base_distance = 50 + 30 * math.sin(self.sim_counter + channel)
+                noise = random.uniform(-5, 5)
+                sensor_data[name] = max(0, min(300, base_distance + noise))
+                self.sensor_health[name]['status'] = 'ok'
+                self.sensor_health[name]['last_read'] = time.time()
+            return sensor_data
+
+        if not self.spi_initialized:
+            return {}
+
+        sensor_data = {}
+        for name, channel in self.sensor_channels.items():
+            try:
+                # Read ADC value
+                adc_value = self.read_adc(channel)
+                if adc_value is not None:
+                    # Convert ADC value to distance (simplified conversion)
+                    # This would need calibration for actual sensor
+                    voltage = (adc_value / self.adc_resolution) * self.adc_vref
+                    # Assuming IR sensor with roughly linear response
+                    distance = 100 / (voltage + 0.1)  # Simplified formula
+                    sensor_data[name] = round(distance, 1)
+                    self.sensor_health[name]['status'] = 'ok'
+                    self.sensor_health[name]['last_read'] = time.time()
+                    self.sensor_health[name]['error_count'] = 0
+                else:
+                    sensor_data[name] = None
+                    self.sensor_health[name]['status'] = 'error'
+                    self.sensor_health[name]['error_count'] += 1
+            except Exception as e:
+                self.get_logger().error(f'Error reading sensor {name}: {str(e)}')
+                sensor_data[name] = None
+                self.sensor_health[name]['status'] = 'error'
+                self.sensor_health[name]['error_count'] += 1
+
+        return sensor_data
+
+    def read_adc(self, channel):
+        """Read ADC value from MCP3008"""
+        if not self.spi_initialized:
+            return None
+
+        try:
+            # MCP3008 protocol
+            cmd = 128 | (channel << 4)  # Start bit + channel
+            cmd = [1, cmd, 0]  # 3 bytes to send
+            reply = self.spi.xfer2(cmd)
+
+            # Parse response
+            adc_value = ((reply[1] & 3) << 8) + reply[2]
+            return adc_value
+        except Exception as e:
+            self.get_logger().error(f'ADC read error: {str(e)}')
+            return None
+
+    def read_imu_data(self):
+        """Read IMU sensor data"""
+        if self.simulation_mode:
+            # Generate simulated IMU data
+            self.sim_counter += 0.1
+            return {
+                'accelerometer': {
+                    'x': math.sin(self.sim_counter) * 2,
+                    'y': math.cos(self.sim_counter) * 2,
+                    'z': 9.81 + math.sin(self.sim_counter * 0.5) * 0.2
+                },
+                'gyroscope': {
+                    'x': math.sin(self.sim_counter * 2) * 50,
+                    'y': math.cos(self.sim_counter * 2) * 50,
+                    'z': math.sin(self.sim_counter * 3) * 20
+                },
+                'temperature': 25.0 + math.sin(self.sim_counter * 0.1) * 5.0
+            }
+
+        if not self.imu_initialized or self.imu is None:
+            return None
+
+        try:
+            return self.imu.get_all_data()
+        except Exception as e:
+            self.get_logger().error(f'IMU read error: {str(e)}')
+            return None
+
     def run_web_interface(self):
         """Run the web interface - Flask app must be created first"""
         if not hasattr(self, 'app'):

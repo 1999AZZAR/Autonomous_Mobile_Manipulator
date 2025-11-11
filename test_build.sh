@@ -7,8 +7,7 @@ source /opt/ros/jazzy/setup.bash
 echo "Step 2: Change to workspace"
 cd /root/ros2_ws
 
-echo "Step 3: Build ROS2 packages"
-colcon build --packages-select my_robot_automation --cmake-args -DCMAKE_BUILD_TYPE=Release
+echo "Step 3: Skip ROS2 build (using host-built packages)"
 
 echo "Step 4: Source install"
 source install/setup.bash
