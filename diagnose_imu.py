@@ -252,8 +252,8 @@ def check_web_interface_logs():
     print("  1. Stop current web interface (Ctrl+C)")
     print("  2. Start it again and watch for 'MPU6050 initialized successfully'")
     print("  3. If you see 'Running in SIMULATION mode', the IMU isn't initializing")
-    print("\nCommand to start web interface:")
-    print("  cd /home/azzar/project/robotic/lks_robot_project/ros2_ws")
+    print("\nCommand to start web interface (from project root):")
+    print("  cd ros2_ws")
     print("  python3 src/my_robot_automation/scripts/web_robot_interface.py")
 
 def main():
@@ -261,6 +261,20 @@ def main():
     print("\n" + "╔" + "=" * 68 + "╗")
     print("║" + " " * 20 + "IMU DIAGNOSTIC TOOL" + " " * 29 + "║")
     print("╚" + "=" * 68 + "╝")
+    
+    # Show current directory
+    current_dir = os.getcwd()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    print(f"\nCurrent directory: {current_dir}")
+    print(f"Script location: {script_dir}")
+    
+    if current_dir != script_dir:
+        print("\n⚠ WARNING: You are not in the project root directory!")
+        print(f"⚠ Please run this from: {script_dir}")
+        print("\nTo fix:")
+        print(f"  cd {script_dir}")
+        print("  python3 diagnose_imu.py")
+        print("\nContinuing anyway...\n")
     
     results = {}
     
@@ -317,12 +331,12 @@ def main():
         print("\n4. Web interface needs restart:")
         print("   The sensor works but web interface shows wrong data.")
         print("   Stop the web interface and start it again:")
-        print("   cd /home/azzar/project/robotic/lks_robot_project/ros2_ws")
+        print("   cd ros2_ws  # from project root")
         print("   python3 src/my_robot_automation/scripts/web_robot_interface.py")
     
     if not results['web_interface']:
         print("\n5. Start web interface:")
-        print("   cd /home/azzar/project/robotic/lks_robot_project/ros2_ws")
+        print("   cd ros2_ws  # from project root")
         print("   python3 src/my_robot_automation/scripts/web_robot_interface.py")
     
     print("\n" + "=" * 70 + "\n")

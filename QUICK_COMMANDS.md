@@ -9,15 +9,30 @@ python3 diagnose_imu.py
 
 This will tell you exactly what's wrong and how to fix it.
 
-## Start Web Interface (Correct Way)
+## Start Web Interface
 
+### Hardware Mode (Real Sensors)
 ```bash
-# From the project root
-cd ros2_ws
-python3 src/my_robot_automation/scripts/web_robot_interface.py
+./start_hardware.sh
 ```
 
-**Watch for:** "MPU6050 IMU initialized successfully"
+### Simulation Mode (No Hardware)
+```bash
+./start_simulation.sh
+```
+
+### Manual Control
+```bash
+cd ros2_ws
+python3 src/my_robot_automation/scripts/web_robot_interface.py --hardware     # Force hardware
+python3 src/my_robot_automation/scripts/web_robot_interface.py --simulation  # Force simulation
+python3 src/my_robot_automation/scripts/web_robot_interface.py               # Auto-detect
+```
+
+**Watch for:**
+- "Starting in HARDWARE mode" - Using real sensors
+- "Starting in SIMULATION mode" - Using simulated data  
+- "MPU6050 IMU initialized successfully" - IMU working
 
 ## Test IMU
 

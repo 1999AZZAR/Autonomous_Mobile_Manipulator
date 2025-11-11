@@ -3149,10 +3149,38 @@ class WebRobotInterface(Node):
         server_thread.start()
 
 def main(args=None):
-    rclpy.init(args=args)
+    import argparse
+    import sys
+    
+    # Parse command-line arguments for simulation mode
+    parser = argparse.ArgumentParser(description='Web Robot Interface Server')
+    parser.add_argument('--simulation', action='store_true',
+                       help='Force simulation mode (no hardware access)')
+    parser.add_argument('--hardware', action='store_true',
+                       help='Force hardware mode (require real sensors)')
+    parser.add_argument('--auto', action='store_true',
+                       help='Auto-detect mode (default: use hardware if available)')
+    
+    # Parse only known args to avoid conflicts with ROS2 args
+    parsed_args, remaining = parser.parse_known_args()
+    
+    # Determine simulation mode
+    simulation_mode = None  # Auto-detect by default
+    
+    if parsed_args.simulation:
+        simulation_mode = True
+        print("Starting in SIMULATION mode (forced)")
+    elif parsed_args.hardware:
+        simulation_mode = False
+        print("Starting in HARDWARE mode (forced)")
+    else:
+        print("Starting in AUTO-DETECT mode")
+    
+    # Initialize ROS2 with remaining arguments
+    rclpy.init(args=remaining)
 
     try:
-        web_interface = WebRobotInterface()
+        web_interface = WebRobotInterface(simulation_mode=simulation_mode)
         web_interface.run_web_interface()
 
         # Keep the node alive

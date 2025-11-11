@@ -126,9 +126,11 @@ start_containers() {
     if [ "$mode" = "dev" ]; then
         print_info "Mode: Development (with sensor simulation)"
         COMPOSE_FILE="docker-compose.dev.yml"
+        export ROBOT_MODE="simulation"
     else
-        print_info "Mode: Production (with real hardware/Gazebo)"
+        print_info "Mode: Production (with real hardware)"
         COMPOSE_FILE="docker-compose.yml"
+        export ROBOT_MODE="hardware"
     fi
     
     # Check if container is already running

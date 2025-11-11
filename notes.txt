@@ -76,3 +76,21 @@ recent updates (2025-11-11):
   - IMU sensor (MPU6050) verified working via direct test
   - Web interface now properly displays orientation, angular velocity, and acceleration data
 
+- Made all scripts and documentation portable (no hardcoded paths)
+  - Scripts use dynamic path resolution
+  - Works on any machine/user/directory
+  - Added README_SETUP.md explaining project root concept
+  - Updated all documentation to use relative paths
+  - Added path validation with helpful error messages
+  - Created PORTABLE_PATHS_UPDATE.md documenting changes
+
+- Added explicit hardware/simulation mode control
+  - Web interface now accepts --hardware, --simulation, --auto flags
+  - Created start_hardware.sh for real robot operation
+  - Created start_simulation.sh for testing without hardware
+  - Updated run.sh to set ROBOT_MODE environment variable
+  - Added MODE_SELECTION.md comprehensive mode guide
+  - Prevents web interface from getting stuck in simulation mode
+  - Hardware mode requires I2C permissions and real sensors
+  - Simulation mode works anywhere without hardware
+

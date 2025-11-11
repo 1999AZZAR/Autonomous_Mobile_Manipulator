@@ -23,19 +23,50 @@ Follow the recommendations it provides.
 
 ### Step 2: Start Web Interface
 
-**IMPORTANT:** Do NOT run the web interface directly with `python3`!
+You have THREE ways to start the web interface:
 
-The web interface needs to be started from the ros2_ws directory:
+#### Option A: Hardware Mode (Recommended for Real Robot)
+
+```bash
+# From the project root
+./start_hardware.sh
+```
+
+This forces HARDWARE mode and requires:
+- MPU6050 IMU connected
+- I2C permissions
+- Real sensor hardware
+
+#### Option B: Simulation Mode (For Testing)
+
+```bash
+# From the project root
+./start_simulation.sh
+```
+
+This forces SIMULATION mode:
+- No hardware required
+- All sensors simulated
+- Good for development/testing
+
+#### Option C: Manual Start (Advanced)
 
 ```bash
 # From the project root
 cd ros2_ws
-python3 src/my_robot_automation/scripts/web_robot_interface.py
+python3 src/my_robot_automation/scripts/web_robot_interface.py --hardware  # Force hardware
+# OR
+python3 src/my_robot_automation/scripts/web_robot_interface.py --simulation  # Force simulation
+# OR
+python3 src/my_robot_automation/scripts/web_robot_interface.py  # Auto-detect
 ```
 
-Watch for these messages:
+**Watch for startup messages:**
+- ✓ `Starting in HARDWARE mode (forced)` - Using real sensors
+- ✓ `Starting in SIMULATION mode (forced)` - Using simulated data
+- ✓ `Starting in AUTO-DETECT mode` - Will detect hardware automatically
 - ✓ `MPU6050 IMU initialized successfully` - IMU is working
-- ✗ `Running in SIMULATION mode` - IMU not working, check wiring/permissions
+- ✗ `Running in SIMULATION mode` - Fell back to simulation
 
 ### Step 3: Verify Web Interface
 
