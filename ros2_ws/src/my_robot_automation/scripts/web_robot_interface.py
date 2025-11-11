@@ -2881,7 +2881,76 @@ class WebRobotInterface(Node):
         self.gpio = GPIOController(simulation_mode=self.simulation_mode)
         self.get_logger().info(f'GPIO Controller initialized (simulation={self.simulation_mode})')
 
-        # ROS2 actuator services will be initialized after Flask app creation
+        # Initialize Flask web interface
+        self.initialize_flask_app()
+
+        # Initialize ROS2 actuator services
+        self.initialize_actuator_services()
+
+    def initialize_flask_app(self):
+        """Initialize Flask web application"""
+        # Flask app for the professional web interface
+        self.app = Flask(__name__)
+        # Enable CORS for all routes
+        CORS(self.app, resources={
+            r"/api/*": {
+                "origins": ["*"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization"],
+                "supports_credentials": False
+            }
+        })
+
+        # Setup routes
+        @self.app.route('/')
+        def index():
+            return render_template_string(HTML_TEMPLATE)
+
+        @self.app.route('/health')
+        def health():
+            return jsonify({
+                'status': 'healthy',
+                'timestamp': datetime.now().isoformat(),
+                'simulation': self.simulation_mode
+            })
+
+        @self.app.route('/api/status')
+        def get_status():
+            return self._get_status()
+
+        @self.app.route('/api/robot/move', methods=['POST'])
+        def move_robot_endpoint():
+            return self._move_robot_endpoint()
+
+        @self.app.route('/api/robot/stop', methods=['POST'])
+        def stop_robot_endpoint():
+            return self._stop_robot_endpoint()
+
+        @self.app.route('/api/robot/picker/gripper', methods=['POST'])
+        def control_gripper_endpoint():
+            return self._control_gripper_endpoint()
+
+        @self.app.route('/api/robot/picker/gripper_tilt', methods=['POST'])
+        def set_gripper_tilt_endpoint():
+            return self._set_gripper_tilt_endpoint()
+
+        @self.app.route('/api/robot/picker/gripper_neck', methods=['POST'])
+        def set_gripper_neck_endpoint():
+            return self._set_gripper_neck_endpoint()
+
+        @self.app.route('/api/robot/picker/gripper_base', methods=['POST'])
+        def set_gripper_base_endpoint():
+            return self._set_gripper_base_endpoint()
+
+        @self.app.route('/api/robot/picker/home_servos', methods=['POST'])
+        def home_servos_endpoint():
+            return self._home_servos_endpoint()
+
+        @self.app.route('/api/robot/containers/<container_id>', methods=['POST'])
+        def control_container_endpoint(container_id):
+            return self._control_container_endpoint(container_id)
+
+        self.get_logger().info('Flask web interface initialized')
 
     def initialize_actuator_services(self):
         """Initialize ROS2 services for actuator control"""
@@ -2990,24 +3059,7 @@ class WebRobotInterface(Node):
             else:
                 self.get_logger().info('IMU data will be simulated')
 
-        # Flask app for the professional web interface
-        self.app = Flask(__name__)
-        # Enable CORS for all routes
-        CORS(self.app, resources={
-            r"/api/*": {
-                "origins": ["*"],
-                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-                "allow_headers": ["Content-Type", "Authorization"],
-                "supports_credentials": False
-            }
-        })
-
-        # Initialize ROS2 actuator services now that Flask app exists
-        # Wait a moment for GPIO to be initialized
-        import time
-        time.sleep(1)
-        self.initialize_actuator_services()
-        self.get_logger().info('ROS2 actuator services initialized')
+        # Flask app and ROS2 services are now initialized in separate methods above
 
         # Setup routes
         @self.app.route('/')
