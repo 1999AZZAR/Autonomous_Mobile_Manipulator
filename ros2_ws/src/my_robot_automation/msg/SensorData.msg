@@ -1,7 +1,7 @@
 # Sensor data message
 std_msgs/Header header
 
-# Laser Distance sensors (6x - wall alignment)
+# IR Distance sensors (6x Sharp GP2Y0A02YK0F - wall alignment)
 float32 distance_left_front
 float32 distance_left_back
 float32 distance_right_front

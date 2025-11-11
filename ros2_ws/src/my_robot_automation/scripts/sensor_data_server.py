@@ -27,7 +27,7 @@ class SensorDataServer(Node):
             GetSensorData, 'get_sensor_data', self.get_sensor_data_callback
         )
 
-        # Subscribers for sensor topics (6x laser distance sensors)
+        # Subscribers for sensor topics (6x IR distance sensors - Sharp GP2Y0A02YK0F)
         self.distance_left_front_sub = self.create_subscription(
             Range, '/distance/left_front', self.distance_left_front_callback, 10
         )
@@ -106,7 +106,7 @@ class SensorDataServer(Node):
         self.sensor_data.header.stamp = now
         self.sensor_data.header.frame_id = 'base_link'
 
-        # Laser distance sensors (default to max range)
+        # IR distance sensors - Sharp GP2Y0A02YK0F (default to max range)
         self.sensor_data.distance_left_front = 10.0
         self.sensor_data.distance_left_back = 10.0
         self.sensor_data.distance_right_front = 10.0
@@ -161,32 +161,32 @@ class SensorDataServer(Node):
         self.sensor_data.tf_luna_healthy = True
 
     def distance_left_front_callback(self, msg):
-        """Callback for left front laser distance sensor"""
+        """Callback for left front IR distance sensor (Sharp GP2Y0A02YK0F)"""
         self.last_distance_left_front = msg.range
         self.sensor_data.distance_left_front = msg.range
 
     def distance_left_back_callback(self, msg):
-        """Callback for left back laser distance sensor"""
+        """Callback for left back IR distance sensor (Sharp GP2Y0A02YK0F)"""
         self.last_distance_left_back = msg.range
         self.sensor_data.distance_left_back = msg.range
 
     def distance_right_front_callback(self, msg):
-        """Callback for right front laser distance sensor"""
+        """Callback for right front IR distance sensor (Sharp GP2Y0A02YK0F)"""
         self.last_distance_right_front = msg.range
         self.sensor_data.distance_right_front = msg.range
 
     def distance_right_back_callback(self, msg):
-        """Callback for right back laser distance sensor"""
+        """Callback for right back IR distance sensor (Sharp GP2Y0A02YK0F)"""
         self.last_distance_right_back = msg.range
         self.sensor_data.distance_right_back = msg.range
 
     def distance_back_left_callback(self, msg):
-        """Callback for back left laser distance sensor"""
+        """Callback for back left IR distance sensor (Sharp GP2Y0A02YK0F)"""
         self.last_distance_back_left = msg.range
         self.sensor_data.distance_back_left = msg.range
 
     def distance_back_right_callback(self, msg):
-        """Callback for back right laser distance sensor"""
+        """Callback for back right IR distance sensor (Sharp GP2Y0A02YK0F)"""
         self.last_distance_back_right = msg.range
         self.sensor_data.distance_back_right = msg.range
 

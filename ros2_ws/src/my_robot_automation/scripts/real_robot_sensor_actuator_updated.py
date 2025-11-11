@@ -14,7 +14,7 @@ class RealRobotSensorActuator(Node):
         
         # Publishers for REAL sensor data based on notes.txt hardware configuration
         
-        # 1. Laser Distance sensors (6x - wall alignment) - 2 per side
+        # 1. IR Distance sensors (6x Sharp GP2Y0A02YK0F - wall alignment) - 2 per side
         self.distance_left_front_pub = self.create_publisher(Range, '/distance/left_front', 10)
         self.distance_left_back_pub = self.create_publisher(Range, '/distance/left_back', 10)
         self.distance_right_front_pub = self.create_publisher(Range, '/distance/right_front', 10)
@@ -124,7 +124,7 @@ class RealRobotSensorActuator(Node):
         self.robot_mode = "run"  # "train" or "run"
         
         self.get_logger().info('Real Robot Sensor/Actuator Node started - Updated for notes.txt configuration')
-        self.get_logger().info('SENSORS: Laser Distance (6x), HC-SR04 Ultrasonic (2x), Line Sensors (3x), TF-Luna, MPU6050 IMU, Gripper Camera')
+        self.get_logger().info('SENSORS: IR Distance Sharp GP2Y0A02YK0F (6x), HC-SR04 Ultrasonic (2x), Line Sensors (3x), TF-Luna, MPU6050 IMU, Gripper Camera')
         self.get_logger().info('ACTUATORS: 3x Omni Wheels (lf,rf,b), Gripper System (motor+servos), 4x Containers')
         self.get_logger().info('CONTROLS: Emergency, Start/Stop, Mode (Train/Run)')
     
@@ -239,11 +239,11 @@ class RealRobotSensorActuator(Node):
         self.get_logger().info(f'Robot mode set to: {self.robot_mode}')
     
     def publish_laser_distance_sensors(self):
-        """Publish laser distance sensor data (6x - wall alignment)"""
-        # Left front laser sensor
+        """Publish IR distance sensor data (6x Sharp GP2Y0A02YK0F - wall alignment)"""
+        # Left front IR sensor (Sharp GP2Y0A02YK0F)
         left_front_range = Range()
         left_front_range.header.stamp = self.get_clock().now().to_msg()
-        left_front_range.header.frame_id = 'laser_left_front_link'
+        left_front_range.header.frame_id = 'ir_sensor_left_front_link'
         left_front_range.radiation_type = Range.INFRARED
         left_front_range.field_of_view = 0.087  # ~5 degrees
         left_front_range.min_range = 0.02
@@ -251,10 +251,10 @@ class RealRobotSensorActuator(Node):
         left_front_range.range = 1.8 + 0.3 * math.sin(time.time() * 0.8)
         self.distance_left_front_pub.publish(left_front_range)
 
-        # Left back laser sensor
+        # Left back IR sensor (Sharp GP2Y0A02YK0F)
         left_back_range = Range()
         left_back_range.header.stamp = self.get_clock().now().to_msg()
-        left_back_range.header.frame_id = 'laser_left_back_link'
+        left_back_range.header.frame_id = 'ir_sensor_left_back_link'
         left_back_range.radiation_type = Range.INFRARED
         left_back_range.field_of_view = 0.087
         left_back_range.min_range = 0.02
@@ -262,10 +262,10 @@ class RealRobotSensorActuator(Node):
         left_back_range.range = 1.5  # Closer to wall
         self.distance_left_back_pub.publish(left_back_range)
 
-        # Right front laser sensor
+        # Right front IR sensor (Sharp GP2Y0A02YK0F)
         right_front_range = Range()
         right_front_range.header.stamp = self.get_clock().now().to_msg()
-        right_front_range.header.frame_id = 'laser_right_front_link'
+        right_front_range.header.frame_id = 'ir_sensor_right_front_link'
         right_front_range.radiation_type = Range.INFRARED
         right_front_range.field_of_view = 0.087
         right_front_range.min_range = 0.02
@@ -273,10 +273,10 @@ class RealRobotSensorActuator(Node):
         right_front_range.range = 2.2 + 0.4 * math.sin(time.time() * 0.6)
         self.distance_right_front_pub.publish(right_front_range)
 
-        # Right back laser sensor
+        # Right back IR sensor (Sharp GP2Y0A02YK0F)
         right_back_range = Range()
         right_back_range.header.stamp = self.get_clock().now().to_msg()
-        right_back_range.header.frame_id = 'laser_right_back_link'
+        right_back_range.header.frame_id = 'ir_sensor_right_back_link'
         right_back_range.radiation_type = Range.INFRARED
         right_back_range.field_of_view = 0.087
         right_back_range.min_range = 0.02
@@ -284,10 +284,10 @@ class RealRobotSensorActuator(Node):
         right_back_range.range = 1.9  # Closer to wall
         self.distance_right_back_pub.publish(right_back_range)
 
-        # Back left laser sensor
+        # Back left IR sensor (Sharp GP2Y0A02YK0F)
         back_left_range = Range()
         back_left_range.header.stamp = self.get_clock().now().to_msg()
-        back_left_range.header.frame_id = 'laser_back_left_link'
+        back_left_range.header.frame_id = 'ir_sensor_back_left_link'
         back_left_range.radiation_type = Range.INFRARED
         back_left_range.field_of_view = 0.087
         back_left_range.min_range = 0.02
@@ -295,10 +295,10 @@ class RealRobotSensorActuator(Node):
         back_left_range.range = 3.5  # Back wall
         self.distance_back_left_pub.publish(back_left_range)
 
-        # Back right laser sensor
+        # Back right IR sensor (Sharp GP2Y0A02YK0F)
         back_right_range = Range()
         back_right_range.header.stamp = self.get_clock().now().to_msg()
-        back_right_range.header.frame_id = 'laser_back_right_link'
+        back_right_range.header.frame_id = 'ir_sensor_back_right_link'
         back_right_range.radiation_type = Range.INFRARED
         back_right_range.field_of_view = 0.087
         back_right_range.min_range = 0.02

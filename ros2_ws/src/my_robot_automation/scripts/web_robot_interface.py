@@ -1749,7 +1749,7 @@ USB3 - Reserved
                 if (sensorData.success && sensorData.data) {
                     const data = sensorData.data;
 
-                    // Laser distance sensors
+                    // IR distance sensors (Sharp GP2Y0A02YK0F)
                     if (data.laser_sensors) {
                         document.getElementById('laser-left-front').textContent = (data.laser_sensors.left_front || '--') + ' mm';
                         document.getElementById('laser-left-back').textContent = (data.laser_sensors.left_back || '--') + ' mm';
