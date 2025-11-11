@@ -29,13 +29,21 @@ except ImportError:
 
 # Try to import GPIO libraries for direct hardware control
 try:
+    import lgpio
+    LGPIO_AVAILABLE = True
+except ImportError:
+    LGPIO_AVAILABLE = False
+    print("WARNING: lgpio not available. GPIO control will be simulated.")
+
+# Try gpiozero as fallback (may not work on Pi 5)
+try:
     from gpiozero import Servo, Motor, AngularServo, OutputDevice
     from gpiozero.pins.pigpio import PiGPIOFactory
     import pigpio
     GPIOZERO_AVAILABLE = True
 except ImportError:
     GPIOZERO_AVAILABLE = False
-    print("WARNING: gpiozero not available. GPIO control will be simulated.")
+    print("WARNING: gpiozero not available.")
 
 try:
     import RPi.GPIO as GPIO
@@ -2521,123 +2529,138 @@ class GPIOController:
         self.containers = {}
         
         # Initialize GPIO if not in simulation mode
-        if not self.simulation_mode and GPIOZERO_AVAILABLE:
-            try:
-                print("Attempting to initialize GPIO Controller...")
-
-                # Check if we're on a Raspberry Pi or have GPIO access
+        if not self.simulation_mode:
+            # Try LGPIO first (works on Pi 5)
+            if LGPIO_AVAILABLE:
                 try:
-                    with open('/proc/cpuinfo', 'r') as f:
-                        cpuinfo = f.read()
-                        if 'Raspberry Pi' not in cpuinfo:
-                            print("WARNING: Not running on Raspberry Pi - GPIO may not work")
-                except:
-                    print("WARNING: Cannot check CPU info - GPIO may not work")
+                    print("Attempting to initialize GPIO Controller with LGPIO...")
 
-                # Check pigpiod service
-                import subprocess
-                try:
-                    result = subprocess.run(['pgrep', 'pigpiod'], capture_output=True, text=True)
-                    if result.returncode != 0:
-                        print("WARNING: pigpiod daemon not running - GPIO may not work")
-                        print("Try: sudo systemctl start pigpiod")
-                except:
-                    print("WARNING: Cannot check pigpiod status")
+                    # Check if we're on a Raspberry Pi
+                    try:
+                        with open('/proc/cpuinfo', 'r') as f:
+                            cpuinfo = f.read()
+                            if 'Raspberry Pi' not in cpuinfo:
+                                print("WARNING: Not running on Raspberry Pi - GPIO may not work")
+                    except:
+                        print("WARNING: Cannot check CPU info - GPIO may not work")
 
-                # Use pigpio for better PWM control
-                print("Creating PiGPIOFactory...")
-                factory = PiGPIOFactory()
+                    # Open GPIO chip
+                    self.gpio_handle = lgpio.gpiochip_open(0)
+                    print("✓ GPIO chip opened successfully")
 
-                # Initialize servo motors
-                print("Initializing servo motors...")
-                self.servos['gripper_tilt'] = AngularServo(
-                    self.PINS['GRIPPER_TILT'],
-                    min_angle=0,
-                    max_angle=180,
-                    pin_factory=factory
-                )
+                    # Initialize all GPIO pins as outputs
+                    servo_pins = [
+                        self.PINS['GRIPPER_TILT'],
+                        self.PINS['GRIPPER_OPEN_CLOSE'],
+                        self.PINS['GRIPPER_NECK'],
+                        self.PINS['GRIPPER_BASE']
+                    ]
 
-                self.servos['gripper_open_close'] = AngularServo(
-                    self.PINS['GRIPPER_OPEN_CLOSE'],
-                    min_angle=0,
-                    max_angle=180,
-                    pin_factory=factory
-                )
+                    motor_pins = [
+                        self.PINS['MOTOR_FL_DIR'], self.PINS['MOTOR_FL_PWM'],
+                        self.PINS['MOTOR_FR_DIR'], self.PINS['MOTOR_FR_PWM'],
+                        self.PINS['MOTOR_BACK_DIR'], self.PINS['MOTOR_BACK_PWM'],
+                        self.PINS['LIFTER_DIR'], self.PINS['LIFTER_PWM']
+                    ]
 
-                # Continuous rotation servo for neck
-                self.servos['gripper_neck'] = Servo(
-                    self.PINS['GRIPPER_NECK'],
-                    pin_factory=factory
-                )
+                    container_pins = [
+                        self.PINS['CONTAINER_LF'], self.PINS['CONTAINER_LB'],
+                        self.PINS['CONTAINER_RF'], self.PINS['CONTAINER_RB']
+                    ]
 
-                self.servos['gripper_base'] = AngularServo(
-                    self.PINS['GRIPPER_BASE'],
-                    min_angle=0,
-                    max_angle=180,
-                    pin_factory=factory
-                )
+                    # Claim all pins as outputs
+                    all_pins = servo_pins + motor_pins + container_pins
+                    for pin in all_pins:
+                        lgpio.gpio_claim_output(self.gpio_handle, pin)
+                        print(f"✓ GPIO{pin} claimed as output")
 
-                # Initialize omni wheel motors
-                print("Initializing omni wheel motors...")
-                self.motors['front_left'] = Motor(
-                    forward=self.PINS['MOTOR_FL_DIR'],
-                    backward=self.PINS['MOTOR_FL_PWM'],
-                    pin_factory=factory
-                )
+                    self.gpio_initialized = True
+                    print("✓ GPIO Controller initialized successfully with LGPIO!")
+                    print(f"  - Total pins initialized: {len(all_pins)}")
+                    print("  - Servos: 4 pins, Motors: 8 pins, Containers: 4 pins")
 
-                self.motors['front_right'] = Motor(
-                    forward=self.PINS['MOTOR_FR_DIR'],
-                    backward=self.PINS['MOTOR_FR_PWM'],
-                    pin_factory=factory
-                )
+                except Exception as e:
+                    print(f"✗ ERROR: Failed to initialize LGPIO: {str(e)}")
+                    print("Trying gpiozero as fallback...")
+                    self._try_gpiozero_fallback()
 
-                self.motors['back'] = Motor(
-                    forward=self.PINS['MOTOR_BACK_DIR'],
-                    backward=self.PINS['MOTOR_BACK_PWM'],
-                    pin_factory=factory
-                )
-
-                # Initialize container servos
-                print("Initializing container servos...")
-                for container_id in ['left_front', 'left_back', 'right_front', 'right_back']:
-                    pin_key = f"CONTAINER_{container_id.upper().replace('_', '')[:2]}"
-                    self.containers[container_id] = AngularServo(
-                        self.PINS[pin_key],
-                        min_angle=0,
-                        max_angle=180,
-                        pin_factory=factory
-                    )
-
-                self.gpio_initialized = True
-                print("✓ GPIO Controller initialized successfully!")
-                print(f"  - Servos: {len(self.servos)} initialized")
-                print(f"  - Motors: {len(self.motors)} initialized")
-                print(f"  - Containers: {len(self.containers)} initialized")
-
-            except Exception as e:
-                print(f"✗ ERROR: Failed to initialize GPIO: {str(e)}")
-                print("Falling back to SIMULATION mode")
-                import traceback
-                traceback.print_exc()
-                self.simulation_mode = True
-                self.gpio_initialized = False
-        else:
-            if not GPIOZERO_AVAILABLE:
-                print("GPIO libraries not available - running in SIMULATION mode")
+            # Try gpiozero as fallback (may not work on Pi 5)
+            elif GPIOZERO_AVAILABLE:
+                self._try_gpiozero_fallback()
             else:
-                print("GPIO Controller running in SIMULATION mode")
-    
+                print("No GPIO libraries available - running in SIMULATION mode")
+                self.simulation_mode = True
+        else:
+            print("GPIO Controller running in SIMULATION mode")
+
+    def _try_gpiozero_fallback(self):
+        """Try to initialize GPIO using gpiozero (fallback for older Pi models)"""
+        if not GPIOZERO_AVAILABLE:
+            print("gpiozero not available for fallback")
+            self.simulation_mode = True
+            return
+
+        try:
+            print("Attempting gpiozero fallback initialization...")
+
+            # Check pigpiod service
+            import subprocess
+            try:
+                result = subprocess.run(['pgrep', 'pigpiod'], capture_output=True, text=True)
+                if result.returncode != 0:
+                    print("WARNING: pigpiod daemon not running - gpiozero may not work")
+            except:
+                print("WARNING: Cannot check pigpiod status")
+
+            # Use pigpio for better PWM control
+            factory = PiGPIOFactory()
+
+            # Initialize servo motors
+            self.servos['gripper_tilt'] = AngularServo(
+                self.PINS['GRIPPER_TILT'], min_angle=0, max_angle=180, pin_factory=factory)
+            self.servos['gripper_open_close'] = AngularServo(
+                self.PINS['GRIPPER_OPEN_CLOSE'], min_angle=0, max_angle=180, pin_factory=factory)
+            self.servos['gripper_neck'] = Servo(self.PINS['GRIPPER_NECK'], pin_factory=factory)
+            self.servos['gripper_base'] = AngularServo(
+                self.PINS['GRIPPER_BASE'], min_angle=0, max_angle=180, pin_factory=factory)
+
+            # Initialize motors
+            self.motors['front_left'] = Motor(
+                forward=self.PINS['MOTOR_FL_DIR'], backward=self.PINS['MOTOR_FL_PWM'], pin_factory=factory)
+            self.motors['front_right'] = Motor(
+                forward=self.PINS['MOTOR_FR_DIR'], backward=self.PINS['MOTOR_FR_PWM'], pin_factory=factory)
+            self.motors['back'] = Motor(
+                forward=self.PINS['MOTOR_BACK_DIR'], backward=self.PINS['MOTOR_BACK_PWM'], pin_factory=factory)
+
+            # Initialize containers
+            for container_id in ['left_front', 'left_back', 'right_front', 'right_back']:
+                pin_key = f"CONTAINER_{container_id.upper().replace('_', '')[:2]}"
+                self.containers[container_id] = AngularServo(
+                    self.PINS[pin_key], min_angle=0, max_angle=180, pin_factory=factory)
+
+            self.gpio_initialized = True
+            print("✓ GPIO Controller initialized with gpiozero fallback!")
+
+        except Exception as e:
+            print(f"✗ gpiozero fallback failed: {str(e)}")
+            print("Falling back to SIMULATION mode")
+            self.simulation_mode = True
+            self.gpio_initialized = False
+
     def control_gripper(self, command):
         """Control gripper open/close"""
         if self.simulation_mode:
             print(f"[SIM] Gripper {command}")
             return True
-        
+
         try:
+            pin = self.PINS['GRIPPER_OPEN_CLOSE']
             if command == 'open':
-                self.servos['gripper_open_close'].angle = 180  # Fully open
+                lgpio.gpio_write(self.gpio_handle, pin, 1)  # High = open
+                print(f"✓ Gripper opened (GPIO{pin} = 1)")
             elif command == 'close':
-                self.servos['gripper_open_close'].angle = 0    # Fully closed
+                lgpio.gpio_write(self.gpio_handle, pin, 0)  # Low = closed
+                print(f"✓ Gripper closed (GPIO{pin} = 0)")
             return True
         except Exception as e:
             print(f"ERROR controlling gripper: {str(e)}")
@@ -2707,26 +2730,31 @@ class GPIOController:
         if self.simulation_mode:
             print(f"[SIM] Moving {direction} at speed {speed}")
             return True
-        
+
         try:
             speed = max(0, min(1, speed))  # Clamp speed
-            
+            pwm_value = 1 if speed > 0.5 else 0  # Simple on/off for now
+
             if direction == 'forward':
-                self.motors['front_left'].forward(speed)
-                self.motors['front_right'].forward(speed)
-                self.motors['back'].forward(speed)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)  # Forward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)  # Forward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)  # Forward
+                print(f"✓ Moving forward (speed: {speed})")
             elif direction == 'backward':
-                self.motors['front_left'].backward(speed)
-                self.motors['front_right'].backward(speed)
-                self.motors['back'].backward(speed)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)  # Backward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)  # Backward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)  # Backward
+                print(f"✓ Moving backward (speed: {speed})")
             elif direction == 'strafe_left':
-                self.motors['front_left'].backward(speed)
-                self.motors['front_right'].forward(speed)
-                self.motors['back'].stop()
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)  # FL backward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)  # FR forward
+                # Back motor stopped
+                print(f"✓ Strafing left (speed: {speed})")
             elif direction == 'strafe_right':
-                self.motors['front_left'].forward(speed)
-                self.motors['front_right'].backward(speed)
-                self.motors['back'].stop()
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)  # FL forward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)  # FR backward
+                # Back motor stopped
+                print(f"✓ Strafing right (speed: {speed})")
             return True
         except Exception as e:
             print(f"ERROR moving robot: {str(e)}")
@@ -2759,10 +2787,13 @@ class GPIOController:
         if self.simulation_mode:
             print("[SIM] Stopping robot")
             return True
-        
+
         try:
-            for motor in self.motors.values():
-                motor.stop()
+            # Set all motor direction pins to 0 (stop)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
+            print("✓ Robot stopped")
             return True
         except Exception as e:
             print(f"ERROR stopping robot: {str(e)}")
@@ -2786,21 +2817,13 @@ class GPIOController:
     
     def cleanup(self):
         """Cleanup GPIO resources"""
-        if not self.simulation_mode and self.gpio_initialized:
+        if not self.simulation_mode and self.gpio_initialized and hasattr(self, 'gpio_handle'):
             try:
-                # Stop all motors
-                for motor in self.motors.values():
-                    motor.close()
-                
-                # Close all servos
-                for servo in self.servos.values():
-                    servo.close()
-                
-                # Close all containers
-                for container in self.containers.values():
-                    container.close()
-                
-                print("GPIO Controller cleaned up")
+                # Close GPIO chip
+                lgpio.gpiochip_close(self.gpio_handle)
+                self.gpio_handle = None
+                self.gpio_initialized = False
+                print("✓ GPIO Controller cleaned up")
             except Exception as e:
                 print(f"ERROR during GPIO cleanup: {str(e)}")
 
