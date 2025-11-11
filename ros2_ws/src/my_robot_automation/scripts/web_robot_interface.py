@@ -1806,31 +1806,37 @@ USB3 - Reserved
 
                     // IR distance sensors (Sharp GP2Y0A02YK0F)
                     if (data.laser_sensors) {
-                        document.getElementById('laser-left-front').textContent = (data.laser_sensors.left_front || '--') + ' mm';
-                        document.getElementById('laser-left-back').textContent = (data.laser_sensors.left_back || '--') + ' mm';
-                        document.getElementById('laser-right-front').textContent = (data.laser_sensors.right_front || '--') + ' mm';
-                        document.getElementById('laser-right-back').textContent = (data.laser_sensors.right_back || '--') + ' mm';
-                        document.getElementById('laser-back-left').textContent = (data.laser_sensors.back_left || '--') + ' mm';
-                        document.getElementById('laser-back-right').textContent = (data.laser_sensors.back_right || '--') + ' mm';
+                        const formatValue = (val) => val !== null && val !== undefined ? val + ' mm' : '--';
+                        document.getElementById('laser-left-front').textContent = formatValue(data.laser_sensors.left_front);
+                        document.getElementById('laser-left-back').textContent = formatValue(data.laser_sensors.left_back);
+                        document.getElementById('laser-right-front').textContent = formatValue(data.laser_sensors.right_front);
+                        document.getElementById('laser-right-back').textContent = formatValue(data.laser_sensors.right_back);
+                        document.getElementById('laser-back-left').textContent = formatValue(data.laser_sensors.back_left);
+                        document.getElementById('laser-back-right').textContent = formatValue(data.laser_sensors.back_right);
                     }
 
                     // Ultrasonic sensors
                     if (data.ultrasonic_sensors) {
-                        document.getElementById('ultrasonic-front-left').textContent = (data.ultrasonic_sensors.front_left || '--') + ' cm';
-                        document.getElementById('ultrasonic-front-right').textContent = (data.ultrasonic_sensors.front_right || '--') + ' cm';
+                        const formatValue = (val) => val !== null && val !== undefined ? val + ' cm' : '--';
+                        document.getElementById('ultrasonic-front-left').textContent = formatValue(data.ultrasonic_sensors.front_left);
+                        document.getElementById('ultrasonic-front-right').textContent = formatValue(data.ultrasonic_sensors.front_right);
                     }
 
                     // TF-Luna LIDAR
                     if (data.tf_luna) {
-                        document.getElementById('tf-luna-distance').textContent = (data.tf_luna.distance || '--') + ' cm';
-                        document.getElementById('tf-luna-strength').textContent = data.tf_luna.strength || '--';
+                        document.getElementById('tf-luna-distance').textContent = (data.tf_luna.distance !== null && data.tf_luna.distance !== undefined) ? data.tf_luna.distance + ' cm' : '--';
+                        document.getElementById('tf-luna-strength').textContent = (data.tf_luna.strength !== null && data.tf_luna.strength !== undefined) ? data.tf_luna.strength : '--';
                     }
 
                     // Line sensors
                     if (data.line_sensors) {
-                        document.getElementById('line-left').textContent = data.line_sensors.left ? 'DETECTED' : 'No Line';
-                        document.getElementById('line-center').textContent = data.line_sensors.center ? 'DETECTED' : 'No Line';
-                        document.getElementById('line-right').textContent = data.line_sensors.right ? 'DETECTED' : 'No Line';
+                        const formatLineSensor = (val) => {
+                            if (val === null || val === undefined) return 'FAULTY';
+                            return val ? 'DETECTED' : 'No Line';
+                        };
+                        document.getElementById('line-left').textContent = formatLineSensor(data.line_sensors.left);
+                        document.getElementById('line-center').textContent = formatLineSensor(data.line_sensors.center);
+                        document.getElementById('line-right').textContent = formatLineSensor(data.line_sensors.right);
                     }
 
                     // Container load sensors
@@ -1856,27 +1862,44 @@ USB3 - Reserved
                     const data = imuData.data;
 
                     // Orientation (convert quaternion to euler angles if needed)
-                    if (data.orientation) {
-                        document.getElementById('imu-orient-x').textContent = (data.orientation.x || 0).toFixed(2) + '°';
-                        document.getElementById('imu-orient-y').textContent = (data.orientation.y || 0).toFixed(2) + '°';
-                        document.getElementById('imu-orient-z').textContent = (data.orientation.z || 0).toFixed(2) + '°';
+                    if (data.orientation && data.orientation !== null) {
+                        document.getElementById('imu-orient-x').textContent = (data.orientation.x !== null && data.orientation.x !== undefined ? data.orientation.x : 0).toFixed(2) + '°';
+                        document.getElementById('imu-orient-y').textContent = (data.orientation.y !== null && data.orientation.y !== undefined ? data.orientation.y : 0).toFixed(2) + '°';
+                        document.getElementById('imu-orient-z').textContent = (data.orientation.z !== null && data.orientation.z !== undefined ? data.orientation.z : 0).toFixed(2) + '°';
+                    } else {
+                        document.getElementById('imu-orient-x').textContent = '--';
+                        document.getElementById('imu-orient-y').textContent = '--';
+                        document.getElementById('imu-orient-z').textContent = '--';
                     }
 
                     // Angular velocity
-                    if (data.angular_velocity) {
+                    if (data.angular_velocity && data.angular_velocity !== null) {
                         const angVel = Math.sqrt(
                             Math.pow(data.angular_velocity.x || 0, 2) +
                             Math.pow(data.angular_velocity.y || 0, 2) +
                             Math.pow(data.angular_velocity.z || 0, 2)
                         );
                         document.getElementById('imu-angular').textContent = angVel.toFixed(3) + ' rad/s';
+                    } else {
+                        document.getElementById('imu-angular').textContent = '--';
                     }
 
                     // Linear acceleration
-                    if (data.linear_acceleration) {
-                        document.getElementById('imu-accel-x').textContent = (data.linear_acceleration.x || 0).toFixed(2) + ' m/s²';
-                        document.getElementById('imu-accel-y').textContent = (data.linear_acceleration.y || 0).toFixed(2) + ' m/s²';
+                    if (data.linear_acceleration && data.linear_acceleration !== null) {
+                        document.getElementById('imu-accel-x').textContent = (data.linear_acceleration.x !== null && data.linear_acceleration.x !== undefined ? data.linear_acceleration.x : 0).toFixed(2) + ' m/s²';
+                        document.getElementById('imu-accel-y').textContent = (data.linear_acceleration.y !== null && data.linear_acceleration.y !== undefined ? data.linear_acceleration.y : 0).toFixed(2) + ' m/s²';
+                    } else {
+                        document.getElementById('imu-accel-x').textContent = '--';
+                        document.getElementById('imu-accel-y').textContent = '--';
                     }
+                } else {
+                    // IMU data not available
+                    document.getElementById('imu-orient-x').textContent = '--';
+                    document.getElementById('imu-orient-y').textContent = '--';
+                    document.getElementById('imu-orient-z').textContent = '--';
+                    document.getElementById('imu-angular').textContent = '--';
+                    document.getElementById('imu-accel-x').textContent = '--';
+                    document.getElementById('imu-accel-y').textContent = '--';
                 }
             } catch (error) {
                 console.error('IMU data update failed:', error);
