@@ -8,6 +8,7 @@ import time
 import math
 import os
 import json
+import requests
 from datetime import datetime
 
 # Try to import spidev, but allow graceful degradation
@@ -2651,18 +2652,17 @@ class WebRobotInterface(Node):
                     'timestamp': time.time()
                 }), 500
         
-        # Movement control endpoints
+        # Movement control endpoints - Forward to ROS2 server
         @self.app.route('/api/robot/move', methods=['POST'])
         def robot_move():
             try:
                 data = request.get_json()
-                direction = data.get('direction', 'forward')
-                speed = data.get('speed', 0.5)
-                return jsonify({
-                    'success': True,
-                    'message': f'Moving {direction} at speed {speed}',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/move', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward move command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
@@ -2670,49 +2670,50 @@ class WebRobotInterface(Node):
         def robot_turn():
             try:
                 data = request.get_json()
-                direction = data.get('direction', 'left')
-                speed = data.get('speed', 0.5)
-                return jsonify({
-                    'success': True,
-                    'message': f'Turning {direction} at speed {speed}',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/turn', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward turn command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/robot/stop', methods=['POST'])
         def robot_stop():
-            return jsonify({
-                'success': True,
-                'message': 'Robot stopped',
-                'timestamp': time.time()
-            })
+            try:
+                response = requests.post('http://localhost:5000/api/robot/stop', timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward stop command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/robot/mode', methods=['POST'])
         def set_robot_mode():
             try:
                 data = request.get_json()
-                mode = data.get('mode', 'MANUAL')
-                return jsonify({
-                    'success': True,
-                    'message': f'Mode set to {mode}',
-                    'data': {'mode': mode},
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/mode', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward mode command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
-        # Gripper/Picker control endpoints
+        # Gripper/Picker control endpoints - Forward to ROS2 server
         @self.app.route('/api/robot/picker/gripper', methods=['POST'])
         def control_gripper():
             try:
                 data = request.get_json()
-                command = data.get('command', 'open')
-                return jsonify({
-                    'success': True,
-                    'message': f'Gripper {command}',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/picker/gripper', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward gripper command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
@@ -2720,12 +2721,12 @@ class WebRobotInterface(Node):
         def set_gripper_tilt():
             try:
                 data = request.get_json()
-                angle = data.get('angle', 90)
-                return jsonify({
-                    'success': True,
-                    'message': f'Gripper tilt set to {angle}°',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/picker/gripper_tilt', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward gripper_tilt command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
@@ -2733,12 +2734,12 @@ class WebRobotInterface(Node):
         def set_gripper_neck():
             try:
                 data = request.get_json()
-                position = data.get('position', 0)
-                return jsonify({
-                    'success': True,
-                    'message': f'Gripper neck position set to {position}',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/picker/gripper_neck', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward gripper_neck command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
@@ -2746,12 +2747,12 @@ class WebRobotInterface(Node):
         def set_gripper_base():
             try:
                 data = request.get_json()
-                height = data.get('height', 0.5)
-                return jsonify({
-                    'success': True,
-                    'message': f'Gripper base height set to {height}',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/picker/gripper_base', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward gripper_base command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
@@ -2759,41 +2760,40 @@ class WebRobotInterface(Node):
         def control_servos():
             try:
                 data = request.get_json()
-                action = data.get('action', 'home')
-                return jsonify({
-                    'success': True,
-                    'message': f'Servos {action} action executed',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/servos', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward servos command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
-        # Container control endpoints
+        # Container control endpoints - Forward to ROS2 server
         @self.app.route('/api/robot/containers/<container_id>', methods=['POST'])
         def control_container(container_id):
             try:
                 data = request.get_json()
-                action = data.get('action', 'load')
-                return jsonify({
-                    'success': True,
-                    'message': f'Container {container_id} {action} action executed',
-                    'timestamp': time.time()
-                })
+                response = requests.post(f'http://localhost:5000/api/robot/containers/{container_id}', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward container command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
-        # Automation endpoints
+        # Automation endpoints - Forward to ROS2 server
         @self.app.route('/api/robot/patrol', methods=['POST'])
         def execute_patrol():
             try:
                 data = request.get_json()
-                waypoints = data.get('waypoints', [])
-                speed = data.get('patrol_speed', 0.5)
-                return jsonify({
-                    'success': True,
-                    'message': f'Patrol started with {len(waypoints)} waypoints',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/patrol', 
+                                       json=data, timeout=10)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward patrol command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
@@ -2801,12 +2801,12 @@ class WebRobotInterface(Node):
         def execute_obstacle_avoidance():
             try:
                 data = request.get_json()
-                target = data.get('target_location', {})
-                return jsonify({
-                    'success': True,
-                    'message': 'Obstacle avoidance navigation started',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/obstacle-avoidance', 
+                                       json=data, timeout=10)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward obstacle-avoidance command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
@@ -2814,70 +2814,80 @@ class WebRobotInterface(Node):
         def execute_pick_place():
             try:
                 data = request.get_json()
-                return jsonify({
-                    'success': True,
-                    'message': 'Pick and place sequence started',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/pick-place', 
+                                       json=data, timeout=10)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward pick-place command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
-        # Safety endpoints
+        # Safety endpoints - Forward to ROS2 server
         @self.app.route('/api/robot/emergency-stop', methods=['POST'])
         def emergency_stop():
             try:
                 data = request.get_json()
-                activate = data.get('activate', True)
-                action = 'activated' if activate else 'deactivated'
-                return jsonify({
-                    'success': True,
-                    'message': f'Emergency stop {action}',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/api/robot/emergency-stop', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward emergency-stop command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
-        # Monitoring endpoints
+        # Monitoring endpoints - Forward to ROS2 server
         @self.app.route('/api/robot/commands/last')
         def get_last_commands():
-            return jsonify({
-                'success': True,
-                'data': {
-                    'commands': [
-                        {'timestamp': time.strftime('%H:%M:%S'), 'command': 'System Started', 'status': 'success'},
-                        {'timestamp': time.strftime('%H:%M:%S'), 'command': 'IMU Initialized', 'status': 'success'},
-                        {'timestamp': time.strftime('%H:%M:%S'), 'command': 'Sensors Online', 'status': 'success'}
-                    ]
-                },
-                'timestamp': time.time()
-            })
+            try:
+                response = requests.get('http://localhost:5000/api/robot/commands/last', timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                # Fallback to local data if ROS2 server unavailable
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'commands': [
+                            {'timestamp': time.strftime('%H:%M:%S'), 'command': 'System Started', 'status': 'success'},
+                            {'timestamp': time.strftime('%H:%M:%S'), 'command': 'IMU Initialized', 'status': 'success'},
+                            {'timestamp': time.strftime('%H:%M:%S'), 'command': 'Sensors Online', 'status': 'success'}
+                        ]
+                    },
+                    'timestamp': time.time()
+                })
         
         @self.app.route('/api/robot/log')
         def get_robot_log():
-            return jsonify({
-                'success': True,
-                'data': {
-                    'logs': [
-                        f'[{time.strftime("%H:%M:%S")}] Web interface initialized',
-                        f'[{time.strftime("%H:%M:%S")}] IMU sensor connected',
-                        f'[{time.strftime("%H:%M:%S")}] IR distance sensors ready',
-                        f'[{time.strftime("%H:%M:%S")}] System ready'
-                    ]
-                },
-                'timestamp': time.time()
-            })
+            try:
+                response = requests.get('http://localhost:5000/api/robot/log', timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                # Fallback to local data if ROS2 server unavailable
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'logs': [
+                            f'[{time.strftime("%H:%M:%S")}] Web interface initialized',
+                            f'[{time.strftime("%H:%M:%S")}] IMU sensor connected',
+                            f'[{time.strftime("%H:%M:%S")}] IR distance sensors ready',
+                            f'[{time.strftime("%H:%M:%S")}] System ready'
+                        ]
+                    },
+                    'timestamp': time.time()
+                })
         
-        # n8n webhook endpoint
+        # n8n webhook endpoint - Forward to ROS2 server
         @self.app.route('/webhook/robot-control', methods=['POST'])
         def webhook_robot_control():
             try:
                 data = request.get_json()
-                command = data.get('command', 'unknown')
-                return jsonify({
-                    'success': True,
-                    'message': f'Webhook command {command} received',
-                    'timestamp': time.time()
-                })
+                response = requests.post('http://localhost:5000/webhook/robot-control', 
+                                       json=data, timeout=5)
+                return jsonify(response.json()), response.status_code
+            except requests.exceptions.RequestException as e:
+                self.get_logger().error(f'Failed to forward webhook command: {str(e)}')
+                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
 
