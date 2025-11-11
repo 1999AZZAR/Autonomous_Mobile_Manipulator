@@ -3979,34 +3979,58 @@ class WebRobotInterface(Node):
     def _get_sensors(self):
         """Get sensor data in the format expected by the frontend"""
         try:
+            # Check if SPI is initialized
+            if not hasattr(self, 'spi_initialized') or not self.spi_initialized:
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'laser_sensors': {},
+                        'ultrasonic_sensors': {},
+                        'tf_luna': {},
+                        'line_sensors': {},
+                        'container_sensors': {}
+                    },
+                    'status': {
+                        'spi_initialized': False,
+                        'hardware_available': False,
+                        'message': 'SPI interface not initialized - sensors not available'
+                    },
+                    'timestamp': time.time()
+                })
+            
             sensor_data = self.read_all_sensors()
+            
+            # Count working vs faulty sensors
+            working_sensors = sum(1 for v in sensor_data.values() if v is not None)
+            faulty_sensors = sum(1 for v in sensor_data.values() if v is None)
+            total_sensors = len(sensor_data)
             
             # Transform sensor data to match frontend expectations
             formatted_data = {
                 # IR Distance Sensors (Sharp GP2Y0A02YK0F) - in mm
                 'laser_sensors': {
-                    'left_front': int(sensor_data.get('front_left', 0) * 10) if sensor_data.get('front_left') else None,
-                    'left_back': int(sensor_data.get('back_left', 0) * 10) if sensor_data.get('back_left') else None,
-                    'right_front': int(sensor_data.get('front_right', 0) * 10) if sensor_data.get('front_right') else None,
-                    'right_back': int(sensor_data.get('back_right', 0) * 10) if sensor_data.get('back_right') else None,
-                    'back_left': int(sensor_data.get('side_left', 0) * 10) if sensor_data.get('side_left') else None,
-                    'back_right': int(sensor_data.get('side_right', 0) * 10) if sensor_data.get('side_right') else None,
+                    'left_front': int(sensor_data.get('front_left', 0) * 10) if sensor_data.get('front_left') is not None else None,
+                    'left_back': int(sensor_data.get('back_left', 0) * 10) if sensor_data.get('back_left') is not None else None,
+                    'right_front': int(sensor_data.get('front_right', 0) * 10) if sensor_data.get('front_right') is not None else None,
+                    'right_back': int(sensor_data.get('back_right', 0) * 10) if sensor_data.get('back_right') is not None else None,
+                    'back_left': int(sensor_data.get('side_left', 0) * 10) if sensor_data.get('side_left') is not None else None,
+                    'back_right': int(sensor_data.get('side_right', 0) * 10) if sensor_data.get('side_right') is not None else None,
                 },
                 # Ultrasonic Sensors (HC-SR04) - in cm
                 'ultrasonic_sensors': {
-                    'front_left': round(sensor_data.get('front_left', 0), 1) if sensor_data.get('front_left') else None,
-                    'front_right': round(sensor_data.get('front_right', 0), 1) if sensor_data.get('front_right') else None,
+                    'front_left': round(sensor_data.get('front_left', 0), 1) if sensor_data.get('front_left') is not None else None,
+                    'front_right': round(sensor_data.get('front_right', 0), 1) if sensor_data.get('front_right') is not None else None,
                 },
                 # TF-Luna LIDAR - in cm
                 'tf_luna': {
-                    'distance': round(sensor_data.get('front_center', 0), 1) if sensor_data.get('front_center') else None,
-                    'strength': 100,  # Simulated signal strength
+                    'distance': round(sensor_data.get('front_center', 0), 1) if sensor_data.get('front_center') is not None else None,
+                    'strength': 100 if sensor_data.get('front_center') is not None else None,
                 },
-                # Line Sensors (3x IR) - boolean
+                # Line Sensors (3x IR) - boolean (only if sensor reading available)
                 'line_sensors': {
-                    'left': sensor_data.get('front_left', 0) < 30 if sensor_data.get('front_left') else False,
-                    'center': sensor_data.get('front_center', 0) < 30 if sensor_data.get('front_center') else False,
-                    'right': sensor_data.get('front_right', 0) < 30 if sensor_data.get('front_right') else False,
+                    'left': sensor_data.get('front_left', 0) < 30 if sensor_data.get('front_left') is not None else None,
+                    'center': sensor_data.get('front_center', 0) < 30 if sensor_data.get('front_center') is not None else None,
+                    'right': sensor_data.get('front_right', 0) < 30 if sensor_data.get('front_right') is not None else None,
                 },
                 # Container Load Sensors - boolean
                 'container_sensors': {
@@ -4017,22 +4041,42 @@ class WebRobotInterface(Node):
                 }
             }
             
+            # Add sensor health status
+            sensor_status = {
+                'spi_initialized': self.spi_initialized,
+                'hardware_available': True,
+                'working_sensors': working_sensors,
+                'faulty_sensors': faulty_sensors,
+                'total_sensors': total_sensors,
+                'sensor_health': {name: {
+                    'status': self.sensor_health[name]['status'],
+                    'error_count': self.sensor_health[name].get('error_count', 0),
+                    'last_read': self.sensor_health[name].get('last_read')
+                } for name in self.sensor_channels.keys()}
+            }
+            
             return jsonify({
                 'success': True,
                 'data': formatted_data,
+                'status': sensor_status,
                 'timestamp': time.time()
             })
         except Exception as e:
             self.get_logger().error(f'Sensor read error: {str(e)}')
-            # Return empty structure on error
+            # Return error structure
             return jsonify({
-                'success': True,
+                'success': False,
                 'data': {
                     'laser_sensors': {},
                     'ultrasonic_sensors': {},
                     'tf_luna': {},
                     'line_sensors': {},
                     'container_sensors': {}
+                },
+                'status': {
+                    'spi_initialized': False,
+                    'hardware_available': False,
+                    'error': str(e)
                 },
                 'timestamp': time.time()
             })
@@ -4080,56 +4124,49 @@ class WebRobotInterface(Node):
                     },
                     'temperature': round(imu_data.get('temperature', 25.0), 1)
                 }
+                
+                return jsonify({
+                    'success': True,
+                    'data': formatted_data,
+                    'status': {
+                        'imu_initialized': self.imu_initialized,
+                        'hardware_available': True
+                    },
+                    'timestamp': time.time()
+                })
             else:
-                # Return simulated data if IMU not available
-                self.sim_counter += 0.1
-                formatted_data = {
-                    'orientation': {
-                        'x': round(math.sin(self.sim_counter) * 10, 2),
-                        'y': round(math.cos(self.sim_counter) * 10, 2),
-                        'z': round(math.sin(self.sim_counter * 2) * 5, 2)
-                    },
-                    'angular_velocity': {
-                        'x': round(math.sin(self.sim_counter * 2) * 0.5, 3),
-                        'y': round(math.cos(self.sim_counter * 2) * 0.5, 3),
-                        'z': round(math.sin(self.sim_counter * 3) * 0.2, 3)
-                    },
-                    'linear_acceleration': {
-                        'x': round(math.sin(self.sim_counter) * 2, 2),
-                        'y': round(math.cos(self.sim_counter) * 2, 2),
-                        'z': round(math.sin(self.sim_counter * 0.5) * 0.2, 2)
-                    },
-                    'temperature': round(25.0 + math.sin(self.sim_counter * 0.1) * 5.0, 1)
+                # IMU not available or faulty
+                imu_status = {
+                    'imu_initialized': self.imu_initialized if hasattr(self, 'imu_initialized') else False,
+                    'hardware_available': False,
+                    'message': 'IMU sensor not available or faulty - check hardware connection'
                 }
-            
-            return jsonify({
-                'success': True,
-                'data': formatted_data,
-                'timestamp': time.time()
-            })
+                
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'orientation': None,
+                        'angular_velocity': None,
+                        'linear_acceleration': None,
+                        'temperature': None
+                    },
+                    'status': imu_status,
+                    'timestamp': time.time()
+                })
         except Exception as e:
             self.get_logger().error(f'IMU read error: {str(e)}')
-            # Return simulated data on error
-            self.sim_counter += 0.1
             return jsonify({
-                'success': True,
+                'success': False,
                 'data': {
-                    'orientation': {
-                        'x': round(math.sin(self.sim_counter) * 10, 2),
-                        'y': round(math.cos(self.sim_counter) * 10, 2),
-                        'z': round(math.sin(self.sim_counter * 2) * 5, 2)
-                    },
-                    'angular_velocity': {
-                        'x': round(math.sin(self.sim_counter * 2) * 0.5, 3),
-                        'y': round(math.cos(self.sim_counter * 2) * 0.5, 3),
-                        'z': round(math.sin(self.sim_counter * 3) * 0.2, 3)
-                    },
-                    'linear_acceleration': {
-                        'x': round(math.sin(self.sim_counter) * 2, 2),
-                        'y': round(math.cos(self.sim_counter) * 2, 2),
-                        'z': round(math.sin(self.sim_counter * 0.5) * 0.2, 2)
-                    },
-                    'temperature': round(25.0 + math.sin(self.sim_counter * 0.1) * 5.0, 1)
+                    'orientation': None,
+                    'angular_velocity': None,
+                    'linear_acceleration': None,
+                    'temperature': None
+                },
+                'status': {
+                    'imu_initialized': False,
+                    'hardware_available': False,
+                    'error': str(e)
                 },
                 'timestamp': time.time()
             })
@@ -4449,36 +4486,31 @@ class WebRobotInterface(Node):
                             self.get_logger().debug(f'Sensor {name} (ch{channel}): ADC={adc_value}, V={voltage:.3f}V, Distance={distance:.1f}cm')
                         else:
                             # Voltage out of range - sensor might be disconnected or faulty
-                            self.get_logger().warn(f'Sensor {name} (ch{channel}): Voltage {voltage:.3f}V out of range (ADC={adc_value})')
+                            self.get_logger().warn(f'Sensor {name} (ch{channel}): Voltage {voltage:.3f}V out of range (ADC={adc_value}) - sensor disconnected or faulty')
                             sensor_data[name] = None
-                            self.sensor_health[name]['status'] = 'error'
+                            self.sensor_health[name]['status'] = 'faulty'
                             self.sensor_health[name]['error_count'] += 1
                     else:
                         # Invalid ADC reading
-                        self.get_logger().warn(f'Sensor {name} (ch{channel}): Invalid ADC reading {adc_value}')
+                        self.get_logger().warn(f'Sensor {name} (ch{channel}): Invalid ADC reading {adc_value} - sensor not connected')
                         sensor_data[name] = None
-                        self.sensor_health[name]['status'] = 'error'
+                        self.sensor_health[name]['status'] = 'faulty'
                         self.sensor_health[name]['error_count'] += 1
                 except Exception as e:
                     self.get_logger().error(f'Error reading sensor {name} (ch{channel}): {str(e)}')
                     sensor_data[name] = None
-                    self.sensor_health[name]['status'] = 'error'
+                    self.sensor_health[name]['status'] = 'faulty'
                     self.sensor_health[name]['error_count'] += 1
             
             # Return real data even if some sensors failed
             return sensor_data
         
-        # Only use simulation if SPI is not initialized
-        self.get_logger().warn('SPI not initialized - using simulated sensor data')
-        self.sim_counter += 0.1
+        # SPI not initialized - return None for all sensors to indicate hardware not available
+        self.get_logger().warn('SPI not initialized - sensors not available')
         sensor_data = {}
-        for name, channel in self.sensor_channels.items():
-            # Simulate distance readings (20-150cm range for Sharp GP2Y0A02YK0F)
-            base_distance = 50 + 30 * math.sin(self.sim_counter + channel)
-            noise = random.uniform(-5, 5)
-            sensor_data[name] = max(20, min(150, base_distance + noise))
-            self.sensor_health[name]['status'] = 'simulated'
-            self.sensor_health[name]['last_read'] = time.time()
+        for name in self.sensor_channels.keys():
+            sensor_data[name] = None
+            self.sensor_health[name]['status'] = 'not_available'
         return sensor_data
 
     def read_adc(self, channel):
@@ -4528,7 +4560,8 @@ class WebRobotInterface(Node):
                         self.get_logger().debug(f'IMU data read successfully: accel={accel_data}, gyro={gyro_data}')
                         return imu_data
                     else:
-                        self.get_logger().warn('IMU returned empty data')
+                        self.get_logger().warn('IMU returned empty data - sensor may be faulty')
+                        return None
                 else:
                     # MPU6050Reader API
                     imu_data = self.imu.get_all_data()
@@ -4536,27 +4569,16 @@ class WebRobotInterface(Node):
                         self.get_logger().debug(f'IMU data read successfully: {imu_data}')
                         return imu_data
                     else:
-                        self.get_logger().warn('IMU returned empty data')
+                        self.get_logger().warn('IMU returned empty data - sensor may be faulty')
+                        return None
             except Exception as e:
-                self.get_logger().error(f'IMU read error: {str(e)}')
+                self.get_logger().error(f'IMU read error: {str(e)} - sensor may be disconnected or faulty')
+                return None
         
-        # Only use simulation if IMU is not initialized or read failed
+        # IMU not initialized - return None to indicate hardware not available
         if not self.imu_initialized:
-            self.get_logger().debug('IMU not initialized - using simulated data')
-        self.sim_counter += 0.1
-        return {
-            'accelerometer': {
-                'x': math.sin(self.sim_counter) * 2,
-                'y': math.cos(self.sim_counter) * 2,
-                'z': 9.81 + math.sin(self.sim_counter * 0.5) * 0.2
-            },
-            'gyroscope': {
-                'x': math.sin(self.sim_counter * 2) * 50,
-                'y': math.cos(self.sim_counter * 2) * 50,
-                'z': math.sin(self.sim_counter * 3) * 20
-            },
-            'temperature': 25.0 + math.sin(self.sim_counter * 0.1) * 5.0
-        }
+            self.get_logger().debug('IMU not initialized - hardware not available')
+        return None
 
     def run_web_interface(self):
         """Run the web interface - Flask app must be created first"""
