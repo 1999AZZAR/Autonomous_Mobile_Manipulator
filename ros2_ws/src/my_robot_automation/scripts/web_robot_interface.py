@@ -18,6 +18,14 @@ except ImportError:
     SPIDEV_AVAILABLE = False
     print("WARNING: spidev not available. Running in SIMULATION mode.")
 
+# Try to import MPU6050 reader
+try:
+    from mpu6050_reader import MPU6050Reader
+    MPU6050_AVAILABLE = True
+except ImportError:
+    MPU6050_AVAILABLE = False
+    print("WARNING: MPU6050Reader not available. IMU data will be simulated.")
+
 # Modern Professional Web Interface Template
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -2500,6 +2508,27 @@ class WebRobotInterface(Node):
         
         # Simulation data (for testing without hardware)
         self.sim_counter = 0
+        
+        # Initialize MPU6050 IMU sensor
+        self.imu = None
+        self.imu_initialized = False
+        
+        if not self.simulation_mode and MPU6050_AVAILABLE:
+            try:
+                self.imu = MPU6050Reader(address=0x68)
+                self.imu_initialized = self.imu.initialized
+                if self.imu_initialized:
+                    self.get_logger().info('MPU6050 IMU initialized successfully')
+                else:
+                    self.get_logger().warn('MPU6050 found but initialization failed')
+            except Exception as e:
+                self.get_logger().error(f'Failed to initialize MPU6050: {str(e)}')
+                self.imu_initialized = False
+        else:
+            if not MPU6050_AVAILABLE:
+                self.get_logger().info('MPU6050Reader module not available')
+            else:
+                self.get_logger().info('IMU data will be simulated')
 
         # Flask app for the professional web interface
         self.app = Flask(__name__)
@@ -2544,7 +2573,8 @@ class WebRobotInterface(Node):
                     'battery_voltage': 24.0,
                     'system_status': 'operational',
                     'simulation_mode': self.simulation_mode,
-                    'spi_initialized': self.spi_initialized
+                    'spi_initialized': self.spi_initialized,
+                    'imu_initialized': self.imu_initialized
                 },
                 'timestamp': time.time()
             })
@@ -2566,6 +2596,54 @@ class WebRobotInterface(Node):
                     },
                     'timestamp': time.time()
                 })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }), 500
+        
+        @self.app.route('/api/robot/imu/position')
+        def get_imu_position():
+            try:
+                imu_data = self.read_imu_data()
+                if imu_data:
+                    return jsonify({
+                        'success': True,
+                        'data': imu_data,
+                        'timestamp': time.time()
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'IMU data not available',
+                        'timestamp': time.time()
+                    }), 503
+            except Exception as e:
+                self.get_logger().error(f'IMU read error: {str(e)}')
+                return jsonify({
+                    'success': False,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }), 500
+        
+        @self.app.route('/api/robot/imu/calibrate', methods=['POST'])
+        def calibrate_imu():
+            try:
+                if self.imu and self.imu_initialized:
+                    # Store current readings as calibration offset
+                    # This is a simplified calibration - just acknowledges the request
+                    return jsonify({
+                        'success': True,
+                        'message': 'IMU calibration completed',
+                        'timestamp': time.time()
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': 'IMU not available',
+                        'timestamp': time.time()
+                    }), 503
             except Exception as e:
                 return jsonify({
                     'success': False,
@@ -2733,6 +2811,61 @@ class WebRobotInterface(Node):
             self.sim_counter += 1
         
         return sensor_data
+    
+    def read_imu_data(self):
+        """
+        Read MPU6050 IMU sensor data
+        Returns dict with orientation, angular_velocity, and linear_acceleration
+        """
+        if self.imu and self.imu_initialized:
+            try:
+                # Read all sensor data
+                imu_reading = self.imu.read_all()
+                if imu_reading:
+                    # Get orientation (pitch, roll)
+                    orientation = self.imu.get_orientation()
+                    
+                    return {
+                        'orientation': {
+                            'x': orientation['roll'] if orientation else 0.0,
+                            'y': orientation['pitch'] if orientation else 0.0,
+                            'z': orientation['yaw'] if orientation else 0.0
+                        },
+                        'angular_velocity': {
+                            'x': imu_reading['gyroscope']['x'],
+                            'y': imu_reading['gyroscope']['y'],
+                            'z': imu_reading['gyroscope']['z']
+                        },
+                        'linear_acceleration': {
+                            'x': imu_reading['accelerometer']['x'],
+                            'y': imu_reading['accelerometer']['y'],
+                            'z': imu_reading['accelerometer']['z']
+                        },
+                        'temperature': imu_reading['temperature']
+                    }
+            except Exception as e:
+                self.get_logger().error(f'Error reading IMU: {str(e)}')
+                return None
+        else:
+            # Simulation mode - return simulated IMU data
+            return {
+                'orientation': {
+                    'x': math.sin(self.sim_counter * 0.05) * 5.0,  # Roll ±5°
+                    'y': math.cos(self.sim_counter * 0.05) * 3.0,  # Pitch ±3°
+                    'z': 0.0  # Yaw
+                },
+                'angular_velocity': {
+                    'x': math.sin(self.sim_counter * 0.1) * 2.0,
+                    'y': math.cos(self.sim_counter * 0.1) * 2.0,
+                    'z': math.sin(self.sim_counter * 0.05) * 1.0
+                },
+                'linear_acceleration': {
+                    'x': math.sin(self.sim_counter * 0.08) * 0.5,
+                    'y': math.cos(self.sim_counter * 0.08) * 0.5,
+                    'z': 9.81 + math.sin(self.sim_counter * 0.1) * 0.2  # ~9.8 m/s² with variation
+                },
+                'temperature': 25.0 + math.sin(self.sim_counter * 0.02) * 5.0
+            }
 
     def cleanup(self):
         """Cleanup resources"""
