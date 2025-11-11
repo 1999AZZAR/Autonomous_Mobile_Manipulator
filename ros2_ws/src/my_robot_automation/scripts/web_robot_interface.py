@@ -1659,7 +1659,7 @@ USB3 - Reserved
                     config.body = JSON.stringify(data);
                 }
 
-                const response = await fetch(`${ROS2_API_BASE}${endpoint}`, config);
+                const response = await fetch(`${WEB_API_BASE}${endpoint}`, config);
                 const result = await response.json();
 
                 addLog(`${method} ${endpoint}: ${result.message || result.success ? 'Success' : 'Failed'}`);
@@ -2319,7 +2319,7 @@ USB3 - Reserved
 
             try {
                 document.getElementById('path-status').textContent = 'Executing...';
-                const response = await fetch(`${ROS2_API_BASE}/api/robot/patrol`, {
+                const response = await fetch(`${WEB_API_BASE}/api/robot/patrol`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(patrolData)
@@ -2349,7 +2349,7 @@ USB3 - Reserved
             const singleWaypoint = [{ position: { x, y, z } }];
 
             try {
-                const response = await fetch(`${ROS2_API_BASE}/api/robot/patrol`, {
+                const response = await fetch(`${WEB_API_BASE}/api/robot/patrol`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
@@ -2375,7 +2375,7 @@ USB3 - Reserved
             const homeWaypoint = [{ position: { x: 0.0, y: 0.0, z: 0.0 } }];
 
             try {
-                const response = await fetch(`${ROS2_API_BASE}/api/robot/patrol`, {
+                const response = await fetch(`${WEB_API_BASE}/api/robot/patrol`, {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
