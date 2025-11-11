@@ -8,10 +8,16 @@ import threading
 import time
 import math
 import os
+import sys
 import json
 import requests
 import random
 from datetime import datetime
+
+# Add scripts directory to Python path for mpu6050_reader import
+_script_dir = os.path.dirname(os.path.abspath(__file__))
+if _script_dir not in sys.path:
+    sys.path.insert(0, _script_dir)
 
 # Try to import spidev, but allow graceful degradation
 try:
@@ -2999,7 +3005,17 @@ class WebRobotInterface(Node):
                     self.imu = MPU6050Reader(address=0x68)
                     self.imu_initialized = self.imu.initialized
                     if self.imu_initialized:
-                        self.get_logger().info('MPU6050 IMU initialized successfully (MPU6050Reader)')
+                        # Test if we can actually read data
+                        try:
+                            test_data = self.imu.read_all()
+                            if test_data:
+                                self.get_logger().info('MPU6050 IMU initialized successfully (MPU6050Reader)')
+                            else:
+                                self.get_logger().warn('MPU6050 initialized but read_all() returned None')
+                                self.imu_initialized = False
+                        except Exception as e:
+                            self.get_logger().error(f'MPU6050 test read failed: {str(e)}')
+                            self.imu_initialized = False
                     else:
                         self.get_logger().warn('MPU6050 found but initialization failed')
             except Exception as e:
@@ -3170,88 +3186,10 @@ class WebRobotInterface(Node):
         response.status = request.action.upper() if success else "ERROR"
         return response
 
-    # Initialize SPI for MCP3008 ADC
-        self.spi = None
-        self.spi_initialized = False
-        
-        if not self.simulation_mode:
-            try:
-                self.spi = spidev.SpiDev()
-                self.spi.open(0, 0)
-                self.spi.max_speed_hz = 1350000
-                self.spi_initialized = True
-                self.get_logger().info('SPI interface initialized successfully')
-            except Exception as e:
-                self.get_logger().error(f'Failed to initialize SPI: {str(e)}')
-                self.get_logger().warn('Falling back to SIMULATION mode')
-                self.simulation_mode = True
-                self.spi_initialized = False
-        else:
-            self.get_logger().info('Running in SIMULATION mode (no hardware access)')
-        
-        # Sharp GP2Y0A02YK0F sensor channel mapping on MCP3008
-        self.sensor_channels = {
-            'left_front': 0,
-            'left_back': 1,
-            'right_front': 2,
-            'right_back': 3,
-            'back_left': 4,
-            'back_right': 5
-        }
-        
-        # Sensor health tracking
-        self.sensor_health = {name: {'status': 'unknown', 'last_read': None, 'error_count': 0} 
-                             for name in self.sensor_channels.keys()}
-        
-        # ADC reference voltage (typically 3.3V on Raspberry Pi)
-        self.adc_vref = 3.3
-        self.adc_resolution = 1024
-        
-        # Simulation data (for testing without hardware)
-        self.sim_counter = 0
-        
-        # Initialize MPU6050 IMU sensor
-        self.imu = None
-        self.imu_initialized = False
-        
-        if not self.simulation_mode and MPU6050_AVAILABLE:
-            try:
-                if MPU6050_MODULE == 'mpu6050':
-                    # Use mpu6050-raspberrypi package
-                    self.imu = mpu6050(0x68)
-                    # Test if we can read data
-                    try:
-                        accel_data = self.imu.get_accel_data()
-                        gyro_data = self.imu.get_gyro_data()
-                        temp = self.imu.get_temp()
-                        if accel_data and gyro_data:
-                            self.imu_initialized = True
-                            self.get_logger().info('MPU6050 IMU initialized successfully (mpu6050 package)')
-                        else:
-                            self.get_logger().warn('MPU6050 found but returned empty data')
-                    except Exception as e:
-                        self.get_logger().error(f'MPU6050 test read failed: {str(e)}')
-                        self.imu_initialized = False
-                else:
-                    # Use MPU6050Reader class
-                    self.imu = MPU6050Reader(address=0x68)
-                    self.imu_initialized = self.imu.initialized
-                    if self.imu_initialized:
-                        self.get_logger().info('MPU6050 IMU initialized successfully (MPU6050Reader)')
-                    else:
-                        self.get_logger().warn('MPU6050 found but initialization failed')
-            except Exception as e:
-                self.get_logger().error(f'Failed to initialize MPU6050: {str(e)}')
-                self.imu_initialized = False
-        else:
-            if not MPU6050_AVAILABLE:
-                self.get_logger().info('MPU6050Reader module not available')
-            else:
-                self.get_logger().info('IMU data will be simulated')
+    # Note: Sensor and IMU initialization is handled in initialize_sensors() method
+    # Flask app and ROS2 services are initialized in separate methods
 
-        # Flask app and ROS2 services are now initialized in separate methods above
-
-        # Setup routes
+        # Setup routes (OLD DUPLICATE ROUTES - REMOVED)
         @self.app.route('/')
         def index():
             return render_template_string(HTML_TEMPLATE)
@@ -4586,8 +4524,8 @@ class WebRobotInterface(Node):
                         self.get_logger().warn('IMU returned empty data - sensor may be faulty')
                         return None
                 else:
-                    # MPU6050Reader API
-                    imu_data = self.imu.get_all_data()
+                    # MPU6050Reader API - use read_all() method
+                    imu_data = self.imu.read_all()
                     if imu_data:
                         self.get_logger().debug(f'IMU data read successfully: {imu_data}')
                         return imu_data

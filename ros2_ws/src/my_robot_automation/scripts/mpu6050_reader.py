@@ -5,22 +5,66 @@ Reads accelerometer, gyroscope, and temperature data
 '''
 
 import time
-from mpu6050 import mpu6050
+import math
+
+# Try to import smbus2 (compatible with smbus)
+try:
+    from smbus2 import SMBus
+    SMBUS_AVAILABLE = True
+except ImportError:
+    try:
+        import smbus
+        SMBUS_AVAILABLE = True
+    except ImportError:
+        SMBUS_AVAILABLE = False
+        print("WARNING: smbus/smbus2 not available. IMU will not work.")
+
+# MPU6050 registers
+MPU6050_ADDR = 0x68
+PWR_MGMT_1 = 0x6B
+ACCEL_XOUT_H = 0x3B
+GYRO_XOUT_H = 0x43
+TEMP_OUT_H = 0x41
 
 class MPU6050Reader:
-    def __init__(self, address=0x68):
+    def __init__(self, address=0x68, bus=1):
         '''
         Initialize MPU6050 sensor
         Args:
             address: I2C address (default 0x68, alternative 0x69)
+            bus: I2C bus number (default 1 for Raspberry Pi)
         '''
+        self.address = address
+        self.bus_num = bus
+        self.initialized = False
+        
+        if not SMBUS_AVAILABLE:
+            print('SMBUS not available - cannot initialize MPU6050')
+            return
+        
         try:
-            self.sensor = mpu6050(address)
+            self.bus = SMBus(bus)
+            # Wake up the MPU6050 (set sleep bit to 0)
+            self.bus.write_byte_data(address, PWR_MGMT_1, 0)
+            time.sleep(0.1)  # Wait for sensor to wake up
+            
+            # Test read to verify sensor is responding
+            test = self.bus.read_byte_data(address, PWR_MGMT_1)
             self.initialized = True
-            print(f'MPU6050 initialized successfully at address 0x{address:02x}')
+            print(f'MPU6050 initialized successfully at address 0x{address:02x} on bus {bus}')
         except Exception as e:
             self.initialized = False
             print(f'Failed to initialize MPU6050: {e}')
+    
+    def _read_word_2c(self, addr):
+        '''Read a 16-bit signed value from two consecutive registers'''
+        high = self.bus.read_byte_data(self.address, addr)
+        low = self.bus.read_byte_data(self.address, addr + 1)
+        val = (high << 8) + low
+        if val >= 0x8000:
+            return -((65535 - val) + 1)
+        else:
+            return val
     
     def read_all(self):
         '''
@@ -32,22 +76,32 @@ class MPU6050Reader:
             return None
         
         try:
-            accel = self.sensor.get_accel_data()
-            gyro = self.sensor.get_gyro_data()
-            temp = self.sensor.get_temp()
+            # Read accelerometer (in g units, need to convert to m/s²)
+            accel_x = self._read_word_2c(ACCEL_XOUT_H) / 16384.0  # LSB/g for ±2g range
+            accel_y = self._read_word_2c(ACCEL_XOUT_H + 2) / 16384.0
+            accel_z = self._read_word_2c(ACCEL_XOUT_H + 4) / 16384.0
+            
+            # Read gyroscope (in deg/s)
+            gyro_x = self._read_word_2c(GYRO_XOUT_H) / 131.0  # LSB/(deg/s) for ±250deg/s range
+            gyro_y = self._read_word_2c(GYRO_XOUT_H + 2) / 131.0
+            gyro_z = self._read_word_2c(GYRO_XOUT_H + 4) / 131.0
+            
+            # Read temperature (in °C)
+            temp_raw = self._read_word_2c(TEMP_OUT_H)
+            temperature = temp_raw / 340.0 + 36.53
             
             return {
                 'accelerometer': {
-                    'x': accel['x'],
-                    'y': accel['y'],
-                    'z': accel['z']
+                    'x': accel_x * 9.81,  # Convert g to m/s²
+                    'y': accel_y * 9.81,
+                    'z': accel_z * 9.81
                 },
                 'gyroscope': {
-                    'x': gyro['x'],
-                    'y': gyro['y'],
-                    'z': gyro['z']
+                    'x': gyro_x,
+                    'y': gyro_y,
+                    'z': gyro_z
                 },
-                'temperature': temp,
+                'temperature': temperature,
                 'timestamp': time.time()
             }
         except Exception as e:
@@ -63,8 +117,11 @@ class MPU6050Reader:
             return None
         
         try:
-            import math
-            accel = self.sensor.get_accel_data()
+            data = self.read_all()
+            if not data:
+                return None
+                
+            accel = data['accelerometer']
             
             # Calculate pitch and roll from accelerometer
             pitch = math.atan2(accel['y'], math.sqrt(accel['x']**2 + accel['z']**2)) * 180 / math.pi
