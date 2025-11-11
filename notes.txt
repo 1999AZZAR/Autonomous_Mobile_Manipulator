@@ -94,3 +94,11 @@ recent updates (2025-11-11):
   - Hardware mode requires I2C permissions and real sensors
   - Simulation mode works anywhere without hardware
 
+- Added automatic workspace building
+  - Created build_workspace.sh for first-time setup
+  - Startup scripts now automatically build workspace if needed
+  - Checks for ROS2, colcon, and Python dependencies
+  - Installs missing Python packages automatically
+  - Created FIRST_RUN.md complete setup guide from scratch
+  - Scripts detect if workspace not built and offer to build it
+

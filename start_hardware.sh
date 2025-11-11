@@ -61,10 +61,30 @@ if [ -f "install/setup.bash" ]; then
     echo -e "${GREEN}✓ Sourcing ROS2 workspace${NC}"
     source install/setup.bash
 else
-    echo -e "${YELLOW}⚠ ROS2 workspace not built - running without ROS2 environment${NC}"
-    echo -e "  This is fine for web interface only"
-    echo -e "  To build: cd ros2_ws && colcon build"
+    echo -e "${RED}✗ ROS2 workspace not built!${NC}"
+    echo -e "  The web interface requires ROS2 environment."
     echo ""
+    echo -e "${BLUE}Building workspace now (this takes a few minutes)...${NC}"
+    
+    # Check if colcon is available
+    if ! command -v colcon &> /dev/null; then
+        echo -e "${RED}ERROR: colcon not found. Install with:${NC}"
+        echo -e "  sudo apt update"
+        echo -e "  sudo apt install python3-colcon-common-extensions"
+        exit 1
+    fi
+    
+    # Build the workspace
+    colcon build
+    
+    if [ $? -eq 0 ]; then
+        echo -e "${GREEN}✓ Workspace built successfully${NC}"
+        source install/setup.bash
+    else
+        echo -e "${RED}✗ Build failed${NC}"
+        echo -e "  Try manually: cd ros2_ws && colcon build"
+        exit 1
+    fi
 fi
 
 # Start web interface with --hardware flag

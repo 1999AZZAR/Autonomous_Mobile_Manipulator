@@ -1,6 +1,15 @@
 # Quick Command Reference
 
-## Diagnostics (Run This First!)
+## First Time Setup
+
+```bash
+# Build the ROS2 workspace (required, takes 2-5 minutes)
+./build_workspace.sh
+```
+
+This only needs to be done once, or after updating code.
+
+## Diagnostics
 
 ```bash
 # From the project root directory

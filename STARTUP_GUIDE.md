@@ -2,7 +2,24 @@
 
 ## Quick Start
 
-### Step 1: Run IMU Diagnostics
+### Step 0: First Time Setup (Build Workspace)
+
+**Only needed once**, or after code updates:
+
+```bash
+# From the project root directory
+./build_workspace.sh
+```
+
+This will:
+- Check ROS2 installation
+- Install Python dependencies
+- Build the ROS2 workspace
+- Takes 2-5 minutes
+
+**The startup scripts (`start_hardware.sh` and `start_simulation.sh`) will automatically build the workspace if needed**, but running this first is recommended for the first setup.
+
+### Step 1: Run IMU Diagnostics (Optional)
 
 This will check all components and tell you exactly what's wrong:
 
