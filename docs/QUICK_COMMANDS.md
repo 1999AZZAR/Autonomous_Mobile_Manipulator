@@ -2,12 +2,46 @@
 
 ## First Time Setup
 
+**For Raspberry Pi:**
 ```bash
-# Build the ROS2 workspace (required, takes 2-5 minutes)
-./build_workspace.sh
+./setup --rpi
+sudo reboot
 ```
 
-This only needs to be done once, or after updating code.
+**For PC/Development:**
+```bash
+./setup --pc
+```
+
+This only needs to be done once, or after system changes.
+
+## Start the System
+
+**Hardware Mode (Real Sensors on Raspberry Pi):**
+```bash
+./start --hw
+```
+
+**Simulation Mode (No Hardware Required):**
+```bash
+./start --sim
+```
+
+**Test Mode (System Verification):**
+```bash
+./start --test
+```
+
+## System Management
+
+```bash
+./start --status      # Check system status
+./start --logs        # View container logs
+./start --stop        # Stop all containers
+./start --restart     # Restart containers
+./start --shell       # Enter container shell
+./start --clean       # Clean Docker system
+```
 
 ## Diagnostics
 
@@ -18,24 +52,13 @@ python3 diagnose_imu.py
 
 This will tell you exactly what's wrong and how to fix it.
 
-## Start Web Interface
-
-### Hardware Mode (Real Sensors)
+### Manual Control (Advanced)
 ```bash
-./start_hardware.sh
-```
-
-### Simulation Mode (No Hardware)
-```bash
-./start_simulation.sh
-```
-
-### Manual Control
-```bash
+./start --direct      # Start ROS2 directly (no Docker)
+# Then in another terminal:
 cd ros2_ws
-python3 src/my_robot_automation/scripts/web_robot_interface.py --hardware     # Force hardware
-python3 src/my_robot_automation/scripts/web_robot_interface.py --simulation  # Force simulation
-python3 src/my_robot_automation/scripts/web_robot_interface.py               # Auto-detect
+source install/setup.bash
+python3 src/my_robot_automation/scripts/web_robot_interface.py --hardware
 ```
 
 **Watch for:**

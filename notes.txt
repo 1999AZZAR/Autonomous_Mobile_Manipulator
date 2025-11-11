@@ -102,3 +102,32 @@ recent updates (2025-11-11):
   - Created FIRST_RUN.md complete setup guide from scratch
   - Scripts detect if workspace not built and offer to build it
 
+- Implemented direct GPIO control (2025-11-11)
+  - Fixed web UI not controlling servos/motors (was forwarding to non-existent port 5000)
+  - Added GPIOController class for direct hardware control
+  - Uses gpiozero + pigpio for precise PWM servo control
+  - Controls 4x servos (gripper tilt/open/close/neck/base) via GPIO12,18,19,21
+  - Controls 3x omni wheel motors via GPIO17/27, GPIO22/23, GPIO24/25
+  - Controls 4x container servos via GPIO5,6,7,26
+  - Fixed UI API endpoints: port 8000 for sensors/GPIO, port 5000 for navigation
+  - Created install_gpio_dependencies.sh for easy setup
+  - Created test_gpio.py to verify hardware connectivity
+  - Created GPIO_CONTROL_SETUP.md comprehensive documentation
+  - Created CHANGES_SUMMARY.md documenting all changes
+  - Web interface now controls hardware directly without ROS2 control server
+  - Automatic fallback to simulation mode if GPIO unavailable
+  - All GPIO resources properly cleaned up on exit
+
+- Consolidated scripts for cleaner project structure (2025-11-11)
+  - Reduced 9 redundant scripts to 2 unified scripts
+  - Created ./setup script (replaces setup_raspberry_pi.sh, build_workspace.sh)
+    - Flags: --rpi (Raspberry Pi setup), --pc (PC/dev setup)
+  - Created ./start script (replaces run.sh, start_robot.sh, start_hardware.sh, etc)
+    - Modes: --hw (hardware), --sim (simulation), --test (testing)
+    - Operations: --status, --logs, --stop, --restart, --shell, --clean
+  - Moved old scripts to deprecated_scripts/ folder for reference
+  - Updated README.md with new script usage
+  - Created SCRIPT_CONSOLIDATION_SUMMARY.md documentation
+  - Benefits: simpler commands, less confusion, easier maintenance
+  - All features preserved, nothing lost in consolidation
+

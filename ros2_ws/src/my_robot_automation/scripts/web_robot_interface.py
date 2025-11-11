@@ -27,6 +27,23 @@ except ImportError:
     MPU6050_AVAILABLE = False
     print("WARNING: MPU6050Reader not available. IMU data will be simulated.")
 
+# Try to import GPIO libraries for direct hardware control
+try:
+    from gpiozero import Servo, Motor, AngularServo, OutputDevice
+    from gpiozero.pins.pigpio import PiGPIOFactory
+    import pigpio
+    GPIOZERO_AVAILABLE = True
+except ImportError:
+    GPIOZERO_AVAILABLE = False
+    print("WARNING: gpiozero not available. GPIO control will be simulated.")
+
+try:
+    import RPi.GPIO as GPIO
+    RPI_GPIO_AVAILABLE = True
+except ImportError:
+    RPI_GPIO_AVAILABLE = False
+    print("WARNING: RPi.GPIO not available.")
+
 # Modern Professional Web Interface Template
 HTML_TEMPLATE = """
 <!DOCTYPE html>
@@ -2464,6 +2481,295 @@ USB3 - Reserved
 </html>
 """
 
+class GPIOController:
+    """Direct GPIO control for servos, motors, and actuators"""
+    
+    def __init__(self, simulation_mode=False):
+        self.simulation_mode = simulation_mode
+        self.gpio_initialized = False
+        
+        # GPIO pin definitions (from RASPBERRY_PI_PINOUTS.md)
+        self.PINS = {
+            # Servos (Hardware PWM)
+            'GRIPPER_TILT': 18,      # GPIO18 - Gripper Tilt Servo
+            'GRIPPER_OPEN_CLOSE': 19,# GPIO19 - Gripper Open/Close
+            'GRIPPER_NECK': 21,      # GPIO21 - Gripper Extension (360° continuous)
+            'GRIPPER_BASE': 12,      # GPIO12 - Gripper Base Height
+            
+            # Omni Wheel Motors
+            'MOTOR_FL_DIR': 17,      # GPIO17 - Front Left Wheel Direction
+            'MOTOR_FL_PWM': 27,      # GPIO27 - Front Left Wheel PWM
+            'MOTOR_FR_DIR': 22,      # GPIO22 - Front Right Wheel Direction
+            'MOTOR_FR_PWM': 23,      # GPIO23 - Front Right Wheel PWM
+            'MOTOR_BACK_DIR': 24,    # GPIO24 - Back Wheel Direction
+            'MOTOR_BACK_PWM': 25,    # GPIO25 - Back Wheel PWM
+            
+            # Gripper Lifter Motor
+            'LIFTER_DIR': 13,        # GPIO13 - Lifter Direction
+            'LIFTER_PWM': 12,        # GPIO12 - Lifter PWM (shared with base servo)
+            
+            # Container Servos
+            'CONTAINER_LF': 26,      # GPIO26 - Left Front Container
+            'CONTAINER_LB': 5,       # GPIO5 - Left Back Container
+            'CONTAINER_RF': 6,       # GPIO6 - Right Front Container
+            'CONTAINER_RB': 7,       # GPIO7 - Right Back Container
+        }
+        
+        # Hardware objects
+        self.servos = {}
+        self.motors = {}
+        self.containers = {}
+        
+        # Initialize GPIO if not in simulation mode
+        if not self.simulation_mode and GPIOZERO_AVAILABLE:
+            try:
+                # Use pigpio for better PWM control
+                factory = PiGPIOFactory()
+                
+                # Initialize servo motors
+                self.servos['gripper_tilt'] = AngularServo(
+                    self.PINS['GRIPPER_TILT'],
+                    min_angle=0,
+                    max_angle=180,
+                    pin_factory=factory
+                )
+                
+                self.servos['gripper_open_close'] = AngularServo(
+                    self.PINS['GRIPPER_OPEN_CLOSE'],
+                    min_angle=0,
+                    max_angle=180,
+                    pin_factory=factory
+                )
+                
+                # Continuous rotation servo for neck
+                self.servos['gripper_neck'] = Servo(
+                    self.PINS['GRIPPER_NECK'],
+                    pin_factory=factory
+                )
+                
+                self.servos['gripper_base'] = AngularServo(
+                    self.PINS['GRIPPER_BASE'],
+                    min_angle=0,
+                    max_angle=180,
+                    pin_factory=factory
+                )
+                
+                # Initialize omni wheel motors
+                self.motors['front_left'] = Motor(
+                    forward=self.PINS['MOTOR_FL_DIR'],
+                    backward=self.PINS['MOTOR_FL_PWM'],
+                    pin_factory=factory
+                )
+                
+                self.motors['front_right'] = Motor(
+                    forward=self.PINS['MOTOR_FR_DIR'],
+                    backward=self.PINS['MOTOR_FR_PWM'],
+                    pin_factory=factory
+                )
+                
+                self.motors['back'] = Motor(
+                    forward=self.PINS['MOTOR_BACK_DIR'],
+                    backward=self.PINS['MOTOR_BACK_PWM'],
+                    pin_factory=factory
+                )
+                
+                # Initialize container servos
+                for container_id in ['left_front', 'left_back', 'right_front', 'right_back']:
+                    pin_key = f"CONTAINER_{container_id.upper().replace('_', '')[:2]}"
+                    self.containers[container_id] = AngularServo(
+                        self.PINS[pin_key],
+                        min_angle=0,
+                        max_angle=180,
+                        pin_factory=factory
+                    )
+                
+                self.gpio_initialized = True
+                print("GPIO Controller initialized successfully")
+                
+            except Exception as e:
+                print(f"ERROR: Failed to initialize GPIO: {str(e)}")
+                self.simulation_mode = True
+                self.gpio_initialized = False
+        else:
+            print("GPIO Controller running in SIMULATION mode")
+    
+    def control_gripper(self, command):
+        """Control gripper open/close"""
+        if self.simulation_mode:
+            print(f"[SIM] Gripper {command}")
+            return True
+        
+        try:
+            if command == 'open':
+                self.servos['gripper_open_close'].angle = 180  # Fully open
+            elif command == 'close':
+                self.servos['gripper_open_close'].angle = 0    # Fully closed
+            return True
+        except Exception as e:
+            print(f"ERROR controlling gripper: {str(e)}")
+            return False
+    
+    def set_gripper_tilt(self, angle):
+        """Set gripper tilt angle (0-180 degrees)"""
+        if self.simulation_mode:
+            print(f"[SIM] Gripper tilt: {angle}°")
+            return True
+        
+        try:
+            angle = max(0, min(180, angle))  # Clamp to 0-180
+            self.servos['gripper_tilt'].angle = angle
+            return True
+        except Exception as e:
+            print(f"ERROR setting gripper tilt: {str(e)}")
+            return False
+    
+    def set_gripper_neck(self, position):
+        """Set gripper neck position (-1 to 1, continuous servo)"""
+        if self.simulation_mode:
+            print(f"[SIM] Gripper neck: {position}")
+            return True
+        
+        try:
+            position = max(-1, min(1, position))  # Clamp to -1 to 1
+            self.servos['gripper_neck'].value = position
+            return True
+        except Exception as e:
+            print(f"ERROR setting gripper neck: {str(e)}")
+            return False
+    
+    def set_gripper_base(self, height):
+        """Set gripper base height (0-1, normalized)"""
+        if self.simulation_mode:
+            print(f"[SIM] Gripper base height: {height}")
+            return True
+        
+        try:
+            height = max(0, min(1, height))  # Clamp to 0-1
+            angle = int(height * 180)  # Convert to angle
+            self.servos['gripper_base'].angle = angle
+            return True
+        except Exception as e:
+            print(f"ERROR setting gripper base: {str(e)}")
+            return False
+    
+    def home_servos(self):
+        """Home all servos to neutral position"""
+        if self.simulation_mode:
+            print("[SIM] Homing all servos")
+            return True
+        
+        try:
+            self.servos['gripper_tilt'].angle = 90
+            self.servos['gripper_open_close'].angle = 90
+            self.servos['gripper_neck'].value = 0
+            self.servos['gripper_base'].angle = 90
+            return True
+        except Exception as e:
+            print(f"ERROR homing servos: {str(e)}")
+            return False
+    
+    def move_robot(self, direction, speed=0.5):
+        """Move robot in specified direction using omni wheels"""
+        if self.simulation_mode:
+            print(f"[SIM] Moving {direction} at speed {speed}")
+            return True
+        
+        try:
+            speed = max(0, min(1, speed))  # Clamp speed
+            
+            if direction == 'forward':
+                self.motors['front_left'].forward(speed)
+                self.motors['front_right'].forward(speed)
+                self.motors['back'].forward(speed)
+            elif direction == 'backward':
+                self.motors['front_left'].backward(speed)
+                self.motors['front_right'].backward(speed)
+                self.motors['back'].backward(speed)
+            elif direction == 'strafe_left':
+                self.motors['front_left'].backward(speed)
+                self.motors['front_right'].forward(speed)
+                self.motors['back'].stop()
+            elif direction == 'strafe_right':
+                self.motors['front_left'].forward(speed)
+                self.motors['front_right'].backward(speed)
+                self.motors['back'].stop()
+            return True
+        except Exception as e:
+            print(f"ERROR moving robot: {str(e)}")
+            return False
+    
+    def turn_robot(self, direction, speed=0.5):
+        """Turn robot left or right"""
+        if self.simulation_mode:
+            print(f"[SIM] Turning {direction} at speed {speed}")
+            return True
+        
+        try:
+            speed = max(0, min(1, speed))
+            
+            if direction == 'left':
+                self.motors['front_left'].backward(speed)
+                self.motors['front_right'].forward(speed)
+                self.motors['back'].backward(speed)
+            elif direction == 'right':
+                self.motors['front_left'].forward(speed)
+                self.motors['front_right'].backward(speed)
+                self.motors['back'].forward(speed)
+            return True
+        except Exception as e:
+            print(f"ERROR turning robot: {str(e)}")
+            return False
+    
+    def stop_robot(self):
+        """Stop all motors"""
+        if self.simulation_mode:
+            print("[SIM] Stopping robot")
+            return True
+        
+        try:
+            for motor in self.motors.values():
+                motor.stop()
+            return True
+        except Exception as e:
+            print(f"ERROR stopping robot: {str(e)}")
+            return False
+    
+    def control_container(self, container_id, action):
+        """Control container load/unload"""
+        if self.simulation_mode:
+            print(f"[SIM] Container {container_id} {action}")
+            return True
+        
+        try:
+            if action == 'load':
+                self.containers[container_id].angle = 0  # Closed position
+            elif action == 'unload':
+                self.containers[container_id].angle = 180  # Open position
+            return True
+        except Exception as e:
+            print(f"ERROR controlling container: {str(e)}")
+            return False
+    
+    def cleanup(self):
+        """Cleanup GPIO resources"""
+        if not self.simulation_mode and self.gpio_initialized:
+            try:
+                # Stop all motors
+                for motor in self.motors.values():
+                    motor.close()
+                
+                # Close all servos
+                for servo in self.servos.values():
+                    servo.close()
+                
+                # Close all containers
+                for container in self.containers.values():
+                    container.close()
+                
+                print("GPIO Controller cleaned up")
+            except Exception as e:
+                print(f"ERROR during GPIO cleanup: {str(e)}")
+
 class WebRobotInterface(Node):
     def __init__(self, simulation_mode=None):
         super().__init__('web_robot_interface')
@@ -2473,6 +2779,10 @@ class WebRobotInterface(Node):
             self.simulation_mode = not SPIDEV_AVAILABLE
         else:
             self.simulation_mode = simulation_mode
+        
+        # Initialize GPIO Controller
+        self.gpio = GPIOController(simulation_mode=self.simulation_mode)
+        self.get_logger().info(f'GPIO Controller initialized (simulation={self.simulation_mode})')
         
         # Initialize SPI for MCP3008 ADC
         self.spi = None
@@ -2579,7 +2889,8 @@ class WebRobotInterface(Node):
                     'system_status': 'operational',
                     'simulation_mode': self.simulation_mode,
                     'spi_initialized': self.spi_initialized,
-                    'imu_initialized': self.imu_initialized
+                    'imu_initialized': self.imu_initialized,
+                    'gpio_initialized': self.gpio.gpio_initialized
                 },
                 'timestamp': time.time()
             })
@@ -2656,42 +2967,49 @@ class WebRobotInterface(Node):
                     'timestamp': time.time()
                 }), 500
         
-        # Movement control endpoints - Forward to ROS2 server
+        # Movement control endpoints - Direct GPIO control
         @self.app.route('/api/robot/move', methods=['POST'])
         def robot_move():
             try:
                 data = request.get_json()
-                response = requests.post('http://localhost:5000/api/robot/move', 
-                                       json=data, timeout=5)
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                self.get_logger().error(f'Failed to forward move command: {str(e)}')
-                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+                direction = data.get('direction')
+                speed = data.get('speed', 0.5)
+                
+                success = self.gpio.move_robot(direction, speed)
+                return jsonify({
+                    'success': success,
+                    'message': f'Moving {direction}' if success else 'Move failed'
+                })
             except Exception as e:
+                self.get_logger().error(f'Move error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/robot/turn', methods=['POST'])
         def robot_turn():
             try:
                 data = request.get_json()
-                response = requests.post('http://localhost:5000/api/robot/turn', 
-                                       json=data, timeout=5)
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                self.get_logger().error(f'Failed to forward turn command: {str(e)}')
-                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+                direction = data.get('direction')
+                speed = data.get('speed', 0.5)
+                
+                success = self.gpio.turn_robot(direction, speed)
+                return jsonify({
+                    'success': success,
+                    'message': f'Turning {direction}' if success else 'Turn failed'
+                })
             except Exception as e:
+                self.get_logger().error(f'Turn error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/robot/stop', methods=['POST'])
         def robot_stop():
             try:
-                response = requests.post('http://localhost:5000/api/robot/stop', timeout=5)
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                self.get_logger().error(f'Failed to forward stop command: {str(e)}')
-                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+                success = self.gpio.stop_robot()
+                return jsonify({
+                    'success': success,
+                    'message': 'Robot stopped' if success else 'Stop failed'
+                })
             except Exception as e:
+                self.get_logger().error(f'Stop error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/robot/mode', methods=['POST'])
@@ -2707,84 +3025,99 @@ class WebRobotInterface(Node):
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
-        # Gripper/Picker control endpoints - Forward to ROS2 server
+        # Gripper/Picker control endpoints - Direct GPIO control
         @self.app.route('/api/robot/picker/gripper', methods=['POST'])
         def control_gripper():
             try:
                 data = request.get_json()
-                response = requests.post('http://localhost:5000/api/robot/picker/gripper', 
-                                       json=data, timeout=5)
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                self.get_logger().error(f'Failed to forward gripper command: {str(e)}')
-                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+                command = data.get('command')
+                
+                success = self.gpio.control_gripper(command)
+                return jsonify({
+                    'success': success,
+                    'message': f'Gripper {command}' if success else 'Gripper command failed'
+                })
             except Exception as e:
+                self.get_logger().error(f'Gripper error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/robot/picker/gripper_tilt', methods=['POST'])
         def set_gripper_tilt():
             try:
                 data = request.get_json()
-                response = requests.post('http://localhost:5000/api/robot/picker/gripper_tilt', 
-                                       json=data, timeout=5)
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                self.get_logger().error(f'Failed to forward gripper_tilt command: {str(e)}')
-                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+                angle = data.get('angle', 90)
+                
+                success = self.gpio.set_gripper_tilt(angle)
+                return jsonify({
+                    'success': success,
+                    'message': f'Gripper tilt set to {angle}°' if success else 'Tilt failed'
+                })
             except Exception as e:
+                self.get_logger().error(f'Gripper tilt error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/robot/picker/gripper_neck', methods=['POST'])
         def set_gripper_neck():
             try:
                 data = request.get_json()
-                response = requests.post('http://localhost:5000/api/robot/picker/gripper_neck', 
-                                       json=data, timeout=5)
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                self.get_logger().error(f'Failed to forward gripper_neck command: {str(e)}')
-                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+                position = data.get('position', 0)
+                
+                success = self.gpio.set_gripper_neck(position)
+                return jsonify({
+                    'success': success,
+                    'message': f'Gripper neck set to {position}' if success else 'Neck failed'
+                })
             except Exception as e:
+                self.get_logger().error(f'Gripper neck error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/robot/picker/gripper_base', methods=['POST'])
         def set_gripper_base():
             try:
                 data = request.get_json()
-                response = requests.post('http://localhost:5000/api/robot/picker/gripper_base', 
-                                       json=data, timeout=5)
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                self.get_logger().error(f'Failed to forward gripper_base command: {str(e)}')
-                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+                height = data.get('height', 0.5)
+                
+                success = self.gpio.set_gripper_base(height)
+                return jsonify({
+                    'success': success,
+                    'message': f'Gripper base set to {height}' if success else 'Base failed'
+                })
             except Exception as e:
+                self.get_logger().error(f'Gripper base error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         @self.app.route('/api/robot/servos', methods=['POST'])
         def control_servos():
             try:
                 data = request.get_json()
-                response = requests.post('http://localhost:5000/api/robot/servos', 
-                                       json=data, timeout=5)
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                self.get_logger().error(f'Failed to forward servos command: {str(e)}')
-                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+                action = data.get('action')
+                
+                if action == 'home':
+                    success = self.gpio.home_servos()
+                    return jsonify({
+                        'success': success,
+                        'message': 'Servos homed' if success else 'Home failed'
+                    })
+                else:
+                    return jsonify({'success': False, 'error': 'Unknown action'}), 400
             except Exception as e:
+                self.get_logger().error(f'Servo control error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
-        # Container control endpoints - Forward to ROS2 server
+        # Container control endpoints - Direct GPIO control
         @self.app.route('/api/robot/containers/<container_id>', methods=['POST'])
         def control_container(container_id):
             try:
                 data = request.get_json()
-                response = requests.post(f'http://localhost:5000/api/robot/containers/{container_id}', 
-                                       json=data, timeout=5)
-                return jsonify(response.json()), response.status_code
-            except requests.exceptions.RequestException as e:
-                self.get_logger().error(f'Failed to forward container command: {str(e)}')
-                return jsonify({'success': False, 'error': 'ROS2 server unavailable'}), 503
+                action = data.get('action')
+                
+                success = self.gpio.control_container(container_id, action)
+                return jsonify({
+                    'success': success,
+                    'message': f'Container {container_id} {action}' if success else 'Container control failed'
+                })
             except Exception as e:
+                self.get_logger().error(f'Container control error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
         # Automation endpoints - Forward to ROS2 server
@@ -3133,12 +3466,20 @@ class WebRobotInterface(Node):
 
     def cleanup(self):
         """Cleanup resources"""
+        # Cleanup SPI
         if self.spi and self.spi_initialized:
             try:
                 self.spi.close()
                 self.get_logger().info('SPI interface closed')
             except Exception as e:
                 self.get_logger().error(f'Error closing SPI: {str(e)}')
+        
+        # Cleanup GPIO
+        try:
+            self.gpio.cleanup()
+            self.get_logger().info('GPIO cleaned up')
+        except Exception as e:
+            self.get_logger().error(f'Error cleaning up GPIO: {str(e)}')
     
     def __del__(self):
         """Destructor to ensure cleanup"""

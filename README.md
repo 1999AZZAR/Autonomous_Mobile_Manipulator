@@ -277,56 +277,72 @@ The Autonomous Mobile Manipulator provides a comprehensive API ecosystem support
 - Docker and Docker Compose
 - Git
 
-### Installation Options
+### Installation
 
-#### Option 1: Development Setup (Ubuntu/Debian)
+#### Step 1: Clone Repository
 
 ```bash
-# Clone the repository
 git clone <repository-url>
 cd lks_robot_project
-
-# Development mode with sensor simulation (recommended for testing)
-./run.sh --dev
-
-# Or use development Docker Compose
-docker compose -f docker-compose.dev.yml up --build -d
-
-# Traditional setup (requires Gazebo)
-./run.sh
-
-# Verify services are running
-docker compose ps
 ```
 
-#### Option 2: Raspberry Pi Production Setup
+#### Step 2: Run Setup
 
-For Raspberry Pi deployment, follow the comprehensive setup guide:
-
+**For PC/Development:**
 ```bash
-# On Raspberry Pi 5 with Ubuntu Server 22.04
-# Run the automated setup script
-./setup_raspberry_pi.sh
-
-# Or follow the detailed guide
-# See: docs/deployment/raspberry_pi_setup.md
+./setup --pc
 ```
 
-### Development vs Production Mode
+**For Raspberry Pi:**
+```bash
+./setup --rpi
+```
 
-#### Development Mode (Sensor Simulation)
+The setup script will:
+- Install Docker and dependencies
+- Configure system settings
+- Build ROS2 workspace
+- Set up monitoring scripts
+- Configure hardware interfaces (Raspberry Pi only)
 
-- **Purpose**: Testing n8n workflows and ROS2 APIs without Gazebo
-- **Sensors**: Simulated ultrasonic, line sensor, IMU, and LIDAR data
-- **Performance**: Lightweight, fast startup, ideal for development
-- **Access**: Same interfaces as production, but with dummy sensor data
+#### Step 3: Start the System
 
-#### Production Mode (Full Simulation)
+**Hardware Mode (Real Sensors on Raspberry Pi):**
+```bash
+./start --hw
+```
 
-- **Purpose**: Complete robot simulation with Gazebo physics
-- **Sensors**: Real sensor simulation through Gazebo plugins
-- **Performance**: Full physics simulation, more resource intensive
-- **Access**: Includes Gazebo GUI and complete sensor integration
+**Simulation Mode (Development/Testing):**
+```bash
+./start --sim
+```
+
+**Test Mode (Verify System):**
+```bash
+./start --test
+```
+
+### Operating Modes
+
+#### Hardware Mode (`--hw`)
+
+- **Purpose**: Production operation with real sensors
+- **Platform**: Raspberry Pi with physical hardware
+- **Sensors**: MPU6050 IMU, Sharp IR sensors, line sensors
+- **Usage**: `./start --hw`
+
+#### Simulation Mode (`--sim`)
+
+- **Purpose**: Development and testing without hardware
+- **Platform**: Any PC with Docker
+- **Sensors**: Simulated sensor data
+- **Usage**: `./start --sim`
+
+#### Test Mode (`--test`)
+
+- **Purpose**: System verification and interactive testing
+- **Features**: API testing, sensor verification, interactive control menu
+- **Usage**: `./start --test`
 
 ### Access Points
 
@@ -353,32 +369,42 @@ For Raspberry Pi deployment, follow the comprehensive setup guide:
 
 Note: Use `127.0.0.1` instead of `localhost` for API calls to ensure IPv4 connectivity.
 
-### Startup Scripts
+### Quick Commands
 
-The project includes convenient startup scripts for easy deployment:
+The system provides two unified scripts for all operations:
 
-#### Quick Start (`./run.sh`)
+#### Setup Script (`./setup`)
 
-One-command startup for the entire system:
+One-time system configuration:
 
 ```bash
-./run.sh  # Builds, starts, and shows access info
+./setup --pc          # PC/development setup
+./setup --rpi         # Raspberry Pi setup
+./setup --help        # Show all options
 ```
 
-#### Advanced Startup (`./start_robot.sh`)
+#### Start Script (`./start`)
 
-Full-featured startup script with options:
+All runtime operations:
 
 ```bash
-./start_robot.sh --help  # Show all options
+# Starting the system
+./start --hw          # Hardware mode
+./start --sim         # Simulation mode
+./start --test        # Test mode with interactive menu
 
-# Common usage
-./start_robot.sh              # Start services
-./start_robot.sh -b           # Force rebuild and start
-./start_robot.sh -s           # Show service status
-./start_robot.sh -l           # Show service logs
-./start_robot.sh -x           # Stop all services
-./start_robot.sh -r           # Restart all services
+# System management
+./start --status      # Show system status
+./start --logs        # View logs
+./start --stop        # Stop all containers
+./start --restart     # Restart containers
+./start --shell       # Enter container shell
+./start --clean       # Clean Docker system
+
+# Advanced options
+./start --hw --build  # Rebuild and start
+./start --sim --foreground  # Run in foreground
+./start --help        # Show all options
 ```
 
 ## Project Structure
@@ -772,22 +798,17 @@ All API endpoints return JSON responses with consistent structure:
 
 ## Deployment
 
-### Production Deployment (Ubuntu/Debian)
+### PC/Development Deployment
 
 ```bash
-# Stop development containers
-docker compose down
+# One-time setup
+./setup --pc
 
-# Build production images
-docker compose build --no-cache
-
-# Start production services
-docker compose up -d
+# Start the system
+./start --sim
 
 # Verify deployment
-docker compose ps
-curl http://localhost:5678  # n8n interface
-curl http://127.0.0.1:5000/health  # robot API
+./start --status
 
 # Import and manage n8n workflows
 ./workflow_management_tools.sh import-enhanced  # Import enhanced control workflows
@@ -797,27 +818,32 @@ curl http://127.0.0.1:5000/health  # robot API
 # Complete workflow management guide: docs/workflows/WORKFLOW_MANAGEMENT_README.md
 ```
 
-### Raspberry Pi Deployment
+### Raspberry Pi Production Deployment
 
 For comprehensive Raspberry Pi setup, see the dedicated guide:
 
 **[Complete Raspberry Pi Setup Guide](docs/deployment/raspberry_pi_setup.md)**
 
-#### Quick Raspberry Pi Setup
+#### Quick Raspberry Pi Deployment
 
 ```bash
 # On Raspberry Pi 5 with Ubuntu Server 22.04
-# Run the automated setup script
-./setup_raspberry_pi.sh
 
-# Follow the prompts and reboot when instructed
+# Step 1: Run automated setup (one-time)
+./setup --rpi
+
+# Follow prompts and reboot when instructed
 sudo reboot
 
-# After reboot, deploy the robot
-cd Autonomous_Mobile_Manipulator
-docker compose -f docker-compose.prod.yml up -d
+# Step 2: Start the robot
+./start --hw
+
+# Step 3: Verify system
+./start --status
+./start --test
 
 # Access the robot
+# Web UI: http://raspberrypi:8000
 # n8n: http://raspberrypi:5678
 # API: http://raspberrypi:5000
 ```
@@ -825,11 +851,10 @@ docker compose -f docker-compose.prod.yml up -d
 #### Manual Raspberry Pi Setup Steps
 
 1. **OS Installation**: Ubuntu Server 22.04 LTS (64-bit) on Raspberry Pi 5
-2. **Hardware Configuration**: GPIO, I2C, SPI, UART setup
-3. **System Optimization**: Performance tuning for ARM64
-4. **Docker Setup**: ARM64-compatible container deployment
-5. **Project Deployment**: Automated service startup
-6. **Hardware Testing**: GPIO, motors, sensors verification
+2. **Run Setup Script**: `./setup --rpi` (handles all configuration)
+3. **Reboot**: Allow hardware interfaces to initialize
+4. **Start System**: `./start --hw`
+5. **Test Hardware**: `./start --test`
 
 **See: [docs/deployment/raspberry_pi_setup.md](docs/deployment/raspberry_pi_setup.md)**
 

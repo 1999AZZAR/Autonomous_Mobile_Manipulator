@@ -2,6 +2,10 @@
 
 Complete documentation for the Autonomous Mobile Manipulator system.
 
+## 🚀 Quick Reference
+
+- **[QUICK_COMMANDS.md](./QUICK_COMMANDS.md)** - Essential commands at your fingertips
+
 ## 📚 Documentation Structure
 
 ### 🏗️ System Architecture (Root Level)
@@ -59,7 +63,8 @@ General software documentation
 #### [api/](./api/)
 REST API and service documentation
 
-- **API Verification Report**: Complete API testing results
+- **[API_DOCUMENTATION.md](./api/API_DOCUMENTATION.md)**: Complete API reference
+- **[API_VERIFICATION_REPORT.md](./api/API_VERIFICATION_REPORT.md)**: API testing results
 - **Endpoint Documentation**: All available endpoints
 - **Request/Response Examples**: Usage examples
 - **Integration Guide**: How to use the API
@@ -88,9 +93,13 @@ Workflow management and usage
 #### [hardware/](./hardware/)
 Physical hardware specifications and assembly
 
-- **Hardware Assembly Guide**: Complete assembly instructions
-- **Raspberry Pi Pinouts**: GPIO mapping and connections
-- **Component Specifications**: Sensor and actuator details
+- **[GPIO_CONTROL_SETUP.md](./hardware/GPIO_CONTROL_SETUP.md)**: Direct GPIO control setup and usage
+- **[SENSOR_WIRING.md](./hardware/SENSOR_WIRING.md)**: Complete sensor wiring guide
+- **[MPU6050_SETUP.md](./hardware/MPU6050_SETUP.md)**: IMU sensor setup and configuration
+- **[MODE_SELECTION.md](./hardware/MODE_SELECTION.md)**: Hardware vs simulation mode selection
+- **[HARDWARE_MODE_UPDATE.md](./hardware/HARDWARE_MODE_UPDATE.md)**: Hardware mode feature updates
+- **[HARDWARE_ASSEMBLY_GUIDE.md](./hardware/HARDWARE_ASSEMBLY_GUIDE.md)**: Complete assembly instructions
+- **[RASPBERRY_PI_PINOUTS.md](./hardware/RASPBERRY_PI_PINOUTS.md)**: GPIO mapping and connections
 - **GPIO Test Script**: Hardware testing utilities
 
 ---
@@ -100,7 +109,8 @@ Physical hardware specifications and assembly
 #### [deployment/](./deployment/)
 Production deployment guides
 
-- **Raspberry Pi Setup**: Complete Pi 5 setup guide
+- **[raspberry_pi_setup.md](./deployment/raspberry_pi_setup.md)**: Complete Pi 5 setup guide
+- **[ROS2_RELIABILITY_README.md](./deployment/ROS2_RELIABILITY_README.md)**: ROS2 reliability and watchdog systems
 - **Docker Configuration**: Container deployment
 - **Network Setup**: Connectivity configuration
 - **Security**: Production hardening
@@ -112,6 +122,12 @@ Production deployment guides
 #### [installation/](./installation/)
 System installation procedures
 
+- **[FIRST_RUN.md](./installation/FIRST_RUN.md)**: First-time setup from scratch
+- **[QUICK_START.md](./installation/QUICK_START.md)**: Quick start guide
+- **[QUICK_START_GPIO.md](./installation/QUICK_START_GPIO.md)**: GPIO control quick start (3 steps)
+- **[STARTUP_GUIDE.md](./installation/STARTUP_GUIDE.md)**: Complete startup procedures
+- **[SETUP_GUIDE.md](./installation/SETUP_GUIDE.md)**: Detailed setup guide
+- **[README_SETUP.md](./installation/README_SETUP.md)**: Setup overview and portable paths
 - **Prerequisites**: System requirements
 - **Docker Setup**: Container installation
 - **ROS2 Installation**: ROS2 Iron setup
@@ -124,6 +140,24 @@ System installation procedures
 #### [development/](./development/)
 Developer guides and workflows
 
+#### Feature Updates & Changes:
+- **[CHANGES_SUMMARY.md](./development/CHANGES_SUMMARY.md)**: GPIO control implementation summary
+- **[IMU_FIX_SUMMARY.md](./development/IMU_FIX_SUMMARY.md)**: IMU data display fixes
+- **[IMU_WEB_INTEGRATION_SUMMARY.md](./development/IMU_WEB_INTEGRATION_SUMMARY.md)**: IMU web integration
+- **[MPU6050_INTEGRATION_SUMMARY.md](./development/MPU6050_INTEGRATION_SUMMARY.md)**: MPU6050 sensor integration
+- **[SHARP_SENSOR_UPDATE_SUMMARY.md](./development/SHARP_SENSOR_UPDATE_SUMMARY.md)**: Sharp IR sensor updates
+- **[WEB_INTERFACE_READY_SUMMARY.md](./development/WEB_INTERFACE_READY_SUMMARY.md)**: Web interface completion
+- **[IMPLEMENTATION_SUMMARY.md](./development/IMPLEMENTATION_SUMMARY.md)**: Implementation details
+
+#### System Updates:
+- **[SYSTEM_STARTUP_COMPLETE_SUMMARY.md](./development/SYSTEM_STARTUP_COMPLETE_SUMMARY.md)**: Startup system implementation
+- **[STARTUP_SCRIPTS_UPDATE.md](./development/STARTUP_SCRIPTS_UPDATE.md)**: Startup scripts updates
+- **[RUN_SH_SUMMARY.md](./development/RUN_SH_SUMMARY.md)**: Run script improvements
+- **[PORTABLE_PATHS_UPDATE.md](./development/PORTABLE_PATHS_UPDATE.md)**: Portable paths implementation
+- **[PROXY_ARCHITECTURE_SUMMARY.md](./development/PROXY_ARCHITECTURE_SUMMARY.md)**: Proxy architecture
+- **[GIT_RECOVERY_SUMMARY.md](./development/GIT_RECOVERY_SUMMARY.md)**: Git recovery procedures
+
+#### General:
 - **Development Environment**: Setup for developers
 - **Code Structure**: Project organization
 - **Testing**: Test procedures
@@ -136,6 +170,8 @@ Developer guides and workflows
 #### [troubleshooting/](./troubleshooting/)
 Problem diagnosis and solutions
 
+- **[IMU_TROUBLESHOOTING.md](./troubleshooting/IMU_TROUBLESHOOTING.md)**: IMU sensor troubleshooting guide
+- **[QUICK_IMU_TEST.md](./troubleshooting/QUICK_IMU_TEST.md)**: Quick IMU testing procedures
 - **Common Issues**: Frequently encountered problems
 - **Error Messages**: Error code reference
 - **Diagnostic Tools**: Debugging procedures
@@ -269,6 +305,16 @@ All documentation follows these standards:
 ---
 
 ## 🔄 Recent Updates
+
+**2025-11-11:**
+- ✅ All documentation moved to `docs/` folder
+- ✅ Hardware docs: GPIO control, sensor wiring, IMU setup
+- ✅ Installation docs: Quick starts, setup guides
+- ✅ Development docs: All change summaries and update logs
+- ✅ Troubleshooting docs: IMU troubleshooting guides
+- ✅ API docs: Complete API documentation
+- ✅ Updated main docs README with all new files
+- ✅ Created QUICK_COMMANDS.md reference guide
 
 **2025-11-10:**
 - ✅ Documentation reorganized into logical folders
