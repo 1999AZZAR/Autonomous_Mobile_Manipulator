@@ -42,6 +42,11 @@ The Web Interface (http://localhost:8000) is the **primary control and monitorin
 
 ### Update History
 
+- **[NETWORK_ACCESS_FIX.md](./NETWORK_ACCESS_FIX.md)**
+  - Fixed remote access from other devices
+  - Dynamic API URL using hostname
+  - Enables control from laptop/tablet/phone
+
 - **[WEB_INTERFACE_UPDATE.md](./WEB_INTERFACE_UPDATE.md)**
   - Initial web interface implementation
   - Hardware tab and GPIO pinout display
@@ -52,7 +57,10 @@ The Web Interface (http://localhost:8000) is the **primary control and monitorin
 ### Getting Started
 
 1. Start the system: `docker compose up -d`
-2. Access Web Interface: http://localhost:8000
+2. Access Web Interface:
+   - **Local (on robot)**: http://localhost:8000
+   - **Remote (from laptop)**: http://<robot-ip>:8000
+   - Find robot IP: `hostname -I` (run on robot)
 3. Navigate through tabs:
    - **Movement** - Robot movement controls
    - **Gripper** - Manipulation operations
