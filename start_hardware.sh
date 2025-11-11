@@ -53,9 +53,19 @@ echo ""
 echo -e "${BLUE}Starting web interface in HARDWARE mode...${NC}"
 echo ""
 
-# Source ROS2 workspace
+# Navigate to ROS2 workspace
 cd "$ROS2_WS"
-source install/setup.bash
+
+# Check if workspace is built
+if [ -f "install/setup.bash" ]; then
+    echo -e "${GREEN}✓ Sourcing ROS2 workspace${NC}"
+    source install/setup.bash
+else
+    echo -e "${YELLOW}⚠ ROS2 workspace not built - running without ROS2 environment${NC}"
+    echo -e "  This is fine for web interface only"
+    echo -e "  To build: cd ros2_ws && colcon build"
+    echo ""
+fi
 
 # Start web interface with --hardware flag
 python3 src/my_robot_automation/scripts/web_robot_interface.py --hardware
