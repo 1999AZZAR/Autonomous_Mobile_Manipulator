@@ -3740,12 +3740,21 @@ class WebRobotInterface(Node):
         self.cleanup()
     
     def run_web_interface(self):
-        """Run the web interface in a separate thread"""
+        """Run the web interface - Flask app must be created first"""
+        if not hasattr(self, 'app'):
+            self.get_logger().error("Flask app not initialized. Cannot start web interface.")
+            return
+
         def run_server():
-            self.app.run(host='0.0.0.0', port=8000, debug=False, threaded=True)
+            try:
+                self.get_logger().info("Starting Flask web server on http://0.0.0.0:8000")
+                self.app.run(host='0.0.0.0', port=8000, debug=False, threaded=True, use_reloader=False)
+            except Exception as e:
+                self.get_logger().error(f"Flask server error: {str(e)}")
 
         server_thread = threading.Thread(target=run_server, daemon=True)
         server_thread.start()
+        self.get_logger().info("Web interface thread started")
 
 def main(args=None):
     import argparse
