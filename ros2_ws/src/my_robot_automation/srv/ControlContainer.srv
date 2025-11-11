@@ -1,0 +1,6 @@
+string container_id
+string action
+---
+bool success
+string message
+string status

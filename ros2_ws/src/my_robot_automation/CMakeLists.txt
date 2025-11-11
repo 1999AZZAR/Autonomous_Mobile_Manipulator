@@ -16,9 +16,9 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
-find_package(control_msgs REQUIRED)
-find_package(nav2_msgs REQUIRED)
-find_package(nav2_util REQUIRED)
+# find_package(control_msgs REQUIRED)  # Not needed for actuator control
+# find_package(nav2_msgs REQUIRED)  # Not needed for actuator control
+# find_package(nav2_util REQUIRED)  # Not needed for actuator control
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
@@ -45,6 +45,10 @@ set(srv_files
   "srv/GetTaskStatus.srv"
   "srv/CancelTask.srv"
   "srv/GetNavigationStatus.srv"
+  "srv/ControlGripper.srv"
+  "srv/SetGripperTilt.srv"
+  "srv/MoveRobot.srv"
+  "srv/ControlContainer.srv"
 )
 
 rosidl_generate_interfaces(${PROJECT_NAME}

@@ -28,6 +28,12 @@ except ImportError:
     MPU6050_AVAILABLE = False
     print("WARNING: MPU6050Reader not available. IMU data will be simulated.")
 
+# ROS2 service imports for actuator control
+from my_robot_automation.srv import (
+    ControlGripper, SetGripperTilt, MoveRobot,
+    ControlContainer
+)
+
 # Try to import GPIO libraries for direct hardware control
 try:
     import lgpio
@@ -2874,8 +2880,56 @@ class WebRobotInterface(Node):
         # Initialize GPIO Controller
         self.gpio = GPIOController(simulation_mode=self.simulation_mode)
         self.get_logger().info(f'GPIO Controller initialized (simulation={self.simulation_mode})')
-        
-        # Initialize SPI for MCP3008 ADC
+
+        # ROS2 actuator services will be initialized after Flask app creation
+
+    def initialize_actuator_services(self):
+        """Initialize ROS2 services for actuator control"""
+        # Create ROS2 services
+        self.control_gripper_srv = self.create_service(
+            ControlGripper, 'actuator/control_gripper', self.ros2_control_gripper_callback)
+        self.set_gripper_tilt_srv = self.create_service(
+            SetGripperTilt, 'actuator/set_gripper_tilt', self.ros2_set_gripper_tilt_callback)
+        self.move_robot_srv = self.create_service(
+            MoveRobot, 'actuator/move_robot', self.ros2_move_robot_callback)
+        self.control_container_srv = self.create_service(
+            ControlContainer, 'actuator/control_container', self.ros2_control_container_callback)
+
+        self.get_logger().info('ROS2 actuator services created')
+
+    def ros2_control_gripper_callback(self, request, response):
+        """ROS2 service callback for gripper control"""
+        success = self.gpio.control_gripper(request.command)
+        response.success = success
+        response.message = f"Gripper {request.command}" if success else "Gripper command failed"
+        response.status = "OPEN" if request.command == "open" else "CLOSED"
+        return response
+
+    def ros2_set_gripper_tilt_callback(self, request, response):
+        """ROS2 service callback for gripper tilt control"""
+        success = self.gpio.set_gripper_tilt(request.angle)
+        response.success = success
+        response.message = f"Gripper tilt set to {request.angle}°" if success else "Tilt failed"
+        response.current_angle = request.angle if success else 0.0
+        return response
+
+    def ros2_move_robot_callback(self, request, response):
+        """ROS2 service callback for robot movement"""
+        success = self.gpio.move_robot(request.direction, request.speed)
+        response.success = success
+        response.message = f"Moving {request.direction}" if success else "Move failed"
+        response.status = "MOVING" if success else "ERROR"
+        return response
+
+    def ros2_control_container_callback(self, request, response):
+        """ROS2 service callback for container control"""
+        success = self.gpio.control_container(request.container_id, request.action)
+        response.success = success
+        response.message = f"Container {request.container_id} {request.action}" if success else f"Container {request.container_id} {request.action} failed"
+        response.status = request.action.upper() if success else "ERROR"
+        return response
+
+    # Initialize SPI for MCP3008 ADC
         self.spi = None
         self.spi_initialized = False
         
@@ -2948,6 +3002,13 @@ class WebRobotInterface(Node):
             }
         })
 
+        # Initialize ROS2 actuator services now that Flask app exists
+        # Wait a moment for GPIO to be initialized
+        import time
+        time.sleep(1)
+        self.initialize_actuator_services()
+        self.get_logger().info('ROS2 actuator services initialized')
+
         # Setup routes
         @self.app.route('/')
         def index():
@@ -2990,7 +3051,7 @@ class WebRobotInterface(Node):
                     'simulation_mode': self.simulation_mode,
                     'spi_initialized': self.spi_initialized,
                     'imu_initialized': self.imu_initialized,
-                    'gpio_initialized': self.gpio.gpio_initialized
+                    'actuators_available': True
                 },
                 'timestamp': time.time()
             })
@@ -3074,12 +3135,37 @@ class WebRobotInterface(Node):
                 data = request.get_json()
                 direction = data.get('direction')
                 speed = data.get('speed', 0.5)
-                
-                success = self.gpio.move_robot(direction, speed)
-                return jsonify({
-                    'success': success,
-                    'message': f'Moving {direction}' if success else 'Move failed'
-                })
+                duration = data.get('duration', 0.0)  # Optional duration
+
+                if not hasattr(self, 'actuators_available') or not self.actuators_available:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Actuator control services not available'
+                    }), 503
+
+                # Create service request
+                request_msg = MoveRobot.Request()
+                request_msg.direction = direction
+                request_msg.speed = float(speed)
+                request_msg.duration = float(duration)
+
+                # Call ROS2 service
+                future = self.move_robot_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+                if future.done():
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'status': response.status
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Service call timeout'
+                    }), 504
+
             except Exception as e:
                 self.get_logger().error(f'Move error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
@@ -3103,11 +3189,35 @@ class WebRobotInterface(Node):
         @self.app.route('/api/robot/stop', methods=['POST'])
         def robot_stop():
             try:
-                success = self.gpio.stop_robot()
-                return jsonify({
-                    'success': success,
-                    'message': 'Robot stopped' if success else 'Stop failed'
-                })
+                if not hasattr(self, 'actuators_available') or not self.actuators_available:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Actuator control services not available'
+                    }), 503
+
+                # Use MoveRobot service with stop command
+                request_msg = MoveRobot.Request()
+                request_msg.direction = "stop"
+                request_msg.speed = 0.0
+                request_msg.duration = 0.0
+
+                # Call ROS2 service
+                future = self.move_robot_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+                if future.done():
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'status': response.status
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Service call timeout'
+                    }), 504
+
             except Exception as e:
                 self.get_logger().error(f'Stop error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
@@ -3125,18 +3235,40 @@ class WebRobotInterface(Node):
             except Exception as e:
                 return jsonify({'success': False, 'error': str(e)}), 500
         
-        # Gripper/Picker control endpoints - Direct GPIO control
+        # Gripper/Picker control endpoints - ROS2 Service calls
         @self.app.route('/api/robot/picker/gripper', methods=['POST'])
         def control_gripper():
             try:
                 data = request.get_json()
                 command = data.get('command')
-                
-                success = self.gpio.control_gripper(command)
-                return jsonify({
-                    'success': success,
-                    'message': f'Gripper {command}' if success else 'Gripper command failed'
-                })
+
+                if not hasattr(self, 'actuators_available') or not self.actuators_available:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Actuator control services not available'
+                    }), 503
+
+                # Create service request
+                request_msg = ControlGripper.Request()
+                request_msg.command = command
+
+                # Call ROS2 service
+                future = self.control_gripper_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+                if future.done():
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'status': response.status
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Service call timeout'
+                    }), 504
+
             except Exception as e:
                 self.get_logger().error(f'Gripper error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
@@ -3145,13 +3277,35 @@ class WebRobotInterface(Node):
         def set_gripper_tilt():
             try:
                 data = request.get_json()
-                angle = data.get('angle', 90)
-                
-                success = self.gpio.set_gripper_tilt(angle)
-                return jsonify({
-                    'success': success,
-                    'message': f'Gripper tilt set to {angle}°' if success else 'Tilt failed'
-                })
+                angle = data.get('angle', 90.0)
+
+                if not hasattr(self, 'actuators_available') or not self.actuators_available:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Actuator control services not available'
+                    }), 503
+
+                # Create service request
+                request_msg = SetGripperTilt.Request()
+                request_msg.angle = float(angle)
+
+                # Call ROS2 service
+                future = self.set_gripper_tilt_client.call_async(request_msg)
+                rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
+
+                if future.done():
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'current_angle': response.current_angle
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'message': 'Service call timeout'
+                    }), 504
+
             except Exception as e:
                 self.get_logger().error(f'Gripper tilt error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
@@ -3626,6 +3780,8 @@ def main(args=None):
 
     try:
         web_interface = WebRobotInterface(simulation_mode=simulation_mode)
+
+        # Start web interface after initialization is complete
         web_interface.run_web_interface()
 
         # Keep the node alive
