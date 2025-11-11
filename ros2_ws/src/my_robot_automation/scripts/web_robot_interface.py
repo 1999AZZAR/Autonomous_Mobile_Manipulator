@@ -2671,10 +2671,14 @@ class GPIOController:
         if self.simulation_mode:
             print(f"[SIM] Gripper tilt: {angle}°")
             return True
-        
+
         try:
             angle = max(0, min(180, angle))  # Clamp to 0-180
-            self.servos['gripper_tilt'].angle = angle
+            # For now, map angle to simple high/low (can be extended for PWM)
+            pin = self.PINS['GRIPPER_TILT']
+            value = 1 if angle > 90 else 0  # High for >90°, Low for ≤90°
+            lgpio.gpio_write(self.gpio_handle, pin, value)
+            print(f"✓ Gripper tilt set to {angle}° (GPIO{pin} = {value})")
             return True
         except Exception as e:
             print(f"ERROR setting gripper tilt: {str(e)}")
@@ -2685,10 +2689,14 @@ class GPIOController:
         if self.simulation_mode:
             print(f"[SIM] Gripper neck: {position}")
             return True
-        
+
         try:
             position = max(-1, min(1, position))  # Clamp to -1 to 1
-            self.servos['gripper_neck'].value = position
+            # Map position to GPIO value (0 or 1 for now)
+            pin = self.PINS['GRIPPER_NECK']
+            value = 1 if position > 0 else 0
+            lgpio.gpio_write(self.gpio_handle, pin, value)
+            print(f"✓ Gripper neck set to {position} (GPIO{pin} = {value})")
             return True
         except Exception as e:
             print(f"ERROR setting gripper neck: {str(e)}")
@@ -2699,11 +2707,14 @@ class GPIOController:
         if self.simulation_mode:
             print(f"[SIM] Gripper base height: {height}")
             return True
-        
+
         try:
             height = max(0, min(1, height))  # Clamp to 0-1
-            angle = int(height * 180)  # Convert to angle
-            self.servos['gripper_base'].angle = angle
+            # Map height to GPIO value
+            pin = self.PINS['GRIPPER_BASE']
+            value = 1 if height > 0.5 else 0  # High for >50% height, Low for ≤50%
+            lgpio.gpio_write(self.gpio_handle, pin, value)
+            print(f"✓ Gripper base set to {height} (GPIO{pin} = {value})")
             return True
         except Exception as e:
             print(f"ERROR setting gripper base: {str(e)}")
@@ -2714,12 +2725,14 @@ class GPIOController:
         if self.simulation_mode:
             print("[SIM] Homing all servos")
             return True
-        
+
         try:
-            self.servos['gripper_tilt'].angle = 90
-            self.servos['gripper_open_close'].angle = 90
-            self.servos['gripper_neck'].value = 0
-            self.servos['gripper_base'].angle = 90
+            # Set all gripper servos to neutral positions
+            lgpio.gpio_write(self.gpio_handle, self.PINS['GRIPPER_TILT'], 0)      # Neutral
+            lgpio.gpio_write(self.gpio_handle, self.PINS['GRIPPER_OPEN_CLOSE'], 0) # Closed
+            lgpio.gpio_write(self.gpio_handle, self.PINS['GRIPPER_NECK'], 0)      # Neutral
+            lgpio.gpio_write(self.gpio_handle, self.PINS['GRIPPER_BASE'], 0)      # Middle
+            print("✓ All servos homed to neutral position")
             return True
         except Exception as e:
             print(f"ERROR homing servos: {str(e)}")
@@ -2765,18 +2778,22 @@ class GPIOController:
         if self.simulation_mode:
             print(f"[SIM] Turning {direction} at speed {speed}")
             return True
-        
+
         try:
             speed = max(0, min(1, speed))
-            
+
             if direction == 'left':
-                self.motors['front_left'].backward(speed)
-                self.motors['front_right'].forward(speed)
-                self.motors['back'].backward(speed)
+                # FL backward, FR forward, Back backward = turn left
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)  # FL backward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)  # FR forward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0) # Back backward
+                print(f"✓ Turning left (speed: {speed})")
             elif direction == 'right':
-                self.motors['front_left'].forward(speed)
-                self.motors['front_right'].backward(speed)
-                self.motors['back'].forward(speed)
+                # FL forward, FR backward, Back forward = turn right
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)  # FL forward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)  # FR backward
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1) # Back forward
+                print(f"✓ Turning right (speed: {speed})")
             return True
         except Exception as e:
             print(f"ERROR turning robot: {str(e)}")
@@ -2804,12 +2821,28 @@ class GPIOController:
         if self.simulation_mode:
             print(f"[SIM] Container {container_id} {action}")
             return True
-        
+
         try:
+            # Map container_id to GPIO pin
+            container_pins = {
+                'left_front': self.PINS['CONTAINER_LF'],
+                'left_back': self.PINS['CONTAINER_LB'],
+                'right_front': self.PINS['CONTAINER_RF'],
+                'right_back': self.PINS['CONTAINER_RB']
+            }
+
+            if container_id not in container_pins:
+                print(f"ERROR: Unknown container {container_id}")
+                return False
+
+            pin = container_pins[container_id]
+
             if action == 'load':
-                self.containers[container_id].angle = 0  # Closed position
+                lgpio.gpio_write(self.gpio_handle, pin, 0)  # Closed position
+                print(f"✓ Container {container_id} loaded (GPIO{pin} = 0)")
             elif action == 'unload':
-                self.containers[container_id].angle = 180  # Open position
+                lgpio.gpio_write(self.gpio_handle, pin, 1)  # Open position
+                print(f"✓ Container {container_id} unloaded (GPIO{pin} = 1)")
             return True
         except Exception as e:
             print(f"ERROR controlling container: {str(e)}")
