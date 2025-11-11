@@ -9,17 +9,30 @@ services:
       bash -c "
       source /opt/ros/jazzy/setup.bash &&
       cd /root/ros2_ws &&
+      echo 'Installing Python dependencies...' &&
+      pip3 install --break-system-packages requests smbus2 mpu6050-raspberrypi spidev flask 2>/dev/null || true &&
       echo 'Building robot packages...' &&
       timeout 300 colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation --event-handlers console_direct+ &&
       if [ $? -eq 0 ]; then
         source install/setup.bash &&
         echo 'Packages built successfully' &&
-        echo 'Starting ROS2 automation services...' &&
-        ros2 launch my_robot_automation automation_launch.py
+        echo 'Starting ROS2 REST API server...' &&
+        python3 /root/ros2_ws/src/my_robot_automation/scripts/rest_api_server.py &
+        sleep 3 &&
+        echo 'Starting Web Interface...' &&
+        python3 /root/ros2_ws/src/my_robot_automation/scripts/web_robot_interface.py &
+        sleep 2 &&
+        echo 'Services started. Web UI: http://localhost:8000, API: http://localhost:5000' &&
+        tail -f /dev/null
       else
         echo 'Build failed - starting with existing packages' &&
         source install/setup.bash &&
-        ros2 launch my_robot_automation automation_launch.py
+        python3 /root/ros2_ws/src/my_robot_automation/scripts/rest_api_server.py &
+        sleep 3 &&
+        python3 /root/ros2_ws/src/my_robot_automation/scripts/web_robot_interface.py &
+        sleep 2 &&
+        echo 'Services started. Web UI: http://localhost:8000, API: http://localhost:5000' &&
+        tail -f /dev/null
       fi
       "
     # Share the source code folder so you can edit code on your PC and it updates inside the container
@@ -62,6 +75,7 @@ services:
       - N8N_SKIP_WEBHOOK_DEREGISTRATION_FROM_LOADER=true
       - N8N_PUBLIC_API_DISABLED=false
       - N8N_PUBLIC_API_SWAGGERUI_DISABLED=false
+      - N8N_SECURE_COOKIE=false # Disable secure cookie for HTTP access
     volumes:
       - ./n8n_data:/home/node/.n8n # Persists your n8n workflows and data on your PC
       - ./n8n_data/custom_nodes:/home/node/.n8n/custom_nodes # Mount custom nodes
