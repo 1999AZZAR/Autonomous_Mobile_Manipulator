@@ -1552,10 +1552,14 @@ USB3 - Reserved
     </div>
 
     <script>
-        // Configuration
-        const API_BASE = 'http://127.0.0.1:5000';
+        // Configuration - Use current hostname for API calls
+        // This allows access from any device on the network
+        const API_BASE = `http://${window.location.hostname}:5000`;
         let currentSpeed = 0.5;
         let systemStatus = {};
+        
+        // Log the API endpoint being used
+        console.log(`API Base URL: ${API_BASE}`);
 
         // Tab switching
         function showTab(tabName) {
@@ -2448,7 +2452,8 @@ class WebRobotInterface(Node):
             })
 
         self.get_logger().info('Professional Robot Web Interface initialized')
-        self.get_logger().info('Access the interface at: http://localhost:8000')
+        self.get_logger().info('Access the interface at: http://localhost:8000 (local) or http://<robot-ip>:8000 (remote)')
+        self.get_logger().info('API calls will use the hostname from the browser URL')
 
     def run_web_interface(self):
         """Run the web interface in a separate thread"""
