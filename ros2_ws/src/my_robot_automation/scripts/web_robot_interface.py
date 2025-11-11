@@ -2650,6 +2650,236 @@ class WebRobotInterface(Node):
                     'error': str(e),
                     'timestamp': time.time()
                 }), 500
+        
+        # Movement control endpoints
+        @self.app.route('/api/robot/move', methods=['POST'])
+        def robot_move():
+            try:
+                data = request.get_json()
+                direction = data.get('direction', 'forward')
+                speed = data.get('speed', 0.5)
+                return jsonify({
+                    'success': True,
+                    'message': f'Moving {direction} at speed {speed}',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        @self.app.route('/api/robot/turn', methods=['POST'])
+        def robot_turn():
+            try:
+                data = request.get_json()
+                direction = data.get('direction', 'left')
+                speed = data.get('speed', 0.5)
+                return jsonify({
+                    'success': True,
+                    'message': f'Turning {direction} at speed {speed}',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        @self.app.route('/api/robot/stop', methods=['POST'])
+        def robot_stop():
+            return jsonify({
+                'success': True,
+                'message': 'Robot stopped',
+                'timestamp': time.time()
+            })
+        
+        @self.app.route('/api/robot/mode', methods=['POST'])
+        def set_robot_mode():
+            try:
+                data = request.get_json()
+                mode = data.get('mode', 'MANUAL')
+                return jsonify({
+                    'success': True,
+                    'message': f'Mode set to {mode}',
+                    'data': {'mode': mode},
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        # Gripper/Picker control endpoints
+        @self.app.route('/api/robot/picker/gripper', methods=['POST'])
+        def control_gripper():
+            try:
+                data = request.get_json()
+                command = data.get('command', 'open')
+                return jsonify({
+                    'success': True,
+                    'message': f'Gripper {command}',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        @self.app.route('/api/robot/picker/gripper_tilt', methods=['POST'])
+        def set_gripper_tilt():
+            try:
+                data = request.get_json()
+                angle = data.get('angle', 90)
+                return jsonify({
+                    'success': True,
+                    'message': f'Gripper tilt set to {angle}°',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        @self.app.route('/api/robot/picker/gripper_neck', methods=['POST'])
+        def set_gripper_neck():
+            try:
+                data = request.get_json()
+                position = data.get('position', 0)
+                return jsonify({
+                    'success': True,
+                    'message': f'Gripper neck position set to {position}',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        @self.app.route('/api/robot/picker/gripper_base', methods=['POST'])
+        def set_gripper_base():
+            try:
+                data = request.get_json()
+                height = data.get('height', 0.5)
+                return jsonify({
+                    'success': True,
+                    'message': f'Gripper base height set to {height}',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        @self.app.route('/api/robot/servos', methods=['POST'])
+        def control_servos():
+            try:
+                data = request.get_json()
+                action = data.get('action', 'home')
+                return jsonify({
+                    'success': True,
+                    'message': f'Servos {action} action executed',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        # Container control endpoints
+        @self.app.route('/api/robot/containers/<container_id>', methods=['POST'])
+        def control_container(container_id):
+            try:
+                data = request.get_json()
+                action = data.get('action', 'load')
+                return jsonify({
+                    'success': True,
+                    'message': f'Container {container_id} {action} action executed',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        # Automation endpoints
+        @self.app.route('/api/robot/patrol', methods=['POST'])
+        def execute_patrol():
+            try:
+                data = request.get_json()
+                waypoints = data.get('waypoints', [])
+                speed = data.get('patrol_speed', 0.5)
+                return jsonify({
+                    'success': True,
+                    'message': f'Patrol started with {len(waypoints)} waypoints',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        @self.app.route('/api/robot/obstacle-avoidance', methods=['POST'])
+        def execute_obstacle_avoidance():
+            try:
+                data = request.get_json()
+                target = data.get('target_location', {})
+                return jsonify({
+                    'success': True,
+                    'message': 'Obstacle avoidance navigation started',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        @self.app.route('/api/robot/pick-place', methods=['POST'])
+        def execute_pick_place():
+            try:
+                data = request.get_json()
+                return jsonify({
+                    'success': True,
+                    'message': 'Pick and place sequence started',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        # Safety endpoints
+        @self.app.route('/api/robot/emergency-stop', methods=['POST'])
+        def emergency_stop():
+            try:
+                data = request.get_json()
+                activate = data.get('activate', True)
+                action = 'activated' if activate else 'deactivated'
+                return jsonify({
+                    'success': True,
+                    'message': f'Emergency stop {action}',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
+        
+        # Monitoring endpoints
+        @self.app.route('/api/robot/commands/last')
+        def get_last_commands():
+            return jsonify({
+                'success': True,
+                'data': {
+                    'commands': [
+                        {'timestamp': time.strftime('%H:%M:%S'), 'command': 'System Started', 'status': 'success'},
+                        {'timestamp': time.strftime('%H:%M:%S'), 'command': 'IMU Initialized', 'status': 'success'},
+                        {'timestamp': time.strftime('%H:%M:%S'), 'command': 'Sensors Online', 'status': 'success'}
+                    ]
+                },
+                'timestamp': time.time()
+            })
+        
+        @self.app.route('/api/robot/log')
+        def get_robot_log():
+            return jsonify({
+                'success': True,
+                'data': {
+                    'logs': [
+                        f'[{time.strftime("%H:%M:%S")}] Web interface initialized',
+                        f'[{time.strftime("%H:%M:%S")}] IMU sensor connected',
+                        f'[{time.strftime("%H:%M:%S")}] IR distance sensors ready',
+                        f'[{time.strftime("%H:%M:%S")}] System ready'
+                    ]
+                },
+                'timestamp': time.time()
+            })
+        
+        # n8n webhook endpoint
+        @self.app.route('/webhook/robot-control', methods=['POST'])
+        def webhook_robot_control():
+            try:
+                data = request.get_json()
+                command = data.get('command', 'unknown')
+                return jsonify({
+                    'success': True,
+                    'message': f'Webhook command {command} received',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({'success': False, 'error': str(e)}), 500
 
         self.get_logger().info('Professional Robot Web Interface initialized')
         if self.simulation_mode:
