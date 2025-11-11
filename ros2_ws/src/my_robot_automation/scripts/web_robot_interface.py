@@ -3,6 +3,7 @@
 import rclpy
 from rclpy.node import Node
 from flask import Flask, render_template_string, jsonify, request
+from flask_cors import CORS
 import threading
 import time
 import math
@@ -2937,6 +2938,15 @@ class WebRobotInterface(Node):
 
         # Flask app for the professional web interface
         self.app = Flask(__name__)
+        # Enable CORS for all routes
+        CORS(self.app, resources={
+            r"/api/*": {
+                "origins": ["*"],
+                "methods": ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+                "allow_headers": ["Content-Type", "Authorization"],
+                "supports_credentials": False
+            }
+        })
 
         # Setup routes
         @self.app.route('/')
