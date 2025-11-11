@@ -5,8 +5,18 @@ from rclpy.node import Node
 from flask import Flask, render_template_string, jsonify, request
 import threading
 import time
-import spidev
 import math
+import os
+import json
+from datetime import datetime
+
+# Try to import spidev, but allow graceful degradation
+try:
+    import spidev
+    SPIDEV_AVAILABLE = True
+except ImportError:
+    SPIDEV_AVAILABLE = False
+    print("WARNING: spidev not available. Running in SIMULATION mode.")
 
 # Modern Professional Web Interface Template
 HTML_TEMPLATE = """
@@ -2442,13 +2452,33 @@ USB3 - Reserved
 """
 
 class WebRobotInterface(Node):
-    def __init__(self):
+    def __init__(self, simulation_mode=None):
         super().__init__('web_robot_interface')
 
+        # Determine operation mode
+        if simulation_mode is None:
+            self.simulation_mode = not SPIDEV_AVAILABLE
+        else:
+            self.simulation_mode = simulation_mode
+        
         # Initialize SPI for MCP3008 ADC
-        self.spi = spidev.SpiDev()
-        self.spi.open(0, 0)
-        self.spi.max_speed_hz = 1350000
+        self.spi = None
+        self.spi_initialized = False
+        
+        if not self.simulation_mode:
+            try:
+                self.spi = spidev.SpiDev()
+                self.spi.open(0, 0)
+                self.spi.max_speed_hz = 1350000
+                self.spi_initialized = True
+                self.get_logger().info('SPI interface initialized successfully')
+            except Exception as e:
+                self.get_logger().error(f'Failed to initialize SPI: {str(e)}')
+                self.get_logger().warn('Falling back to SIMULATION mode')
+                self.simulation_mode = True
+                self.spi_initialized = False
+        else:
+            self.get_logger().info('Running in SIMULATION mode (no hardware access)')
         
         # Sharp GP2Y0A02YK0F sensor channel mapping on MCP3008
         self.sensor_channels = {
@@ -2460,9 +2490,16 @@ class WebRobotInterface(Node):
             'back_right': 5
         }
         
+        # Sensor health tracking
+        self.sensor_health = {name: {'status': 'unknown', 'last_read': None, 'error_count': 0} 
+                             for name in self.sensor_channels.keys()}
+        
         # ADC reference voltage (typically 3.3V on Raspberry Pi)
         self.adc_vref = 3.3
         self.adc_resolution = 1024
+        
+        # Simulation data (for testing without hardware)
+        self.sim_counter = 0
 
         # Flask app for the professional web interface
         self.app = Flask(__name__)
@@ -2505,12 +2542,40 @@ class WebRobotInterface(Node):
                     'mode': 'MANUAL',
                     'emergency_stop': False,
                     'battery_voltage': 24.0,
-                    'system_status': 'operational'
+                    'system_status': 'operational',
+                    'simulation_mode': self.simulation_mode,
+                    'spi_initialized': self.spi_initialized
                 },
                 'timestamp': time.time()
             })
+        
+        @self.app.route('/api/robot/sensors/diagnostics')
+        def get_sensor_diagnostics():
+            try:
+                return jsonify({
+                    'success': True,
+                    'data': {
+                        'simulation_mode': self.simulation_mode,
+                        'spi_initialized': self.spi_initialized,
+                        'sensor_health': self.sensor_health,
+                        'adc_config': {
+                            'vref': self.adc_vref,
+                            'resolution': self.adc_resolution,
+                            'spi_speed': 1350000 if self.spi else None
+                        }
+                    },
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                return jsonify({
+                    'success': False,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }), 500
 
         self.get_logger().info('Professional Robot Web Interface initialized')
+        if self.simulation_mode:
+            self.get_logger().warn('Running in SIMULATION mode - sensor data will be simulated')
         self.get_logger().info('Access the interface at: http://localhost:8000 (local) or http://<robot-ip>:8000 (remote)')
         self.get_logger().info('API calls will use the hostname from the browser URL')
     
@@ -2522,10 +2587,25 @@ class WebRobotInterface(Node):
         if channel < 0 or channel > 7:
             raise ValueError("ADC channel must be between 0 and 7")
         
-        # MCP3008 command: start bit + single-ended mode + channel selection
-        adc = self.spi.xfer2([1, (8 + channel) << 4, 0])
-        data = ((adc[1] & 3) << 8) + adc[2]
-        return data
+        # Simulation mode: return simulated values
+        if self.simulation_mode or not self.spi_initialized:
+            import random
+            # Simulate distance readings: 200-1500mm range
+            # Convert to ADC values: closer = higher voltage = higher ADC
+            sim_distance = 300 + (600 * math.sin(self.sim_counter * 0.1 + channel))
+            sim_voltage = 60 / (sim_distance / 10 + 1) ** (1/1.1)  # Inverse of distance formula
+            sim_adc = int((sim_voltage / self.adc_vref) * self.adc_resolution)
+            sim_adc += random.randint(-10, 10)  # Add noise
+            return max(0, min(1023, sim_adc))
+        
+        # Hardware mode: read from actual MCP3008
+        try:
+            adc = self.spi.xfer2([1, (8 + channel) << 4, 0])
+            data = ((adc[1] & 3) << 8) + adc[2]
+            return data
+        except Exception as e:
+            self.get_logger().error(f'SPI read error on channel {channel}: {str(e)}')
+            raise
     
     def adc_to_voltage(self, adc_value):
         """
@@ -2567,7 +2647,7 @@ class WebRobotInterface(Node):
         except (ValueError, ZeroDivisionError):
             return None
     
-    def read_sharp_sensor(self, channel):
+    def read_sharp_sensor(self, channel, sensor_name=None):
         """
         Read a Sharp GP2Y0A02YK0F sensor and return distance in mm
         """
@@ -2585,12 +2665,30 @@ class WebRobotInterface(Node):
             if readings:
                 # Return median to filter out noise
                 readings.sort()
-                return readings[len(readings) // 2]
+                distance = readings[len(readings) // 2]
+                
+                # Update sensor health tracking
+                if sensor_name and sensor_name in self.sensor_health:
+                    self.sensor_health[sensor_name]['status'] = 'healthy'
+                    self.sensor_health[sensor_name]['last_read'] = datetime.now().isoformat()
+                    self.sensor_health[sensor_name]['error_count'] = 0
+                
+                return distance
             else:
+                # Update sensor health: no valid readings
+                if sensor_name and sensor_name in self.sensor_health:
+                    self.sensor_health[sensor_name]['status'] = 'no_data'
+                    self.sensor_health[sensor_name]['error_count'] += 1
                 return None
                 
         except Exception as e:
             self.get_logger().error(f'Error reading Sharp sensor on channel {channel}: {str(e)}')
+            
+            # Update sensor health: error
+            if sensor_name and sensor_name in self.sensor_health:
+                self.sensor_health[sensor_name]['status'] = 'error'
+                self.sensor_health[sensor_name]['error_count'] += 1
+            
             return None
     
     def read_all_sensors(self):
@@ -2627,11 +2725,28 @@ class WebRobotInterface(Node):
         
         # Read all Sharp GP2Y0A02YK0F analog distance sensors
         for sensor_name, channel in self.sensor_channels.items():
-            distance = self.read_sharp_sensor(channel)
+            distance = self.read_sharp_sensor(channel, sensor_name)
             sensor_data['laser_sensors'][sensor_name] = distance
+        
+        # Increment simulation counter for next cycle
+        if self.simulation_mode:
+            self.sim_counter += 1
         
         return sensor_data
 
+    def cleanup(self):
+        """Cleanup resources"""
+        if self.spi and self.spi_initialized:
+            try:
+                self.spi.close()
+                self.get_logger().info('SPI interface closed')
+            except Exception as e:
+                self.get_logger().error(f'Error closing SPI: {str(e)}')
+    
+    def __del__(self):
+        """Destructor to ensure cleanup"""
+        self.cleanup()
+    
     def run_web_interface(self):
         """Run the web interface in a separate thread"""
         def run_server():
