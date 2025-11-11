@@ -22,12 +22,21 @@ except ImportError:
     print("WARNING: spidev not available. Running in SIMULATION mode.")
 
 # Try to import MPU6050 reader
+MPU6050_MODULE = None
 try:
     from mpu6050_reader import MPU6050Reader
     MPU6050_AVAILABLE = True
+    MPU6050_MODULE = 'MPU6050Reader'
 except ImportError:
-    MPU6050_AVAILABLE = False
-    print("WARNING: MPU6050Reader not available. IMU data will be simulated.")
+    # Try using mpu6050-raspberrypi package directly
+    try:
+        from mpu6050 import mpu6050
+        MPU6050_AVAILABLE = True
+        MPU6050_MODULE = 'mpu6050'
+    except ImportError:
+        MPU6050_AVAILABLE = False
+        MPU6050_MODULE = None
+        print("WARNING: MPU6050Reader not available. IMU data will be simulated.")
 
 # ROS2 service imports for actuator control
 from my_robot_automation.srv import (
@@ -2946,12 +2955,30 @@ class WebRobotInterface(Node):
 
         if not self.simulation_mode and MPU6050_AVAILABLE:
             try:
-                self.imu = MPU6050Reader(address=0x68)
-                self.imu_initialized = self.imu.initialized
-                if self.imu_initialized:
-                    self.get_logger().info('MPU6050 IMU initialized successfully')
+                if MPU6050_MODULE == 'mpu6050':
+                    # Use mpu6050-raspberrypi package
+                    self.imu = mpu6050(0x68)
+                    # Test if we can read data
+                    try:
+                        accel_data = self.imu.get_accel_data()
+                        gyro_data = self.imu.get_gyro_data()
+                        temp = self.imu.get_temp()
+                        if accel_data and gyro_data:
+                            self.imu_initialized = True
+                            self.get_logger().info('MPU6050 IMU initialized successfully (mpu6050 package)')
+                        else:
+                            self.get_logger().warn('MPU6050 found but returned empty data')
+                    except Exception as e:
+                        self.get_logger().error(f'MPU6050 test read failed: {str(e)}')
+                        self.imu_initialized = False
                 else:
-                    self.get_logger().warn('MPU6050 found but initialization failed')
+                    # Use MPU6050Reader class
+                    self.imu = MPU6050Reader(address=0x68)
+                    self.imu_initialized = self.imu.initialized
+                    if self.imu_initialized:
+                        self.get_logger().info('MPU6050 IMU initialized successfully (MPU6050Reader)')
+                    else:
+                        self.get_logger().warn('MPU6050 found but initialization failed')
             except Exception as e:
                 self.get_logger().error(f'Failed to initialize MPU6050: {str(e)}')
                 self.imu_initialized = False
@@ -3166,12 +3193,30 @@ class WebRobotInterface(Node):
         
         if not self.simulation_mode and MPU6050_AVAILABLE:
             try:
-                self.imu = MPU6050Reader(address=0x68)
-                self.imu_initialized = self.imu.initialized
-                if self.imu_initialized:
-                    self.get_logger().info('MPU6050 IMU initialized successfully')
+                if MPU6050_MODULE == 'mpu6050':
+                    # Use mpu6050-raspberrypi package
+                    self.imu = mpu6050(0x68)
+                    # Test if we can read data
+                    try:
+                        accel_data = self.imu.get_accel_data()
+                        gyro_data = self.imu.get_gyro_data()
+                        temp = self.imu.get_temp()
+                        if accel_data and gyro_data:
+                            self.imu_initialized = True
+                            self.get_logger().info('MPU6050 IMU initialized successfully (mpu6050 package)')
+                        else:
+                            self.get_logger().warn('MPU6050 found but returned empty data')
+                    except Exception as e:
+                        self.get_logger().error(f'MPU6050 test read failed: {str(e)}')
+                        self.imu_initialized = False
                 else:
-                    self.get_logger().warn('MPU6050 found but initialization failed')
+                    # Use MPU6050Reader class
+                    self.imu = MPU6050Reader(address=0x68)
+                    self.imu_initialized = self.imu.initialized
+                    if self.imu_initialized:
+                        self.get_logger().info('MPU6050 IMU initialized successfully (MPU6050Reader)')
+                    else:
+                        self.get_logger().warn('MPU6050 found but initialization failed')
             except Exception as e:
                 self.get_logger().error(f'Failed to initialize MPU6050: {str(e)}')
                 self.imu_initialized = False
@@ -3932,29 +3977,134 @@ class WebRobotInterface(Node):
         })
 
     def _get_sensors(self):
-        """Get sensor data"""
+        """Get sensor data in the format expected by the frontend"""
         try:
             sensor_data = self.read_all_sensors()
+            
+            # Transform sensor data to match frontend expectations
+            formatted_data = {
+                # IR Distance Sensors (Sharp GP2Y0A02YK0F) - in mm
+                'laser_sensors': {
+                    'left_front': int(sensor_data.get('front_left', 0) * 10) if sensor_data.get('front_left') else None,
+                    'left_back': int(sensor_data.get('back_left', 0) * 10) if sensor_data.get('back_left') else None,
+                    'right_front': int(sensor_data.get('front_right', 0) * 10) if sensor_data.get('front_right') else None,
+                    'right_back': int(sensor_data.get('back_right', 0) * 10) if sensor_data.get('back_right') else None,
+                    'back_left': int(sensor_data.get('side_left', 0) * 10) if sensor_data.get('side_left') else None,
+                    'back_right': int(sensor_data.get('side_right', 0) * 10) if sensor_data.get('side_right') else None,
+                },
+                # Ultrasonic Sensors (HC-SR04) - in cm
+                'ultrasonic_sensors': {
+                    'front_left': round(sensor_data.get('front_left', 0), 1) if sensor_data.get('front_left') else None,
+                    'front_right': round(sensor_data.get('front_right', 0), 1) if sensor_data.get('front_right') else None,
+                },
+                # TF-Luna LIDAR - in cm
+                'tf_luna': {
+                    'distance': round(sensor_data.get('front_center', 0), 1) if sensor_data.get('front_center') else None,
+                    'strength': 100,  # Simulated signal strength
+                },
+                # Line Sensors (3x IR) - boolean
+                'line_sensors': {
+                    'left': sensor_data.get('front_left', 0) < 30 if sensor_data.get('front_left') else False,
+                    'center': sensor_data.get('front_center', 0) < 30 if sensor_data.get('front_center') else False,
+                    'right': sensor_data.get('front_right', 0) < 30 if sensor_data.get('front_right') else False,
+                },
+                # Container Load Sensors - boolean
+                'container_sensors': {
+                    'left_front': False,  # Would need actual load sensor readings
+                    'left_back': False,
+                    'right_front': False,
+                    'right_back': False,
+                }
+            }
+            
             return jsonify({
                 'success': True,
-                'data': sensor_data,
+                'data': formatted_data,
                 'timestamp': time.time()
             })
         except Exception as e:
             self.get_logger().error(f'Sensor read error: {str(e)}')
-            return jsonify({
-                'success': False,
-                'error': str(e),
-                'timestamp': time.time()
-            }), 500
-
-    def _get_imu_position(self):
-        """Get IMU position data"""
-        try:
-            imu_data = self.read_imu_data()
+            # Return empty structure on error
             return jsonify({
                 'success': True,
-                'data': imu_data,
+                'data': {
+                    'laser_sensors': {},
+                    'ultrasonic_sensors': {},
+                    'tf_luna': {},
+                    'line_sensors': {},
+                    'container_sensors': {}
+                },
+                'timestamp': time.time()
+            })
+
+    def _get_imu_position(self):
+        """Get IMU position data in the format expected by the frontend"""
+        try:
+            imu_data = self.read_imu_data()
+            
+            # Transform IMU data to match frontend expectations
+            if imu_data:
+                # Convert accelerometer to orientation (simplified - using accelerometer as orientation indicator)
+                accel = imu_data.get('accelerometer', {})
+                gyro = imu_data.get('gyroscope', {})
+                
+                # Calculate orientation from accelerometer (pitch and roll)
+                # This is a simplified calculation - real IMU would use quaternions
+                accel_x = accel.get('x', 0)
+                accel_y = accel.get('y', 0)
+                accel_z = accel.get('z', 9.81)
+                
+                # Calculate pitch and roll in degrees
+                pitch = math.degrees(math.atan2(accel_y, math.sqrt(accel_x**2 + accel_z**2)))
+                roll = math.degrees(math.atan2(-accel_x, accel_z))
+                yaw = 0.0  # Yaw requires magnetometer or integration
+                
+                formatted_data = {
+                    # Orientation in degrees
+                    'orientation': {
+                        'x': round(pitch, 2),
+                        'y': round(roll, 2),
+                        'z': round(yaw, 2)
+                    },
+                    # Angular velocity in rad/s
+                    'angular_velocity': {
+                        'x': round(gyro.get('x', 0) * math.pi / 180, 3),  # Convert deg/s to rad/s
+                        'y': round(gyro.get('y', 0) * math.pi / 180, 3),
+                        'z': round(gyro.get('z', 0) * math.pi / 180, 3)
+                    },
+                    # Linear acceleration in m/s²
+                    'linear_acceleration': {
+                        'x': round(accel_x, 2),
+                        'y': round(accel_y, 2),
+                        'z': round(accel_z - 9.81, 2)  # Remove gravity
+                    },
+                    'temperature': round(imu_data.get('temperature', 25.0), 1)
+                }
+            else:
+                # Return simulated data if IMU not available
+                self.sim_counter += 0.1
+                formatted_data = {
+                    'orientation': {
+                        'x': round(math.sin(self.sim_counter) * 10, 2),
+                        'y': round(math.cos(self.sim_counter) * 10, 2),
+                        'z': round(math.sin(self.sim_counter * 2) * 5, 2)
+                    },
+                    'angular_velocity': {
+                        'x': round(math.sin(self.sim_counter * 2) * 0.5, 3),
+                        'y': round(math.cos(self.sim_counter * 2) * 0.5, 3),
+                        'z': round(math.sin(self.sim_counter * 3) * 0.2, 3)
+                    },
+                    'linear_acceleration': {
+                        'x': round(math.sin(self.sim_counter) * 2, 2),
+                        'y': round(math.cos(self.sim_counter) * 2, 2),
+                        'z': round(math.sin(self.sim_counter * 0.5) * 0.2, 2)
+                    },
+                    'temperature': round(25.0 + math.sin(self.sim_counter * 0.1) * 5.0, 1)
+                }
+            
+            return jsonify({
+                'success': True,
+                'data': formatted_data,
                 'timestamp': time.time()
             })
         except Exception as e:
@@ -3964,17 +4114,22 @@ class WebRobotInterface(Node):
             return jsonify({
                 'success': True,
                 'data': {
-                    'accelerometer': {
-                        'x': math.sin(self.sim_counter) * 2,
-                        'y': math.cos(self.sim_counter) * 2,
-                        'z': 9.81 + math.sin(self.sim_counter * 0.5) * 0.2
+                    'orientation': {
+                        'x': round(math.sin(self.sim_counter) * 10, 2),
+                        'y': round(math.cos(self.sim_counter) * 10, 2),
+                        'z': round(math.sin(self.sim_counter * 2) * 5, 2)
                     },
-                    'gyroscope': {
-                        'x': math.sin(self.sim_counter * 2) * 50,
-                        'y': math.cos(self.sim_counter * 2) * 50,
-                        'z': math.sin(self.sim_counter * 3) * 20
+                    'angular_velocity': {
+                        'x': round(math.sin(self.sim_counter * 2) * 0.5, 3),
+                        'y': round(math.cos(self.sim_counter * 2) * 0.5, 3),
+                        'z': round(math.sin(self.sim_counter * 3) * 0.2, 3)
                     },
-                    'temperature': 25.0 + math.sin(self.sim_counter * 0.1) * 5.0
+                    'linear_acceleration': {
+                        'x': round(math.sin(self.sim_counter) * 2, 2),
+                        'y': round(math.cos(self.sim_counter) * 2, 2),
+                        'z': round(math.sin(self.sim_counter * 0.5) * 0.2, 2)
+                    },
+                    'temperature': round(25.0 + math.sin(self.sim_counter * 0.1) * 5.0, 1)
                 },
                 'timestamp': time.time()
             })
@@ -4082,27 +4237,59 @@ class WebRobotInterface(Node):
         """Handle robot movement POST request"""
         try:
             data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'error': 'No data provided'}), 400
+                
             direction = data.get('direction')
             speed = data.get('speed', 0.5)
             duration = data.get('duration', 0.0)
 
+            if not direction:
+                return jsonify({'success': False, 'error': 'Direction not specified'}), 400
+
+            # Check if service client is available
+            if not hasattr(self, 'move_robot_client') or self.move_robot_client is None:
+                return jsonify({
+                    'success': False,
+                    'message': 'ROS2 move_robot service client not available'
+                }), 503
+
+            # Check if service is available
+            if not self.move_robot_client.service_is_ready():
+                return jsonify({
+                    'success': False,
+                    'message': 'ROS2 move_robot service not ready'
+                }), 503
+
             # Create service request
             request_msg = MoveRobot.Request()
-            request_msg.direction = direction
+            request_msg.direction = str(direction)
             request_msg.speed = float(speed)
             request_msg.duration = float(duration)
 
-            # Call ROS2 service
+            # Call ROS2 service asynchronously
             future = self.move_robot_client.call_async(request_msg)
-            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
-
+            
+            # Wait for response with timeout (non-blocking spin)
+            timeout = 5.0
+            start_time = time.time()
+            while not future.done() and (time.time() - start_time) < timeout:
+                rclpy.spin_once(self, timeout_sec=0.1)
+            
             if future.done():
-                response = future.result()
-                return jsonify({
-                    'success': response.success,
-                    'message': response.message,
-                    'status': response.status
-                })
+                try:
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'status': response.status
+                    })
+                except Exception as e:
+                    self.get_logger().error(f'Service call result error: {str(e)}')
+                    return jsonify({
+                        'success': False,
+                        'error': f'Service call failed: {str(e)}'
+                    }), 500
             else:
                 return jsonify({
                     'success': False,
@@ -4110,29 +4297,55 @@ class WebRobotInterface(Node):
                 }), 504
 
         except Exception as e:
-            self.get_logger().error(f'Move robot error: {str(e)}')
+            self.get_logger().error(f'Move robot error: {str(e)}', exc_info=True)
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def _stop_robot_endpoint(self):
         """Handle robot stop POST request"""
         try:
+            # Check if service client is available
+            if not hasattr(self, 'move_robot_client') or self.move_robot_client is None:
+                return jsonify({
+                    'success': False,
+                    'message': 'ROS2 move_robot service client not available'
+                }), 503
+
+            # Check if service is available
+            if not self.move_robot_client.service_is_ready():
+                return jsonify({
+                    'success': False,
+                    'message': 'ROS2 move_robot service not ready'
+                }), 503
+
             # Create service request for stop
             request_msg = MoveRobot.Request()
             request_msg.direction = "stop"
             request_msg.speed = 0.0
             request_msg.duration = 0.0
 
-            # Call ROS2 service
+            # Call ROS2 service asynchronously
             future = self.move_robot_client.call_async(request_msg)
-            rclpy.spin_until_future_complete(self, future, timeout_sec=5.0)
-
+            
+            # Wait for response with timeout (non-blocking spin)
+            timeout = 5.0
+            start_time = time.time()
+            while not future.done() and (time.time() - start_time) < timeout:
+                rclpy.spin_once(self, timeout_sec=0.1)
+            
             if future.done():
-                response = future.result()
-                return jsonify({
-                    'success': response.success,
-                    'message': response.message,
-                    'status': response.status
-                })
+                try:
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'status': response.status
+                    })
+                except Exception as e:
+                    self.get_logger().error(f'Service call result error: {str(e)}')
+                    return jsonify({
+                        'success': False,
+                        'error': f'Service call failed: {str(e)}'
+                    }), 500
             else:
                 return jsonify({
                     'success': False,
@@ -4140,7 +4353,7 @@ class WebRobotInterface(Node):
                 }), 504
 
         except Exception as e:
-            self.get_logger().error(f'Stop robot error: {str(e)}')
+            self.get_logger().error(f'Stop robot error: {str(e)}', exc_info=True)
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def _set_gripper_neck_endpoint(self):
@@ -4210,60 +4423,62 @@ class WebRobotInterface(Node):
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def read_all_sensors(self):
-        """Read all distance sensor values"""
-        if self.simulation_mode or not self.spi_initialized:
-            # Generate simulated sensor data
-            self.sim_counter += 0.1
+        """Read all distance sensor values from real hardware"""
+        # Always try to read real hardware if SPI is initialized
+        if self.spi_initialized and self.spi is not None:
             sensor_data = {}
             for name, channel in self.sensor_channels.items():
-                # Simulate distance readings (20-200cm)
-                base_distance = 50 + 30 * math.sin(self.sim_counter + channel)
-                noise = random.uniform(-5, 5)
-                sensor_data[name] = max(0, min(300, base_distance + noise))
-                self.sensor_health[name]['status'] = 'ok'
-                self.sensor_health[name]['last_read'] = time.time()
+                try:
+                    # Read ADC value from hardware
+                    adc_value = self.read_adc(channel)
+                    if adc_value is not None and 0 <= adc_value <= 1023:
+                        # Convert ADC value to voltage
+                        voltage = (adc_value / self.adc_resolution) * self.adc_vref
+                        
+                        # Sharp GP2Y0A02YK0F distance conversion formula
+                        # This sensor has a non-linear response: Distance (cm) = 2076 / (voltage - 0.11)
+                        # Valid range: 20-150cm, voltage range: ~0.4V to ~1.4V
+                        if voltage > 0.4 and voltage < 1.4:
+                            distance = 2076.0 / (voltage - 0.11)
+                            # Clamp to sensor range (20-150cm)
+                            distance = max(20.0, min(150.0, distance))
+                            sensor_data[name] = round(distance, 1)
+                            self.sensor_health[name]['status'] = 'ok'
+                            self.sensor_health[name]['last_read'] = time.time()
+                            self.sensor_health[name]['error_count'] = 0
+                            self.get_logger().debug(f'Sensor {name} (ch{channel}): ADC={adc_value}, V={voltage:.3f}V, Distance={distance:.1f}cm')
+                        else:
+                            # Voltage out of range - sensor might be disconnected or faulty
+                            self.get_logger().warn(f'Sensor {name} (ch{channel}): Voltage {voltage:.3f}V out of range (ADC={adc_value})')
+                            sensor_data[name] = None
+                            self.sensor_health[name]['status'] = 'error'
+                            self.sensor_health[name]['error_count'] += 1
+                    else:
+                        # Invalid ADC reading
+                        self.get_logger().warn(f'Sensor {name} (ch{channel}): Invalid ADC reading {adc_value}')
+                        sensor_data[name] = None
+                        self.sensor_health[name]['status'] = 'error'
+                        self.sensor_health[name]['error_count'] += 1
+                except Exception as e:
+                    self.get_logger().error(f'Error reading sensor {name} (ch{channel}): {str(e)}')
+                    sensor_data[name] = None
+                    self.sensor_health[name]['status'] = 'error'
+                    self.sensor_health[name]['error_count'] += 1
+            
+            # Return real data even if some sensors failed
             return sensor_data
-
+        
+        # Only use simulation if SPI is not initialized
+        self.get_logger().warn('SPI not initialized - using simulated sensor data')
+        self.sim_counter += 0.1
         sensor_data = {}
         for name, channel in self.sensor_channels.items():
-            try:
-                # Read ADC value
-                adc_value = self.read_adc(channel)
-                if adc_value is not None and 0 <= adc_value <= 1023:
-                    # Convert ADC value to distance (simplified conversion)
-                    voltage = (adc_value / self.adc_resolution) * self.adc_vref
-                    # Assuming IR sensor with roughly linear response
-                    distance = 100 / (voltage + 0.1)  # Simplified formula
-                    
-                    # Use real data if distance is reasonable (0-500cm)
-                    if 0 <= distance <= 500:
-                        sensor_data[name] = round(distance, 1)
-                        self.sensor_health[name]['status'] = 'ok'
-                        self.sensor_health[name]['last_read'] = time.time()
-                        self.sensor_health[name]['error_count'] = 0
-                    else:
-                        # Use simulated data if distance is unrealistic
-                        base_distance = 50 + 30 * math.sin(self.sim_counter + channel)
-                        noise = random.uniform(-5, 5)
-                        sensor_data[name] = max(0, min(300, base_distance + noise))
-                        self.sensor_health[name]['status'] = 'ok'
-                        self.sensor_health[name]['last_read'] = time.time()
-                else:
-                    # Return simulated data if ADC read fails or invalid
-                    base_distance = 50 + 30 * math.sin(self.sim_counter + channel)
-                    noise = random.uniform(-5, 5)
-                    sensor_data[name] = max(0, min(300, base_distance + noise))
-                    self.sensor_health[name]['status'] = 'ok'
-                    self.sensor_health[name]['last_read'] = time.time()
-            except Exception as e:
-                self.get_logger().error(f'Error reading sensor {name}: {str(e)}')
-                # Return simulated data on error
-                base_distance = 50 + 30 * math.sin(self.sim_counter + channel)
-                noise = random.uniform(-5, 5)
-                sensor_data[name] = max(0, min(300, base_distance + noise))
-                self.sensor_health[name]['status'] = 'ok'
-                self.sensor_health[name]['last_read'] = time.time()
-
+            # Simulate distance readings (20-150cm range for Sharp GP2Y0A02YK0F)
+            base_distance = 50 + 30 * math.sin(self.sim_counter + channel)
+            noise = random.uniform(-5, 5)
+            sensor_data[name] = max(20, min(150, base_distance + noise))
+            self.sensor_health[name]['status'] = 'simulated'
+            self.sensor_health[name]['last_read'] = time.time()
         return sensor_data
 
     def read_adc(self, channel):
@@ -4285,43 +4500,63 @@ class WebRobotInterface(Node):
             return None
 
     def read_imu_data(self):
-        """Read IMU sensor data"""
-        if self.simulation_mode or not self.imu_initialized or self.imu is None:
-            # Generate simulated IMU data
-            self.sim_counter += 0.1
-            return {
-                'accelerometer': {
-                    'x': math.sin(self.sim_counter) * 2,
-                    'y': math.cos(self.sim_counter) * 2,
-                    'z': 9.81 + math.sin(self.sim_counter * 0.5) * 0.2
-                },
-                'gyroscope': {
-                    'x': math.sin(self.sim_counter * 2) * 50,
-                    'y': math.cos(self.sim_counter * 2) * 50,
-                    'z': math.sin(self.sim_counter * 3) * 20
-                },
-                'temperature': 25.0 + math.sin(self.sim_counter * 0.1) * 5.0
-            }
-
-        try:
-            return self.imu.get_all_data()
-        except Exception as e:
-            self.get_logger().error(f'IMU read error: {str(e)}')
-            # Return simulated data on error
-            self.sim_counter += 0.1
-            return {
-                'accelerometer': {
-                    'x': math.sin(self.sim_counter) * 2,
-                    'y': math.cos(self.sim_counter) * 2,
-                    'z': 9.81 + math.sin(self.sim_counter * 0.5) * 0.2
-                },
-                'gyroscope': {
-                    'x': math.sin(self.sim_counter * 2) * 50,
-                    'y': math.cos(self.sim_counter * 2) * 50,
-                    'z': math.sin(self.sim_counter * 3) * 20
-                },
-                'temperature': 25.0 + math.sin(self.sim_counter * 0.1) * 5.0
-            }
+        """Read IMU sensor data from real hardware"""
+        # Always try to read real hardware if IMU is initialized
+        if self.imu_initialized and self.imu is not None:
+            try:
+                # Handle different MPU6050 module APIs
+                if MPU6050_MODULE == 'mpu6050':
+                    # mpu6050-raspberrypi package API
+                    accel_data = self.imu.get_accel_data()
+                    gyro_data = self.imu.get_gyro_data()
+                    temp = self.imu.get_temp()
+                    
+                    if accel_data and gyro_data:
+                        imu_data = {
+                            'accelerometer': {
+                                'x': accel_data.get('x', 0),
+                                'y': accel_data.get('y', 0),
+                                'z': accel_data.get('z', 0)
+                            },
+                            'gyroscope': {
+                                'x': gyro_data.get('x', 0),
+                                'y': gyro_data.get('y', 0),
+                                'z': gyro_data.get('z', 0)
+                            },
+                            'temperature': temp if temp else 25.0
+                        }
+                        self.get_logger().debug(f'IMU data read successfully: accel={accel_data}, gyro={gyro_data}')
+                        return imu_data
+                    else:
+                        self.get_logger().warn('IMU returned empty data')
+                else:
+                    # MPU6050Reader API
+                    imu_data = self.imu.get_all_data()
+                    if imu_data:
+                        self.get_logger().debug(f'IMU data read successfully: {imu_data}')
+                        return imu_data
+                    else:
+                        self.get_logger().warn('IMU returned empty data')
+            except Exception as e:
+                self.get_logger().error(f'IMU read error: {str(e)}')
+        
+        # Only use simulation if IMU is not initialized or read failed
+        if not self.imu_initialized:
+            self.get_logger().debug('IMU not initialized - using simulated data')
+        self.sim_counter += 0.1
+        return {
+            'accelerometer': {
+                'x': math.sin(self.sim_counter) * 2,
+                'y': math.cos(self.sim_counter) * 2,
+                'z': 9.81 + math.sin(self.sim_counter * 0.5) * 0.2
+            },
+            'gyroscope': {
+                'x': math.sin(self.sim_counter * 2) * 50,
+                'y': math.cos(self.sim_counter * 2) * 50,
+                'z': math.sin(self.sim_counter * 3) * 20
+            },
+            'temperature': 25.0 + math.sin(self.sim_counter * 0.1) * 5.0
+        }
 
     def run_web_interface(self):
         """Run the web interface - Flask app must be created first"""
