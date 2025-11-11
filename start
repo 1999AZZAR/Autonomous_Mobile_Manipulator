@@ -27,6 +27,7 @@ COMPOSE_FILE="docker-compose.yml"
 PROJECT_NAME="lks_robot"
 BUILD_FLAG=""
 DETACH=true
+MINIMAL_MODE=false
 
 #################################################################
 # Print Functions
@@ -110,16 +111,30 @@ start_containers() {
     # Determine compose file and settings based on mode
     case "$MODE" in
         hw|hardware)
-            print_info "Starting in HARDWARE mode (real sensors)"
-            COMPOSE_FILE="docker-compose.prod.yml"
-            export ROBOT_MODE="hardware"
-            CONTAINER_NAME="ros2_hw_container"
+            if [ "$MINIMAL_MODE" = true ]; then
+                print_info "Starting in HARDWARE mode (minimal - Web UI + ROS2 only)"
+                COMPOSE_FILE="docker-compose.minimal.yml"
+                export ROBOT_MODE="hardware"
+                CONTAINER_NAME="ros2_minimal_hw_container"
+            else
+                print_info "Starting in HARDWARE mode (real sensors + n8n)"
+                COMPOSE_FILE="docker-compose.prod.yml"
+                export ROBOT_MODE="hardware"
+                CONTAINER_NAME="ros2_hw_container"
+            fi
             ;;
         sim|simulation)
-            print_info "Starting in SIMULATION mode (simulated sensors)"
-            COMPOSE_FILE="docker-compose.dev.yml"
-            export ROBOT_MODE="simulation"
-            CONTAINER_NAME="ros2_sim_container"
+            if [ "$MINIMAL_MODE" = true ]; then
+                print_info "Starting in SIMULATION mode (minimal - Web UI + ROS2 only)"
+                COMPOSE_FILE="docker-compose.minimal.yml"
+                export ROBOT_MODE="simulation"
+                CONTAINER_NAME="ros2_minimal_sim_container"
+            else
+                print_info "Starting in SIMULATION mode (simulated sensors + n8n)"
+                COMPOSE_FILE="docker-compose.dev.yml"
+                export ROBOT_MODE="simulation"
+                CONTAINER_NAME="ros2_sim_container"
+            fi
             ;;
         *)
             print_error "Invalid mode: $MODE"
@@ -215,11 +230,13 @@ check_service_health() {
         print_warning "Robot API (5000): Not accessible"
     fi
     
-    # Check n8n
-    if curl -s --max-time 5 http://localhost:5678 &> /dev/null; then
-        print_success "n8n Automation (5678): Accessible"
-    else
-        print_warning "n8n Automation (5678): Not running"
+    # Check n8n (only if not in minimal mode)
+    if [ "$MINIMAL_MODE" != true ]; then
+        if curl -s --max-time 5 http://localhost:5678 &> /dev/null; then
+            print_success "n8n Automation (5678): Accessible"
+        else
+            print_warning "n8n Automation (5678): Not running"
+        fi
     fi
 }
 
@@ -236,9 +253,15 @@ show_access_info() {
     echo "  Remote Access:  http://${ip}:8000"
     echo ""
     echo -e "${BLUE}Additional Services:${NC}"
-    echo "  Robot API:      http://localhost:5000"
-    echo "  n8n Automation: http://localhost:5678"
-    echo "  WebSocket:      ws://localhost:8765"
+    if [ "$MINIMAL_MODE" = true ]; then
+        echo "  Robot API:      http://localhost:5000"
+        echo "  WebSocket:      ws://localhost:8765"
+        echo "  n8n Automation: Not started (minimal mode)"
+    else
+        echo "  Robot API:      http://localhost:5000"
+        echo "  n8n Automation: http://localhost:5678"
+        echo "  WebSocket:      ws://localhost:8765"
+    fi
     echo ""
     
     if [ "$MODE" = "hw" ] || [ "$MODE" = "hardware" ]; then
@@ -531,6 +554,9 @@ MODES:
     --sim, --simulation Start in simulation mode (simulated sensors)
     --test              Run system tests and interactive test menu
 
+OPTIONS:
+    --minimal           Start in minimal mode (Web UI + ROS2 only, no n8n)
+
 OPERATIONS:
     --status            Show system status
     --logs [service]    Show logs (all or specific service)
@@ -546,8 +572,10 @@ OPTIONS:
     -h, --help          Show this help
 
 EXAMPLES:
-    ./start --hw                # Start with real hardware
-    ./start --sim               # Start with simulation
+    ./start --hw                # Start with real hardware + n8n
+    ./start --sim               # Start with simulation + n8n
+    ./start --hw --minimal      # Start hardware mode (Web UI + ROS2 only)
+    ./start --sim --minimal     # Start simulation mode (Web UI + ROS2 only)
     ./start --test              # Run tests
     ./start --hw --build        # Rebuild and start hardware mode
     ./start --status            # Check system status
@@ -578,6 +606,10 @@ main() {
                 ;;
             --sim|--simulation)
                 MODE="sim"
+                shift
+                ;;
+            --minimal)
+                MINIMAL_MODE=true
                 shift
                 ;;
             --test)
