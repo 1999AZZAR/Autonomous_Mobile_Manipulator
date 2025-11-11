@@ -3065,26 +3065,46 @@ class WebRobotInterface(Node):
                     # Get orientation (pitch, roll)
                     orientation = self.imu.get_orientation()
                     
+                    # Log raw data for debugging
+                    self.get_logger().debug(f'IMU Reading - Accel: {imu_reading.get("accelerometer")}, '
+                                          f'Gyro: {imu_reading.get("gyroscope")}, '
+                                          f'Orient: {orientation}')
+                    
+                    # Safely extract orientation data with defaults
+                    roll = 0.0
+                    pitch = 0.0
+                    yaw = 0.0
+                    
+                    if orientation:
+                        roll = orientation.get('roll', 0.0)
+                        pitch = orientation.get('pitch', 0.0)
+                        yaw = orientation.get('yaw', 0.0)
+                    
                     return {
                         'orientation': {
-                            'x': orientation['roll'] if orientation else 0.0,
-                            'y': orientation['pitch'] if orientation else 0.0,
-                            'z': orientation['yaw'] if orientation else 0.0
+                            'x': roll,
+                            'y': pitch,
+                            'z': yaw
                         },
                         'angular_velocity': {
-                            'x': imu_reading['gyroscope']['x'],
-                            'y': imu_reading['gyroscope']['y'],
-                            'z': imu_reading['gyroscope']['z']
+                            'x': imu_reading.get('gyroscope', {}).get('x', 0.0),
+                            'y': imu_reading.get('gyroscope', {}).get('y', 0.0),
+                            'z': imu_reading.get('gyroscope', {}).get('z', 0.0)
                         },
                         'linear_acceleration': {
-                            'x': imu_reading['accelerometer']['x'],
-                            'y': imu_reading['accelerometer']['y'],
-                            'z': imu_reading['accelerometer']['z']
+                            'x': imu_reading.get('accelerometer', {}).get('x', 0.0),
+                            'y': imu_reading.get('accelerometer', {}).get('y', 0.0),
+                            'z': imu_reading.get('accelerometer', {}).get('z', 0.0)
                         },
-                        'temperature': imu_reading['temperature']
+                        'temperature': imu_reading.get('temperature', 0.0)
                     }
+                else:
+                    self.get_logger().warn('IMU read_all() returned None')
+                    return None
             except Exception as e:
                 self.get_logger().error(f'Error reading IMU: {str(e)}')
+                import traceback
+                self.get_logger().error(f'Traceback: {traceback.format_exc()}')
                 return None
         else:
             # Simulation mode - return simulated IMU data

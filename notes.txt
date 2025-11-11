@@ -66,3 +66,13 @@ ros2 api need tobe accesible all the time:
 - robot log
 - 3 last command/execution data
 
+recent updates (2025-11-11):
+- Fixed IMU data display in web interface
+  - Enhanced error handling in read_imu_data() method
+  - Added safe dictionary access with .get() and default values
+  - Added debug logging for troubleshooting
+  - Created test_imu_endpoint.py for API testing
+  - Created IMU_TROUBLESHOOTING.md and QUICK_IMU_TEST.md guides
+  - IMU sensor (MPU6050) verified working via direct test
+  - Web interface now properly displays orientation, angular velocity, and acceleration data
+
