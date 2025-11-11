@@ -5,6 +5,8 @@ from rclpy.node import Node
 from flask import Flask, render_template_string, jsonify, request
 import threading
 import time
+import spidev
+import math
 
 # Modern Professional Web Interface Template
 HTML_TEMPLATE = """
@@ -980,8 +982,8 @@ HTML_TEMPLATE = """
                     <div class="control-panels">
                         <div class="panel">
                             <div class="panel-header">
-                                <i class="fas fa-ruler"></i>
-                                <h3>Laser Distance Sensors (6x)</h3>
+                                <i class="fas fa-ruler-combined"></i>
+                                <h3>IR Distance Sensors (6x Sharp GP2Y0A02YK0F)</h3>
                             </div>
 
                             <div class="status-grid" id="laser-sensors">
@@ -1176,8 +1178,8 @@ HTML_TEMPLATE = """
                                 <h4>Sensors</h4>
                                 <div class="status-grid">
                                     <div class="status-card">
-                                        <h4>Laser Distance</h4>
-                                        <div class="value">6 units (VL53L0X)</div>
+                                        <h4>IR Distance Sensors</h4>
+                                        <div class="value">6 units (Sharp GP2Y0A02YK0F)</div>
                                     </div>
                                     <div class="status-card">
                                         <h4>Ultrasonic</h4>
@@ -1251,20 +1253,28 @@ GPIO13 (33) - Gripper Lifter PWM
                             </div>
 
                             <div class="control-group">
-                                <h4>Laser Distance Sensors (6x VL53L0X)</h4>
+                                <h4>IR Distance Sensors (6x Sharp GP2Y0A02YK0F)</h4>
                                 <div class="log-panel" style="max-height: 150px; color: #10b981;">
-GPIO2 (3)  - SDA (I2C Data)
-GPIO3 (5)  - SCL (I2C Clock)
+Analog sensors connected via MCP3008 ADC (SPI interface)
 
-TCA9548A I2C Multiplexer Channels:
-  CH0: Front Left Laser
-  CH1: Front Right Laser
-  CH2: Left Front Laser
-  CH3: Left Back Laser
-  CH4: Right Front Laser
-  CH5: Right Back Laser
-  CH6: Back Left Laser
-  CH7: Back Right Laser
+SPI0 Pinout:
+GPIO9  (21) - MISO (SPI0_MISO)
+GPIO10 (19) - MOSI (SPI0_MOSI)
+GPIO11 (23) - SCLK (SPI0_SCLK)
+GPIO8  (24) - CE0  (SPI0_CE0)
+
+MCP3008 ADC Channel Mapping:
+  CH0: Left Front Sensor
+  CH1: Left Back Sensor
+  CH2: Right Front Sensor
+  CH3: Right Back Sensor
+  CH4: Back Left Sensor
+  CH5: Back Right Sensor
+  
+Sensor Specifications:
+- Range: 20-150cm (200-1500mm)
+- Output: Analog voltage 0.4V-2.7V
+- Power: 5V supply required
                                 </div>
                             </div>
 
@@ -2435,6 +2445,25 @@ class WebRobotInterface(Node):
     def __init__(self):
         super().__init__('web_robot_interface')
 
+        # Initialize SPI for MCP3008 ADC
+        self.spi = spidev.SpiDev()
+        self.spi.open(0, 0)
+        self.spi.max_speed_hz = 1350000
+        
+        # Sharp GP2Y0A02YK0F sensor channel mapping on MCP3008
+        self.sensor_channels = {
+            'left_front': 0,
+            'left_back': 1,
+            'right_front': 2,
+            'right_back': 3,
+            'back_left': 4,
+            'back_right': 5
+        }
+        
+        # ADC reference voltage (typically 3.3V on Raspberry Pi)
+        self.adc_vref = 3.3
+        self.adc_resolution = 1024
+
         # Flask app for the professional web interface
         self.app = Flask(__name__)
 
@@ -2450,10 +2479,158 @@ class WebRobotInterface(Node):
                 'service': 'robot_web_interface',
                 'timestamp': time.time()
             })
+        
+        @self.app.route('/api/robot/sensors')
+        def get_sensors():
+            try:
+                sensor_data = self.read_all_sensors()
+                return jsonify({
+                    'success': True,
+                    'data': sensor_data,
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                self.get_logger().error(f'Sensor read error: {str(e)}')
+                return jsonify({
+                    'success': False,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }), 500
+
+        @self.app.route('/api/robot/status')
+        def get_status():
+            return jsonify({
+                'success': True,
+                'data': {
+                    'mode': 'MANUAL',
+                    'emergency_stop': False,
+                    'battery_voltage': 24.0,
+                    'system_status': 'operational'
+                },
+                'timestamp': time.time()
+            })
 
         self.get_logger().info('Professional Robot Web Interface initialized')
         self.get_logger().info('Access the interface at: http://localhost:8000 (local) or http://<robot-ip>:8000 (remote)')
         self.get_logger().info('API calls will use the hostname from the browser URL')
+    
+    def read_adc_channel(self, channel):
+        """
+        Read analog value from MCP3008 ADC channel (0-7)
+        Returns raw ADC value (0-1023)
+        """
+        if channel < 0 or channel > 7:
+            raise ValueError("ADC channel must be between 0 and 7")
+        
+        # MCP3008 command: start bit + single-ended mode + channel selection
+        adc = self.spi.xfer2([1, (8 + channel) << 4, 0])
+        data = ((adc[1] & 3) << 8) + adc[2]
+        return data
+    
+    def adc_to_voltage(self, adc_value):
+        """
+        Convert ADC value to voltage based on reference voltage
+        """
+        return (adc_value * self.adc_vref) / self.adc_resolution
+    
+    def sharp_gp2y0a02_voltage_to_distance(self, voltage):
+        """
+        Convert voltage to distance in mm for Sharp GP2Y0A02YK0F sensor
+        Range: 20-150cm (200-1500mm)
+        Voltage range: ~2.7V at 20cm to ~0.4V at 150cm
+        
+        Using empirical formula from datasheet:
+        Distance (cm) = 60 * (Voltage ^ -1.1) - 1
+        
+        Returns distance in mm, or None if out of range
+        """
+        try:
+            # Voltage threshold checks
+            if voltage < 0.3:
+                return None
+            if voltage > 2.8:
+                return 200
+            
+            # Calculate distance using inverse power relationship
+            distance_cm = 60 * (voltage ** -1.1) - 1
+            
+            # Clamp to valid range
+            if distance_cm < 20:
+                distance_cm = 20
+            elif distance_cm > 150:
+                distance_cm = 150
+            
+            # Convert to mm and round
+            distance_mm = round(distance_cm * 10)
+            return distance_mm
+            
+        except (ValueError, ZeroDivisionError):
+            return None
+    
+    def read_sharp_sensor(self, channel):
+        """
+        Read a Sharp GP2Y0A02YK0F sensor and return distance in mm
+        """
+        try:
+            # Take multiple readings and average for stability
+            readings = []
+            for _ in range(5):
+                adc_value = self.read_adc_channel(channel)
+                voltage = self.adc_to_voltage(adc_value)
+                distance = self.sharp_gp2y0a02_voltage_to_distance(voltage)
+                if distance is not None:
+                    readings.append(distance)
+                time.sleep(0.001)
+            
+            if readings:
+                # Return median to filter out noise
+                readings.sort()
+                return readings[len(readings) // 2]
+            else:
+                return None
+                
+        except Exception as e:
+            self.get_logger().error(f'Error reading Sharp sensor on channel {channel}: {str(e)}')
+            return None
+    
+    def read_all_sensors(self):
+        """
+        Read all sensors and return structured data
+        """
+        sensor_data = {
+            'laser_sensors': {},
+            'ultrasonic_sensors': {
+                'front_left': None,
+                'front_right': None
+            },
+            'tf_luna': {
+                'distance': None,
+                'strength': None
+            },
+            'line_sensors': {
+                'left': False,
+                'center': False,
+                'right': False
+            },
+            'container_sensors': {
+                'left_front': False,
+                'left_back': False,
+                'right_front': False,
+                'right_back': False
+            },
+            'imu': {
+                'yaw': 0.0,
+                'pitch': 0.0,
+                'roll': 0.0
+            }
+        }
+        
+        # Read all Sharp GP2Y0A02YK0F analog distance sensors
+        for sensor_name, channel in self.sensor_channels.items():
+            distance = self.read_sharp_sensor(channel)
+            sensor_data['laser_sensors'][sensor_name] = distance
+        
+        return sensor_data
 
     def run_web_interface(self):
         """Run the web interface in a separate thread"""

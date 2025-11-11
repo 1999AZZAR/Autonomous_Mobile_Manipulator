@@ -1,5 +1,8 @@
 main body and nav:
-    - 6x sensor jarak (laser based)(l,r,b)(2 per side)(used to alighn the robot with the wall)
+    - 6x sensor jarak (analog IR distance sensors)(l,r,b)(2 per side)(used to align the robot with the wall)(Sharp GP2Y0A02YK0F)
+        - Connected via MCP3008 ADC (SPI interface)
+        - Range: 20-150cm (200-1500mm)
+        - Output: Analog voltage 0.4V-2.7V
     - 2x sensor jarak (hcsr04)(f)
     - 3x individual line sensor assembled side by side (used to align the robot with the line on the floor/ can also be used to navigate as navigate my line following mode)
 
