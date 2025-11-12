@@ -2563,7 +2563,7 @@ class GPIOController:
             # Front Left Motor
             'MOTOR_FL_IN1': 17,      # GPIO17 - L298N IN1 pin (direction control)
             'MOTOR_FL_IN2': 10,      # GPIO10 - L298N IN2 pin (direction control) - NOTE: Temporarily using SPI MOSI pin
-            'MOTOR_FL_ENA': 27,      # GPIO27 - L298N ENA pin (PWM speed control)
+            'MOTOR_FL_ENA': 11,      # GPIO11 - L298N ENA pin (PWM speed control) - NOTE: GPIO27 not working, using GPIO11 (SPI SCLK) temporarily
             'MOTOR_FL_ENCODER_A': 22, # GPIO22 - Encoder DATA(A) pin (read only)
             'MOTOR_FL_ENCODER_B': 23, # GPIO23 - Encoder DATA(B) pin (read only)
             
