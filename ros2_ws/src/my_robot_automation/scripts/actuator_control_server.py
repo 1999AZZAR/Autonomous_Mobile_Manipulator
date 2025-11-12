@@ -4,6 +4,20 @@ import rclpy
 from rclpy.node import Node
 import lgpio
 import time
+import sys
+import os
+
+# Add script directory to path to import pg23_motor_controller
+script_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, script_dir)
+
+# Import PG23 motor controller
+try:
+    from pg23_motor_controller import PG23MotorManager
+    MOTOR_CONTROLLER_AVAILABLE = True
+except ImportError as e:
+    print(f"WARNING: Could not import PG23MotorController: {e}")
+    MOTOR_CONTROLLER_AVAILABLE = False
 
 # ROS2 service imports
 from my_robot_automation.srv import (
@@ -20,6 +34,9 @@ class ActuatorControlServer(Node):
         # GPIO setup
         self.gpio_handle = None
         self.gpio_initialized = False
+        
+        # Motor controller manager
+        self.motor_manager = None
 
         # GPIO pin definitions
         # PG23 Motor Pinout: M+, M-, GND, VIN, DATA(A), DATA(B)
@@ -119,6 +136,38 @@ class ActuatorControlServer(Node):
             self.gpio_initialized = True
             self.get_logger().info('✓ GPIO Controller initialized successfully with lgpio!')
             self.get_logger().info(f'  - Total pins initialized: {len(all_pins)}')
+            
+            # Initialize motor controllers
+            if MOTOR_CONTROLLER_AVAILABLE:
+                self.motor_manager = PG23MotorManager(self.gpio_handle)
+                
+                # Add all motors
+                self.motor_manager.add_motor(
+                    'front_left',
+                    self.PINS['MOTOR_FL_DATA_A'],
+                    self.PINS['MOTOR_FL_DATA_B']
+                )
+                self.motor_manager.add_motor(
+                    'front_right',
+                    self.PINS['MOTOR_FR_DATA_A'],
+                    self.PINS['MOTOR_FR_DATA_B']
+                )
+                self.motor_manager.add_motor(
+                    'back',
+                    self.PINS['MOTOR_BACK_DATA_A'],
+                    self.PINS['MOTOR_BACK_DATA_B']
+                )
+                self.motor_manager.add_motor(
+                    'lifter',
+                    self.PINS['LIFTER_DATA_A'],
+                    self.PINS['LIFTER_DATA_B']
+                )
+                
+                # Ensure all motors are stopped on initialization
+                self.motor_manager.stop_all()
+                self.get_logger().info('✓ PG23 Motor controllers initialized - all motors stopped')
+            else:
+                self.get_logger().warn('⚠ Motor controller not available - motors will not be controlled')
 
         except Exception as e:
             self.get_logger().error(f'✗ GPIO initialization failed: {str(e)}')
@@ -247,31 +296,63 @@ class ActuatorControlServer(Node):
         return response
 
     def execute_movement(self, direction, speed):
-        """Execute robot movement"""
-        if direction == 'stop':
-            # Stop all motors
-            self.stop_robot()
-        elif direction == 'forward':
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)
-        elif direction == 'backward':
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
-        elif direction == 'strafe_left':
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
-        elif direction == 'strafe_right':
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
+        """Execute robot movement using PG23 motor controllers"""
+        if not self.motor_manager:
+            self.get_logger().error("Motor manager not initialized")
+            return
+            
+        # Clamp speed
+        speed = max(0.0, min(1.0, speed))
+        
+        try:
+            if direction == 'stop':
+                self.stop_robot()
+            elif direction == 'forward':
+                # All motors forward
+                self.motor_manager['front_left'].forward(speed)
+                self.motor_manager['front_right'].forward(speed)
+                self.motor_manager['back'].forward(speed)
+                self.get_logger().info(f"Moving forward at speed {speed:.2f}")
+            elif direction == 'backward':
+                # All motors reverse
+                self.motor_manager['front_left'].reverse(speed)
+                self.motor_manager['front_right'].reverse(speed)
+                self.motor_manager['back'].reverse(speed)
+                self.get_logger().info(f"Moving backward at speed {speed:.2f}")
+            elif direction == 'strafe_left':
+                # Front left reverse, front right forward, back stopped
+                self.motor_manager['front_left'].reverse(speed)
+                self.motor_manager['front_right'].forward(speed)
+                self.motor_manager['back'].stop()
+                self.get_logger().info(f"Strafing left at speed {speed:.2f}")
+            elif direction == 'strafe_right':
+                # Front left forward, front right reverse, back stopped
+                self.motor_manager['front_left'].forward(speed)
+                self.motor_manager['front_right'].reverse(speed)
+                self.motor_manager['back'].stop()
+                self.get_logger().info(f"Strafing right at speed {speed:.2f}")
+            elif direction == 'turn_left':
+                # Front left reverse, front right forward, back forward
+                self.motor_manager['front_left'].reverse(speed)
+                self.motor_manager['front_right'].forward(speed)
+                self.motor_manager['back'].forward(speed)
+                self.get_logger().info(f"Turning left at speed {speed:.2f}")
+            elif direction == 'turn_right':
+                # Front left forward, front right reverse, back reverse
+                self.motor_manager['front_left'].forward(speed)
+                self.motor_manager['front_right'].reverse(speed)
+                self.motor_manager['back'].reverse(speed)
+                self.get_logger().info(f"Turning right at speed {speed:.2f}")
+        except Exception as e:
+            self.get_logger().error(f"Movement error: {e}")
 
     def stop_robot(self):
         """Stop all robot motors"""
-        lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
-        lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
-        lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
-        self.get_logger().info("Robot stopped")
+        if self.motor_manager:
+            self.motor_manager.stop_all()
+            self.get_logger().info("Robot stopped - all motors sent STOP command")
+        else:
+            self.get_logger().warn("Motor manager not available - cannot stop motors")
 
     def control_container_callback(self, request, response):
         """Handle container control service calls"""
@@ -327,15 +408,21 @@ class ActuatorControlServer(Node):
         return response
 
     def cleanup(self):
-        """Cleanup GPIO resources"""
-        if self.gpio_handle is not None and self.gpio_initialized:
-            try:
+        """Cleanup GPIO resources and stop all motors"""
+        try:
+            # Stop all motors before cleanup
+            if self.motor_manager:
+                self.get_logger().info('Stopping all motors before cleanup...')
+                self.motor_manager.stop_all()
+                time.sleep(0.1)  # Give motors time to stop
+            
+            if self.gpio_handle is not None and self.gpio_initialized:
                 lgpio.gpiochip_close(self.gpio_handle)
                 self.gpio_handle = None
                 self.gpio_initialized = False
                 self.get_logger().info("GPIO resources cleaned up")
-            except Exception as e:
-                self.get_logger().error(f"GPIO cleanup error: {str(e)}")
+        except Exception as e:
+            self.get_logger().error(f"GPIO cleanup error: {str(e)}")
 
 
 def main(args=None):
