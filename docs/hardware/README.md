@@ -66,7 +66,12 @@ The LKS Autonomous Mobile Manipulator consists of:
 | Lifter Motor | PG23 built-in encoder motor, 12V, 15.5k RPM, 7 PPR | 1 | Vertical lifting mechanism |
 | Battery | 12V LiPo 5000mAh | 1 | Power supply |
 | Voltage Regulator | 5V/12V buck converter | 2 | Power management |
+
 | Container System | 4-compartment | 1 | Material transport and storage |
+
+**Motor Documentation:**
+- [PG23 Motor Connection Guide](PG23_MOTOR_CONNECTION_GUIDE.md) - Complete pinout, wiring, and connection instructions
+- [Motor Specifications](MOTOR_SPECIFICATIONS.md) - Detailed motor and encoder specifications
 
 ### Mechanical Components
 
@@ -488,6 +493,7 @@ ros2 launch my_robot_bringup robot.launch.py
 - PG23 Motor Datasheet (built-in driver specifications)
 - Servo Motor Specifications
 - PG23 Motor Specifications (see MOTOR_SPECIFICATIONS.md)
+- PG23 Motor Connection Guide (see PG23_MOTOR_CONNECTION_GUIDE.md)
 
 ### Community Resources
 - [ROS Discourse](https://discourse.ros.org/)
