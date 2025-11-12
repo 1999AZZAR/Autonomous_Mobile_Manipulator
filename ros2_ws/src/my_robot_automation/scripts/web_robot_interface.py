@@ -2561,8 +2561,9 @@ class GPIOController:
             # Encoder Reading: DATA(A) and DATA(B) pins (encoder feedback only)
             
             # Front Left Motor
-            'MOTOR_FL_DIR': 17,      # GPIO17 - L298N Direction pin (OUT1/OUT2 control)
-            'MOTOR_FL_PWM': 27,      # GPIO27 - L298N PWM pin (speed control)
+            'MOTOR_FL_IN1': 17,      # GPIO17 - L298N IN1 pin (direction control)
+            'MOTOR_FL_IN2': 10,      # GPIO10 - L298N IN2 pin (direction control) - NOTE: Temporarily using SPI MOSI pin
+            'MOTOR_FL_ENA': 27,      # GPIO27 - L298N ENA pin (PWM speed control)
             'MOTOR_FL_ENCODER_A': 22, # GPIO22 - Encoder DATA(A) pin (read only)
             'MOTOR_FL_ENCODER_B': 23, # GPIO23 - Encoder DATA(B) pin (read only)
             
@@ -2624,16 +2625,20 @@ class GPIOController:
                         # NOTE: GRIPPER_BASE removed - GPIO12 is needed for LIFTER_PWM motor control
                     ]
 
-                    # L298N Motor Control pins (DIR and PWM)
-                    motor_dir_pins = [
-                        self.PINS['MOTOR_FL_DIR'],
-                        self.PINS['MOTOR_FR_DIR'],
+                    # L298N Motor Control pins (IN1, IN2, and ENA)
+                    motor_in1_pins = [
+                        self.PINS['MOTOR_FL_IN1'],
+                        self.PINS['MOTOR_FR_DIR'],  # Keep DIR for now, will update later
                         self.PINS['MOTOR_BACK_DIR'],
                         self.PINS['LIFTER_DIR']
                     ]
-                    motor_pwm_pins = [
-                        self.PINS['MOTOR_FL_PWM'],
-                        self.PINS['MOTOR_FR_PWM'],
+                    motor_in2_pins = [
+                        self.PINS['MOTOR_FL_IN2'],
+                        # Will add IN2 for other motors later
+                    ]
+                    motor_ena_pins = [
+                        self.PINS['MOTOR_FL_ENA'],
+                        self.PINS['MOTOR_FR_PWM'],  # Keep PWM for now
                         self.PINS['MOTOR_BACK_PWM'],
                         self.PINS['LIFTER_PWM']
                     ]
@@ -2658,7 +2663,7 @@ class GPIOController:
                     ]
 
                     # Claim servo pins as outputs
-                    all_output_pins = servo_pins + motor_dir_pins + motor_pwm_pins + container_pins
+                    all_output_pins = servo_pins + motor_in1_pins + motor_in2_pins + motor_ena_pins + container_pins
                     for pin in all_output_pins:
                         lgpio.gpio_claim_output(self.gpio_handle, pin)
                         print(f"✓ GPIO{pin} claimed as output")
@@ -2668,11 +2673,13 @@ class GPIOController:
                         lgpio.gpio_claim_input(self.gpio_handle, pin)
                         print(f"✓ GPIO{pin} claimed as input (Encoder)")
                     
-                    # Initialize all motors to STOP (DIR=0, PWM=0)
-                    for dir_pin in motor_dir_pins:
-                        lgpio.gpio_write(self.gpio_handle, dir_pin, 0)
-                    for pwm_pin in motor_pwm_pins:
-                        lgpio.gpio_write(self.gpio_handle, pwm_pin, 0)
+                    # Initialize all motors to STOP (IN1=0, IN2=0, ENA=0)
+                    for in1_pin in motor_in1_pins:
+                        lgpio.gpio_write(self.gpio_handle, in1_pin, 0)
+                    for in2_pin in motor_in2_pins:
+                        lgpio.gpio_write(self.gpio_handle, in2_pin, 0)
+                    for ena_pin in motor_ena_pins:
+                        lgpio.gpio_write(self.gpio_handle, ena_pin, 0)
                     
                     all_pins = all_output_pins + encoder_a_pins + encoder_b_pins
 
@@ -2861,18 +2868,24 @@ class GPIOController:
             pwm_value = 1 if speed > 0.5 else 0  # Simple on/off for now (can use PWM later)
 
             if direction == 'forward':
-                # All motors forward (DIR=1, PWM=1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                # All motors forward
+                # Front Left: IN1=1, IN2=0, ENA=1 (forward)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
+                # Other motors (still using DIR/PWM for now)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 print(f"✓ Moving forward (speed: {speed:.2f})")
             elif direction == 'backward':
-                # All motors reverse (DIR=0, PWM=1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                # All motors reverse
+                # Front Left: IN1=0, IN2=1, ENA=1 (reverse)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
+                # Other motors (still using DIR/PWM for now)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
@@ -2880,8 +2893,11 @@ class GPIOController:
                 print(f"✓ Moving backward (speed: {speed:.2f})")
             elif direction == 'strafe_left':
                 # Front left reverse, front right forward, back stopped
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                # Front Left: IN1=0, IN2=1, ENA=1 (reverse)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
+                # Other motors
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
@@ -2889,8 +2905,11 @@ class GPIOController:
                 print(f"✓ Strafing left (speed: {speed:.2f})")
             elif direction == 'strafe_right':
                 # Front left forward, front right reverse, back stopped
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                # Front Left: IN1=1, IN2=0, ENA=1 (forward)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
+                # Other motors
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
@@ -2916,18 +2935,24 @@ class GPIOController:
             pwm_value = 1 if speed > 0.5 else 0  # Simple on/off for now
 
             if direction == 'left':
-                # FL backward (DIR=0), FR forward (DIR=1), Back forward (DIR=1) = turn left
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                # FL backward, FR forward, Back forward = turn left
+                # Front Left: IN1=0, IN2=1, ENA=1 (reverse)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
+                # Other motors
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 print(f"✓ Turning left (speed: {speed:.2f})")
             elif direction == 'right':
-                # FL forward (DIR=1), FR backward (DIR=0), Back reverse (DIR=0) = turn right
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                # FL forward, FR backward, Back reverse = turn right
+                # Front Left: IN1=1, IN2=0, ENA=1 (forward)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
+                # Other motors
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
                 lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
@@ -2949,8 +2974,9 @@ class GPIOController:
             return False
 
         try:
-            # Set all PWM pins to 0 (stop motors)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], 0)
+            # Stop Front Left motor: ENA=0 (disable)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], 0)
+            # Stop other motors: PWM=0
             lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], 0)
             lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
             lgpio.gpio_write(self.gpio_handle, self.PINS['LIFTER_PWM'], 0)
