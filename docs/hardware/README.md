@@ -53,8 +53,8 @@ The LKS Autonomous Mobile Manipulator consists of:
 | Component | Model/Specification | Quantity | Purpose |
 |-----------|-------------------|----------|---------|
 | Raspberry Pi 5 | 8GB RAM, Ubuntu Server | 1 | Main computer and ROS2 processing |
-| Motors | PG23 built-in encoder, 12V, 15.5k RPM, 7 PPR | 4 | 3x omni wheels + 1x lifter (built-in drivers, no external driver needed) |
-| DC Motors | PG23 built-in encoder, 12V, 15.5k RPM, 7 PPR | 4 | 3x wheels + 1x lifter actuation |
+| Motors | PG23 built-in encoder, 12V, 15.5k RPM, 7 PPR | 4 | 3x omni wheels + 1x lifter (built-in encoders only, require L298N drivers) |
+| L298N Motor Drivers | Dual H-Bridge motor driver modules | 4 | Motor control for PG23 motors |
 | Omni Wheels | 75mm diameter | 3 | Omnidirectional movement (Back, Front Left, Front Right) |
 | RPLIDAR A1 | 380° scanning | 1 | Laser-based obstacle detection and mapping |
 | Microsoft USB Camera | Standard webcam | 1 | Object recognition and computer vision |
@@ -94,7 +94,7 @@ The LKS Autonomous Mobile Manipulator consists of:
 | Wire Harness | 22AWG silicone wire | Various | Power and signal routing |
 | Connectors | JST-XH and XT series | Various | Modular electrical connections |
 | Fuse Holders | 10A automotive fuses | 4 | Circuit protection (3x motors + main) |
-| Heat Sinks | Aluminum, driver-sized | 4 | Thermal management for motor drivers |
+| Heat Sinks | Aluminum, driver-sized | 4 | Thermal management for L298N motor drivers |
 | Terminal Blocks | 5.08mm pitch | 8 | Power distribution connections |
 | GPIO Header | Raspberry Pi compatible | 1 | Hardware control interface |
 | I2C/SPI Interfaces | Standard bus | 2 | IMU and sensor communication |
@@ -149,10 +149,12 @@ The LKS Autonomous Mobile Manipulator consists of:
 2. **Motor Configuration**:
    ```bash
    # Connect 4 PG23 motors (3x omni wheels + 1x lifter)
-   # Motors have built-in drivers - no external driver needed
-   # Connect M+ to 12V power supply, M- to ground
-   # Connect VIN to 5V for encoder/controller power
-   # Connect serial control pins (TX/RX DATA pins) to Raspberry Pi GPIO
+   # Motors have built-in encoders only - require L298N motor drivers
+   # Connect motor M+ to L298N OUT1, M- to L298N OUT2
+   # Connect L298N VS to 12V power supply, VCC to 5V (logic)
+   # Connect L298N DIR and PWM pins to Raspberry Pi GPIO
+   # Connect encoder DATA(A) and DATA(B) pins to Raspberry Pi GPIO (read-only inputs)
+   # Connect VIN to 5V for encoder power only
    ```
 
 3. **Servo Power Distribution**:
@@ -271,17 +273,17 @@ All Grounds → Common Ground Bus
 #### Motor Control Wiring:
 
 ```
-Raspberry Pi GPIO → Motor Serial Control (TX/RX DATA pins):
-- GPIO 18 → Wheel 1 STEP
-- GPIO 22 → Wheel 1 DIR
-- GPIO 19 → Wheel 2 STEP
-- GPIO 24 → Wheel 2 DIR
-- GPIO 21 → Wheel 3 STEP
-- GPIO 26 → Wheel 3 DIR
-- GPIO 17 → All Wheel ENABLE
-- GPIO 27 → Lifter STEP
-- GPIO 23 → Lifter DIR
-- GPIO 25 → Lifter ENABLE
+Raspberry Pi GPIO → L298N Motor Drivers:
+- Front Left: DIR=GPIO17, PWM=GPIO27
+- Front Right: DIR=GPIO24, PWM=GPIO25
+- Back: DIR=GPIO5, PWM=GPIO6
+- Lifter: DIR=GPIO13, PWM=GPIO12
+
+Raspberry Pi GPIO → Motor Encoders (read-only):
+- Front Left: Encoder A=GPIO22, Encoder B=GPIO23
+- Front Right: Encoder A=GPIO16, Encoder B=GPIO26
+- Back: Encoder A=GPIO7, Encoder B=GPIO9
+- Lifter: Encoder A=GPIO20, Encoder B=GPIO21
 ```
 
 #### Sensor Wiring:
@@ -384,7 +386,7 @@ ros2 launch my_robot_bringup robot.launch.py
 ### Electrical Safety
 - Use proper wire gauge for current requirements
 - Install fuses on all power lines
-- Use heat sinks on voltage regulators (motors have built-in drivers)
+- Use heat sinks on L298N motor drivers and voltage regulators
 - Avoid short circuits during assembly
 
 ### Mechanical Safety
@@ -405,9 +407,12 @@ ros2 launch my_robot_bringup robot.launch.py
 
 **Issue**: Omni wheels not responding
 ```bash
-# Check motor power (12V supply to M+ terminals)
-# Verify serial communication pins (TX/RX DATA pins)
-# Test motor serial communication individually with diagnostic script
+# Check motor power (12V supply to L298N VS pin)
+# Verify L298N connections: VS=12V, VCC=5V, GND=common ground
+# Verify L298N DIR and PWM pin connections to GPIO
+# Check that PWM pins are set correctly (0=stop, 1=run)
+# Verify encoder DATA(A) and DATA(B) pin connections (read-only inputs)
+# Test L298N with simple GPIO write commands
 # Verify encoder readings from built-in encoders
 ```
 
@@ -490,7 +495,8 @@ ros2 launch my_robot_bringup robot.launch.py
 ### Component Datasheets
 - RPLidar A1/A2 Technical Specifications
 - MPU6050/BNO055 IMU Datasheets
-- PG23 Motor Datasheet (built-in driver specifications)
+- PG23 Motor Datasheet (built-in encoder specifications)
+- L298N Motor Driver Datasheet
 - Servo Motor Specifications
 - PG23 Motor Specifications (see MOTOR_SPECIFICATIONS.md)
 - PG23 Motor Connection Guide (see PG23_MOTOR_CONNECTION_GUIDE.md)

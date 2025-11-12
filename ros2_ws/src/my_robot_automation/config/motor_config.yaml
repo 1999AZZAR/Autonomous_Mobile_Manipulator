@@ -28,63 +28,81 @@ motor_specifications:
 
 # Motor applications
 # PG23 Motor Pinout: M+, M-, GND, VIN, DATA(A), DATA(B)
-# Note: PG23 motors have built-in drivers - no external L298N needed
-# Control via serial communication (UART/SPI) using DATA pins
+# Note: PG23 motors have built-in encoders only - require L298N motor drivers
+# Motor Control: L298N DIR and PWM pins
+# Encoder Reading: DATA(A) and DATA(B) pins (read-only encoder feedback)
 motors:
   omni_wheels:
     count: 3
     locations:
       - name: "front_left"
         control_interface:
-          type: "serial"  # Serial communication via DATA pins
-          data_a: 17      # GPIO17 - DATA(A) pin (Serial TX / Encoder A - same pin)
-          data_b: 27      # GPIO27 - DATA(B) pin (Serial RX / Encoder B - same pin)
+          type: "l298n"  # L298N motor driver
+          dir_pin: 17    # GPIO17 - L298N DIR pin (direction control)
+          pwm_pin: 27    # GPIO27 - L298N PWM pin (speed control)
+        encoder_interface:
+          encoder_a: 22  # GPIO22 - Encoder DATA(A) pin (read only)
+          encoder_b: 23  # GPIO23 - Encoder DATA(B) pin (read only)
         power_connections:
-          m_plus: "12V"   # PG23 M+ → 12V Power Supply
-          m_minus: "GND"  # PG23 M- → Ground
-          gnd: "Common GND"      # PG23 GND → Common Ground
-          vin: "5V"              # PG23 VIN → 5V (encoder/controller power)
-        # Note: DATA(A) and DATA(B) pins serve dual purpose:
-        # - Serial communication for motor control
-        # - Encoder feedback (A/B channels)
-        # Motor controller handles both functions on same pins
+          l298n_vs: "12V"   # L298N VS → 12V Power Supply (motor power)
+          l298n_vcc: "5V"   # L298N VCC → 5V (logic power)
+          l298n_gnd: "Common GND"  # L298N GND → Common Ground
+          m_plus: "L298N OUT1"  # PG23 M+ → L298N OUT1
+          m_minus: "L298N OUT2" # PG23 M- → L298N OUT2
+          gnd: "Common GND"     # PG23 GND → Common Ground
+          vin: "5V"             # PG23 VIN → 5V (encoder power only)
       - name: "front_right"
         control_interface:
-          type: "serial"
-          data_a: 22      # GPIO22 - DATA(A) pin (Serial TX / Encoder A - same pin)
-          data_b: 23      # GPIO23 - DATA(B) pin (Serial RX / Encoder B - same pin)
+          type: "l298n"
+          dir_pin: 24    # GPIO24 - L298N DIR pin
+          pwm_pin: 25    # GPIO25 - L298N PWM pin
+        encoder_interface:
+          encoder_a: 16  # GPIO16 - Encoder DATA(A) pin (read only)
+          encoder_b: 26  # GPIO26 - Encoder DATA(B) pin (read only)
         power_connections:
-          m_plus: "12V"
-          m_minus: "GND"
+          l298n_vs: "12V"
+          l298n_vcc: "5V"
+          l298n_gnd: "Common GND"
+          m_plus: "L298N OUT1"
+          m_minus: "L298N OUT2"
           gnd: "Common GND"
           vin: "5V"
-        # Note: DATA(A) and DATA(B) pins serve dual purpose (control & encoder)
       - name: "back"
         control_interface:
-          type: "serial"
-          data_a: 24      # GPIO24 - DATA(A) pin (Serial TX / Encoder A - same pin)
-          data_b: 25      # GPIO25 - DATA(B) pin (Serial RX / Encoder B - same pin)
+          type: "l298n"
+          dir_pin: 5     # GPIO5 - L298N DIR pin
+          pwm_pin: 6     # GPIO6 - L298N PWM pin
+        encoder_interface:
+          encoder_a: 7   # GPIO7 - Encoder DATA(A) pin (read only)
+          encoder_b: 9   # GPIO9 - Encoder DATA(B) pin (read only)
         power_connections:
-          m_plus: "12V"
-          m_minus: "GND"
+          l298n_vs: "12V"
+          l298n_vcc: "5V"
+          l298n_gnd: "Common GND"
+          m_plus: "L298N OUT1"
+          m_minus: "L298N OUT2"
           gnd: "Common GND"
           vin: "5V"
-        # Note: DATA(A) and DATA(B) pins serve dual purpose (control & encoder)
         
   gripper_lifter:
     count: 1
     location:
       name: "center"
       control_interface:
-        type: "serial"
-        data_a: 13      # GPIO13 - DATA(A) pin (Serial TX / Encoder A - same pin)
-        data_b: 12      # GPIO12 - DATA(B) pin (Serial RX / Encoder B - same pin)
+        type: "l298n"
+        dir_pin: 13     # GPIO13 - L298N DIR pin
+        pwm_pin: 12     # GPIO12 - L298N PWM pin
+      encoder_interface:
+        encoder_a: 20   # GPIO20 - Encoder DATA(A) pin (read only)
+        encoder_b: 21   # GPIO21 - Encoder DATA(B) pin (read only)
       power_connections:
-        m_plus: "12V"
-        m_minus: "GND"
+        l298n_vs: "12V"
+        l298n_vcc: "5V"
+        l298n_gnd: "Common GND"
+        m_plus: "L298N OUT1"
+        m_minus: "L298N OUT2"
         gnd: "Common GND"
         vin: "5V"
-      # Note: DATA(A) and DATA(B) pins serve dual purpose (control & encoder)
 
 # PID control parameters (may need tuning)
 pid_control:
