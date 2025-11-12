@@ -53,7 +53,7 @@ The LKS Autonomous Mobile Manipulator consists of:
 | Component | Model/Specification | Quantity | Purpose |
 |-----------|-------------------|----------|---------|
 | Raspberry Pi 5 | 8GB RAM, Ubuntu Server | 1 | Main computer and ROS2 processing |
-| Motor Driver | TB6600 or similar | 4 | 3x omni wheels + 1x lifter motor |
+| Motors | PG23 built-in encoder, 12V, 15.5k RPM, 7 PPR | 4 | 3x omni wheels + 1x lifter (built-in drivers, no external driver needed) |
 | DC Motors | PG23 built-in encoder, 12V, 15.5k RPM, 7 PPR | 4 | 3x wheels + 1x lifter actuation |
 | Omni Wheels | 75mm diameter | 3 | Omnidirectional movement (Back, Front Left, Front Right) |
 | RPLIDAR A1 | 380° scanning | 1 | Laser-based obstacle detection and mapping |
@@ -137,16 +137,17 @@ The LKS Autonomous Mobile Manipulator consists of:
    ```bash
    # Mount power distribution board centrally on base plate
    # Connect battery input with main fuse protection
-   # Wire 12V outputs to motor drivers (4 channels)
+   # Wire 12V outputs to PG23 motors (M+ terminals - 4 motors)
    # Wire 5V outputs to Raspberry Pi and servo power
    ```
 
-2. **Motor Driver Configuration**:
+2. **Motor Configuration**:
    ```bash
-   # Mount 4 motor drivers (3x omni wheels + 1x lifter)
-   # Set microstepping (1/16 recommended for precision)
-   # Configure current limits (1.5A per phase)
-   # Connect STEP, DIR, ENABLE pins to Raspberry Pi GPIO
+   # Connect 4 PG23 motors (3x omni wheels + 1x lifter)
+   # Motors have built-in drivers - no external driver needed
+   # Connect M+ to 12V power supply, M- to ground
+   # Connect VIN to 5V for encoder/controller power
+   # Connect serial control pins (TX/RX DATA pins) to Raspberry Pi GPIO
    ```
 
 3. **Servo Power Distribution**:
@@ -255,7 +256,7 @@ The LKS Autonomous Mobile Manipulator consists of:
 
 ```
 Battery (+) → Main Fuse (15A) → Power Distribution Board
-Power Distribution Board → Motor Drivers (12V, 4 channels)
+Power Distribution Board → PG23 Motors (12V, M+ terminals - 4 motors)
 Power Distribution Board → Servo Power Regulator (6V)
 Power Distribution Board → Raspberry Pi (5V)
 Power Distribution Board → Sensors (5V)
@@ -265,7 +266,7 @@ All Grounds → Common Ground Bus
 #### Motor Control Wiring:
 
 ```
-Raspberry Pi GPIO → Motor Drivers:
+Raspberry Pi GPIO → Motor Serial Control (TX/RX DATA pins):
 - GPIO 18 → Wheel 1 STEP
 - GPIO 22 → Wheel 1 DIR
 - GPIO 19 → Wheel 2 STEP
@@ -378,7 +379,7 @@ ros2 launch my_robot_bringup robot.launch.py
 ### Electrical Safety
 - Use proper wire gauge for current requirements
 - Install fuses on all power lines
-- Use heat sinks on motor drivers
+- Use heat sinks on voltage regulators (motors have built-in drivers)
 - Avoid short circuits during assembly
 
 ### Mechanical Safety
@@ -399,10 +400,10 @@ ros2 launch my_robot_bringup robot.launch.py
 
 **Issue**: Omni wheels not responding
 ```bash
-# Check motor driver power (12V supply)
-# Verify STEP/DIR/ENABLE GPIO connections
-# Test motor drivers individually with diagnostic script
-# Check motor driver configuration (microstepping, current limits)
+# Check motor power (12V supply to M+ terminals)
+# Verify serial communication pins (TX/RX DATA pins)
+# Test motor serial communication individually with diagnostic script
+# Verify encoder readings from built-in encoders
 ```
 
 **Issue**: Wheels running in wrong direction
@@ -415,7 +416,7 @@ ros2 launch my_robot_bringup robot.launch.py
 
 **Issue**: Lifter motor not moving
 ```bash
-# Check lifter motor driver power and connections
+# Check lifter motor power (12V to M+, GND to M-) and serial control connections
 # Verify encoder feedback wiring
 # Test limit switches and safety interlocks
 # Check mechanical binding in guide rails
@@ -484,7 +485,7 @@ ros2 launch my_robot_bringup robot.launch.py
 ### Component Datasheets
 - RPLidar A1/A2 Technical Specifications
 - MPU6050/BNO055 IMU Datasheets
-- TB6600 Motor Driver Manual
+- PG23 Motor Datasheet (built-in driver specifications)
 - Servo Motor Specifications
 - PG23 Motor Specifications (see MOTOR_SPECIFICATIONS.md)
 

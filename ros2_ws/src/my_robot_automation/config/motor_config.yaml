@@ -28,62 +28,68 @@ motor_specifications:
 
 # Motor applications
 # PG23 Motor Pinout: M+, M-, GND, VIN, DATA(A), DATA(B)
+# Note: PG23 motors have built-in drivers - no external L298N needed
+# Control via serial communication (UART/SPI) using DATA pins
 motors:
   omni_wheels:
     count: 3
     locations:
       - name: "front_left"
-        motor_driver:
-          dir: 17      # GPIO17 - L298N IN1 (Direction)
-          pwm: 27      # GPIO27 - L298N ENA (PWM Speed)
-        motor_connections:
-          m_plus: "L298N OUT1"   # PG23 M+ → L298N OUT1
-          m_minus: "L298N OUT2"  # PG23 M- → L298N OUT2
+        control_interface:
+          type: "serial"  # Serial communication via DATA pins
+          tx: 17          # GPIO17 - Serial TX (DATA control)
+          rx: 27          # GPIO27 - Serial RX (DATA feedback)
+        power_connections:
+          m_plus: "12V"   # PG23 M+ → 12V Power Supply
+          m_minus: "GND"  # PG23 M- → Ground
           gnd: "Common GND"      # PG23 GND → Common Ground
           vin: "5V"              # PG23 VIN → 5V (encoder power)
         encoder:
-          data_a: 5   # GPIO5 - PG23 DATA(A) channel
-          data_b: 6   # GPIO6 - PG23 DATA(B) channel
+          data_a: 5   # GPIO5 - PG23 DATA(A) channel - built-in encoder
+          data_b: 6   # GPIO6 - PG23 DATA(B) channel - built-in encoder
       - name: "front_right"
-        motor_driver:
-          dir: 22      # GPIO22 - L298N IN1 (Direction)
-          pwm: 23      # GPIO23 - L298N ENA (PWM Speed)
-        motor_connections:
-          m_plus: "L298N OUT1"
-          m_minus: "L298N OUT2"
+        control_interface:
+          type: "serial"
+          tx: 22          # GPIO22 - Serial TX (DATA control)
+          rx: 23          # GPIO23 - Serial RX (DATA feedback)
+        power_connections:
+          m_plus: "12V"
+          m_minus: "GND"
           gnd: "Common GND"
           vin: "5V"
         encoder:
-          data_a: 20  # GPIO20 - PG23 DATA(A) channel
-          data_b: 21  # GPIO21 - PG23 DATA(B) channel
+          data_a: 20  # GPIO20 - PG23 DATA(A) channel - built-in encoder
+          data_b: 21  # GPIO21 - PG23 DATA(B) channel - built-in encoder
       - name: "back"
-        motor_driver:
-          dir: 24      # GPIO24 - L298N IN1 (Direction)
-          pwm: 25      # GPIO25 - L298N ENA (PWM Speed)
-        motor_connections:
-          m_plus: "L298N OUT1"
-          m_minus: "L298N OUT2"
+        control_interface:
+          type: "serial"
+          tx: 24          # GPIO24 - Serial TX (DATA control)
+          rx: 25          # GPIO25 - Serial RX (DATA feedback)
+        power_connections:
+          m_plus: "12V"
+          m_minus: "GND"
           gnd: "Common GND"
           vin: "5V"
         encoder:
-          data_a: 22  # GPIO22 - PG23 DATA(A) channel
-          data_b: 23  # GPIO23 - PG23 DATA(B) channel
+          data_a: 22  # GPIO22 - PG23 DATA(A) channel - built-in encoder
+          data_b: 23  # GPIO23 - PG23 DATA(B) channel - built-in encoder
         
   gripper_lifter:
     count: 1
     location:
       name: "center"
-      motor_driver:
-        dir: 13      # GPIO13 - L298N IN1 (Direction)
-        pwm: 12      # GPIO12 - L298N ENA (PWM Speed)
-      motor_connections:
-        m_plus: "L298N OUT1"
-        m_minus: "L298N OUT2"
+      control_interface:
+        type: "serial"
+        tx: 13          # GPIO13 - Serial TX (DATA control)
+        rx: 12          # GPIO12 - Serial RX (DATA feedback)
+      power_connections:
+        m_plus: "12V"
+        m_minus: "GND"
         gnd: "Common GND"
         vin: "5V"
       encoder:
-        data_a: 19   # GPIO19 - PG23 DATA(A) channel
-        data_b: 16   # GPIO16 - PG23 DATA(B) channel
+        data_a: 19   # GPIO19 - PG23 DATA(A) channel - built-in encoder
+        data_b: 16   # GPIO16 - PG23 DATA(B) channel - built-in encoder
 
 # PID control parameters (may need tuning)
 pid_control:

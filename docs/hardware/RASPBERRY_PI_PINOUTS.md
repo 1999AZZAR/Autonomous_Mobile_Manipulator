@@ -48,25 +48,40 @@ Raspberry Pi 5 GPIO Header (40-pin)
 
 ### Voltage Regulators Needed
 
-- **12V → 5V**: DC-DC converter (5A minimum) for motor drivers
+- **12V → 5V**: DC-DC converter (5A minimum) for PG23 motor VIN pins (encoder/controller power)
 - **5V → 3.3V**: AMS1117-3.3 or similar for sensors
 
 ## GPIO Pin Assignments (Hexagonal Robot Architecture)
 
-### **Motor Drivers (L298N or similar - 3x for Omni Wheels + 1x for Gripper)**
+### **Motor Control (PG23 Built-in Driver - 3x for Omni Wheels + 1x for Gripper)**
+
+**Note:** PG23 motors have built-in drivers - no external L298N needed. Control via serial communication (UART/SPI).
 
 ```bash
-# Omni Wheel Motors (3x)
-GPIO17 (11) - Front Left Wheel DIR
-GPIO27 (13) - Front Left Wheel PWM
-GPIO22 (15) - Front Right Wheel DIR
-GPIO23 (16) - Front Right Wheel PWM
-GPIO24 (18) - Back Wheel DIR
-GPIO25 (22) - Back Wheel PWM
+# Omni Wheel Motors (3x) - Serial Control
+# Front Left Wheel
+GPIO17 (11) - Front Left Motor Serial TX (DATA control)
+GPIO27 (13) - Front Left Motor Serial RX (DATA feedback)
+GPIO5  (29) - Front Left Encoder DATA(A) - built-in encoder
+GPIO6  (31) - Front Left Encoder DATA(B) - built-in encoder
 
-# Gripper Lifter Motor (1x DC Motor)
-GPIO12 (32) - Gripper Lifter DIR
-GPIO13 (33) - Gripper Lifter PWM
+# Front Right Wheel
+GPIO22 (15) - Front Right Motor Serial TX (DATA control)
+GPIO23 (16) - Front Right Motor Serial RX (DATA feedback)
+GPIO20 (38) - Front Right Encoder DATA(A) - built-in encoder
+GPIO21 (40) - Front Right Encoder DATA(B) - built-in encoder
+
+# Back Wheel
+GPIO24 (18) - Back Motor Serial TX (DATA control)
+GPIO25 (22) - Back Motor Serial RX (DATA feedback)
+GPIO22 (15) - Back Encoder DATA(A) - built-in encoder (shared with FR TX)
+GPIO23 (16) - Back Encoder DATA(B) - built-in encoder (shared with FR RX)
+
+# Gripper Lifter Motor (1x PG23)
+GPIO13 (33) - Lifter Motor Serial TX (DATA control)
+GPIO12 (32) - Lifter Motor Serial RX (DATA feedback)
+GPIO19 (35) - Lifter Encoder DATA(A) - built-in encoder
+GPIO16 (36) - Lifter Encoder DATA(B) - built-in encoder
 ```
 
 ### **Servo Motors (3x for Gripper System)**
@@ -415,7 +430,7 @@ Some pins are assigned to multiple functions. Prioritize based on hardware capab
 - **Raspberry Pi 5** with Ubuntu Server 24.04 LTS
 - **3x Omni Wheel Motors** (PG23 built-in encoder motors, 12V, 15.5k RPM, 7 PPR)
 - **1x DC Motor** for gripper lifter (PG23 built-in encoder motor, 12V, 15.5k RPM, 7 PPR)
-- **4x L298N Motor Drivers** (for 3 omni wheels + 1 lifter)
+- **4x PG23 Motors** with built-in drivers (3 omni wheels + 1 lifter) - no external drivers needed
 - **3x Servo Motors** for gripper system (MG996R or similar)
 - **6x VL53L0X Laser Distance Sensors** (for wall alignment)
 - **2x HC-SR04 Ultrasonic Sensors** (for front obstacle detection)
@@ -434,7 +449,7 @@ Some pins are assigned to multiple functions. Prioritize based on hardware capab
 - **Voltage regulators**: 12V→5V (5A), 5V→3.3V (1A)
 - **Resistors**: 1kΩ and 2kΩ (for ultrasonic voltage dividers)
 - **Capacitors**: 10µF, 100nF (for motor driver noise filtering)
-- **Heat sinks** and cooling fans for motor drivers
+- **Heat sinks** for voltage regulators (motors have built-in drivers)
 - **Terminal blocks** for power distribution
 - **Push buttons** (3x) for emergency stop, start, and mode selection
 

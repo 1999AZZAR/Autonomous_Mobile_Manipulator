@@ -23,17 +23,19 @@
 #### Omni Wheel Motors (3x)
 - **Location**: Front Left, Front Right, Back
 - **Purpose**: Omnidirectional movement
-- **Control**: L298N or similar motor driver
+- **Control**: Built-in motor driver (no external driver needed)
+- **Control Interface**: Serial communication (UART/SPI) via DATA pins
 - **GPIO Pins**: 
-  - Front Left: GPIO24 (DIR), GPIO25 (PWM)
-  - Front Right: GPIO16 (DIR), GPIO26 (PWM)
-  - Back: GPIO17 (DIR), GPIO27 (PWM)
+  - Front Left: GPIO17 (TX), GPIO27 (RX), GPIO5 (ENC_A), GPIO6 (ENC_B)
+  - Front Right: GPIO22 (TX), GPIO23 (RX), GPIO20 (ENC_A), GPIO21 (ENC_B)
+  - Back: GPIO24 (TX), GPIO25 (RX), GPIO22 (ENC_A), GPIO23 (ENC_B)
 
 #### Gripper Lifter Motor (1x)
 - **Location**: Center of base plate
 - **Purpose**: Vertical lifting mechanism for gripper assembly
-- **Control**: L298N or similar motor driver
-- **GPIO Pins**: GPIO12 (DIR), GPIO13 (PWM)
+- **Control**: Built-in motor driver (no external driver needed)
+- **Control Interface**: Serial communication (UART/SPI) via DATA pins
+- **GPIO Pins**: GPIO13 (TX), GPIO12 (RX), GPIO19 (ENC_A), GPIO16 (ENC_B)
 
 ### PG23 Motor Pinout
 
@@ -41,18 +43,22 @@ Each PG23 motor has 6 pins:
 
 | Pin | Name | Description | Connection |
 |-----|------|-------------|------------|
-| 1 | M+ | Motor Positive Terminal | L298N Motor Driver OUT1 |
-| 2 | M- | Motor Negative Terminal | L298N Motor Driver OUT2 |
+| 1 | M+ | Motor Positive Terminal | 12V Power Supply |
+| 2 | M- | Motor Negative Terminal | Ground |
 | 3 | GND | Ground | Common Ground Bus |
-| 4 | VIN | Encoder Power Supply | 5V Power Rail |
-| 5 | DATA(A) | Encoder Channel A | GPIO Pin (Input) |
-| 6 | DATA(B) | Encoder Channel B | GPIO Pin (Input) |
+| 4 | VIN | Encoder/Controller Power Supply | 5V Power Rail |
+| 5 | DATA(A) | Serial Control TX / Encoder Channel A | GPIO Pin (TX Output / Encoder Input) |
+| 6 | DATA(B) | Serial Control RX / Encoder Channel B | GPIO Pin (RX Input / Encoder Input) |
 
 **Wiring Notes:**
-- M+ and M- connect to motor driver outputs (L298N OUT1/OUT2)
+- M+ connects directly to 12V power supply (motor has built-in driver)
+- M- connects to ground
 - GND must be connected to common ground
-- VIN requires 5V for encoder operation
-- DATA(A) and DATA(B) are quadrature encoder outputs (5V logic)
+- VIN requires 5V for encoder and controller operation
+- DATA(A) and DATA(B) serve dual purpose:
+  - Serial communication (TX/RX) for motor control commands
+  - Quadrature encoder outputs (5V logic) for position feedback
+- No external motor driver (L298N) required - motor has built-in driver
 
 ### Encoder Connections
 

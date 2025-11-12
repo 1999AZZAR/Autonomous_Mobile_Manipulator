@@ -39,7 +39,7 @@ This guide provides step-by-step instructions for assembling and connecting all 
 
 ```bash
 12V Power Supply → Power Distribution Board
-├── 12V Rail → All Motor Drivers (L298N modules)
+├── 12V Rail → All PG23 Motors (M+ terminals - direct connection)
 ├── 12V → DC-DC Converter (12V→5V)
 └── 5V → Raspberry Pi Power Input
 ```
@@ -50,7 +50,7 @@ This guide provides step-by-step instructions for assembling and connecting all 
 # 12V → 5V DC-DC Converter
 Input: 12V from main supply
 Output: 5V → Raspberry Pi GPIO header (5V pins)
-        5V → Motor driver logic pins
+        5V → PG23 motor VIN pins (encoder/controller power)
         5V → Servo power rails
         5V → Sensor power
 
@@ -92,82 +92,62 @@ Power: 5V → Servo 5 Power
 Ground: GND → Servo 5 Ground
 ```
 
-#### **Motor Driver Connections (L298N Modules)**
+#### **Motor Connections (PG23 Built-in Driver)**
 
 **PG23 Motor Pinout:** M+, M-, GND, VIN, DATA(A), DATA(B)
 
+**Note:** PG23 motors have built-in drivers - no external L298N needed. Motors are controlled via serial communication (UART/SPI) using DATA pins.
+
 ```bash
-# Motor Driver 1: Back Wheel
-IN1: GPIO24 (Pin 18) → Direction Control
-IN2: GPIO25 (Pin 22) → Direction Control (optional, can use IN1 only)
-ENA: GPIO25 (Pin 22) → PWM Speed Control
-
+# Motor 1: Back Wheel
 PG23 Motor Connections:
-- PG23 M+ → L298N OUT1
-- PG23 M- → L298N OUT2
+- PG23 M+ → 12V Power Supply (direct connection)
+- PG23 M- → Ground
 - PG23 GND → Common Ground Bus
-- PG23 VIN → 5V Power Rail (encoder power)
-- PG23 DATA(A) → GPIO22 (Pin 15) - Encoder Channel A
-- PG23 DATA(B) → GPIO23 (Pin 16) - Encoder Channel B
+- PG23 VIN → 5V Power Rail (encoder/controller power)
+- PG23 DATA(A) → GPIO24 (Pin 18) - Serial TX (motor control)
+- PG23 DATA(B) → GPIO25 (Pin 22) - Serial RX (motor feedback)
+- Encoder DATA(A) → GPIO22 (Pin 15) - Encoder Channel A (built-in encoder)
+- Encoder DATA(B) → GPIO23 (Pin 16) - Encoder Channel B (built-in encoder)
 
-Motor Driver Power:
-- 12V → VS (motor power)
-- GND → GND
-- 5V → VSS (logic power)
-
-# Motor Driver 2: Front Left Wheel
-IN1: GPIO17 (Pin 11) → Direction Control
-IN2: GPIO27 (Pin 13) → Direction Control (optional)
-ENA: GPIO27 (Pin 13) → PWM Speed Control
-
+# Motor 2: Front Left Wheel
 PG23 Motor Connections:
-- PG23 M+ → L298N OUT1
-- PG23 M- → L298N OUT2
+- PG23 M+ → 12V Power Supply (direct connection)
+- PG23 M- → Ground
 - PG23 GND → Common Ground Bus
-- PG23 VIN → 5V Power Rail (encoder power)
-- PG23 DATA(A) → GPIO5 (Pin 29) - Encoder Channel A
-- PG23 DATA(B) → GPIO6 (Pin 31) - Encoder Channel B
+- PG23 VIN → 5V Power Rail (encoder/controller power)
+- PG23 DATA(A) → GPIO17 (Pin 11) - Serial TX (motor control)
+- PG23 DATA(B) → GPIO27 (Pin 13) - Serial RX (motor feedback)
+- Encoder DATA(A) → GPIO5 (Pin 29) - Encoder Channel A (built-in encoder)
+- Encoder DATA(B) → GPIO6 (Pin 31) - Encoder Channel B (built-in encoder)
 
-Motor Driver Power:
-- 12V → VS (motor power)
-- GND → GND
-- 5V → VSS (logic power)
-
-# Motor Driver 3: Front Right Wheel
-IN1: GPIO22 (Pin 15) → Direction Control
-IN2: GPIO23 (Pin 16) → Direction Control (optional)
-ENA: GPIO23 (Pin 16) → PWM Speed Control
-
+# Motor 3: Front Right Wheel
 PG23 Motor Connections:
-- PG23 M+ → L298N OUT1
-- PG23 M- → L298N OUT2
+- PG23 M+ → 12V Power Supply (direct connection)
+- PG23 M- → Ground
 - PG23 GND → Common Ground Bus
-- PG23 VIN → 5V Power Rail (encoder power)
-- PG23 DATA(A) → GPIO20 (Pin 38) - Encoder Channel A
-- PG23 DATA(B) → GPIO21 (Pin 40) - Encoder Channel B
+- PG23 VIN → 5V Power Rail (encoder/controller power)
+- PG23 DATA(A) → GPIO22 (Pin 15) - Serial TX (motor control)
+- PG23 DATA(B) → GPIO23 (Pin 16) - Serial RX (motor feedback)
+- Encoder DATA(A) → GPIO20 (Pin 38) - Encoder Channel A (built-in encoder)
+- Encoder DATA(B) → GPIO21 (Pin 40) - Encoder Channel B (built-in encoder)
 
-Motor Driver Power:
-- 12V → VS (motor power)
-- GND → GND
-- 5V → VSS (logic power)
-
-# Lifter Motor Driver
-IN1: GPIO13 (Pin 33) → Direction Control
-IN2: GPIO12 (Pin 32) → Direction Control (optional)
-ENA: GPIO12 (Pin 32) → PWM Speed Control
-
+# Motor 4: Gripper Lifter
 PG23 Motor Connections:
-- PG23 M+ → L298N OUT1
-- PG23 M- → L298N OUT2
+- PG23 M+ → 12V Power Supply (direct connection)
+- PG23 M- → Ground
 - PG23 GND → Common Ground Bus
-- PG23 VIN → 5V Power Rail (encoder power)
-- PG23 DATA(A) → GPIO19 (Pin 35) - Encoder Channel A
-- PG23 DATA(B) → GPIO16 (Pin 36) - Encoder Channel B
+- PG23 VIN → 5V Power Rail (encoder/controller power)
+- PG23 DATA(A) → GPIO13 (Pin 33) - Serial TX (motor control)
+- PG23 DATA(B) → GPIO12 (Pin 32) - Serial RX (motor feedback)
+- Encoder DATA(A) → GPIO19 (Pin 35) - Encoder Channel A (built-in encoder)
+- Encoder DATA(B) → GPIO16 (Pin 36) - Encoder Channel B (built-in encoder)
+```
 
-Motor Driver Power:
-- 12V → VS (motor power)
-- GND → GND
-- 5V → VSS (logic power)
+**Power Requirements:**
+- 12V power supply for motor power (M+ terminal)
+- 5V power rail for encoder/controller (VIN terminal)
+- Common ground connection required
 ```
 
 ### **Step 3: Encoder Connections**
@@ -534,8 +514,9 @@ sudo i2cdetect -y 1  # Scan I2C bus
 #### **Motor Not Moving**
 
 - Check power supply voltage/current
-- Verify motor driver connections
-- Test motor driver with simple script
+- Verify motor power connections (12V to M+, GND to M-)
+- Verify serial communication pins (TX/RX DATA pins)
+- Test motor control via serial interface
 
 #### **Sensors Not Responding**
 
@@ -570,7 +551,8 @@ dmesg | grep spi
 - [ ] Voltage regulators tested
 - [ ] Raspberry Pi GPIO connections verified
 - [ ] All sensors connected with correct pinouts
-- [ ] Motors connected to drivers
+- [ ] Motors connected to power supply (12V M+, GND M-)
+- [ ] Motor serial control pins connected (TX/RX DATA pins)
 - [ ] Servo motors connected
 - [ ] I2C/SPI devices connected
 
