@@ -4358,7 +4358,7 @@ class WebRobotInterface(Node):
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def _move_robot_endpoint(self):
-        """Handle robot movement POST request"""
+        """Handle robot movement POST request - Direct GPIO control"""
         try:
             data = request.get_json()
             if not data:
@@ -4371,117 +4371,92 @@ class WebRobotInterface(Node):
             if not direction:
                 return jsonify({'success': False, 'error': 'Direction not specified'}), 400
 
-            # Check if service client is available
-            if not hasattr(self, 'move_robot_client') or self.move_robot_client is None:
+            # Validate direction
+            valid_directions = ['forward', 'backward', 'strafe_left', 'strafe_right']
+            if direction not in valid_directions:
                 return jsonify({
                     'success': False,
-                    'message': 'ROS2 move_robot service client not available'
-                }), 503
+                    'error': f'Invalid direction: {direction}. Must be one of: {valid_directions}'
+                }), 400
 
-            # Check if service is available
-            if not self.move_robot_client.service_is_ready():
+            # Call GPIO controller directly
+            if not hasattr(self, 'gpio') or self.gpio is None:
+                self.get_logger().error('GPIO controller not initialized')
                 return jsonify({
                     'success': False,
-                    'message': 'ROS2 move_robot service not ready'
+                    'error': 'GPIO controller not available'
                 }), 503
 
-            # Create service request
-            request_msg = MoveRobot.Request()
-            request_msg.direction = str(direction)
-            request_msg.speed = float(speed)
-            request_msg.duration = float(duration)
-
-            # Call ROS2 service asynchronously
-            future = self.move_robot_client.call_async(request_msg)
+            # Control motor directly via GPIO
+            success = self.gpio.move_robot(direction, float(speed))
             
-            # Wait for response with timeout (non-blocking spin)
-            timeout = 5.0
-            start_time = time.time()
-            while not future.done() and (time.time() - start_time) < timeout:
-                rclpy.spin_once(self, timeout_sec=0.1)
-            
-            if future.done():
-                try:
-                    response = future.result()
-                    return jsonify({
-                        'success': response.success,
-                        'message': response.message,
-                        'status': response.status
-                    })
-                except Exception as e:
-                    self.get_logger().error(f'Service call result error: {str(e)}')
-                    return jsonify({
-                        'success': False,
-                        'error': f'Service call failed: {str(e)}'
-                    }), 500
+            if success:
+                self.get_logger().info(f'Robot moving {direction} at speed {speed}')
+                # If duration is specified, schedule stop after duration
+                if duration > 0:
+                    import threading
+                    def stop_after_duration():
+                        time.sleep(duration)
+                        self.gpio.stop_robot()
+                        self.get_logger().info(f'Robot stopped after {duration}s')
+                    threading.Thread(target=stop_after_duration, daemon=True).start()
+                
+                return jsonify({
+                    'success': True,
+                    'message': f'Robot moving {direction} at speed {speed}',
+                    'direction': direction,
+                    'speed': speed,
+                    'duration': duration
+                })
             else:
+                self.get_logger().error(f'Failed to move robot {direction}')
                 return jsonify({
                     'success': False,
-                    'message': 'Service call timeout'
-                }), 504
+                    'error': f'Failed to move robot {direction}',
+                    'gpio_initialized': self.gpio.gpio_initialized,
+                    'simulation_mode': self.gpio.simulation_mode
+                }), 500
 
         except Exception as e:
             self.get_logger().error(f'Move robot error: {str(e)}', exc_info=True)
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def _stop_robot_endpoint(self):
-        """Handle robot stop POST request"""
+        """Handle robot stop POST request - Direct GPIO control"""
         try:
-            # Check if service client is available
-            if not hasattr(self, 'move_robot_client') or self.move_robot_client is None:
+            # Call GPIO controller directly
+            if not hasattr(self, 'gpio') or self.gpio is None:
+                self.get_logger().error('GPIO controller not initialized')
                 return jsonify({
                     'success': False,
-                    'message': 'ROS2 move_robot service client not available'
+                    'error': 'GPIO controller not available'
                 }), 503
 
-            # Check if service is available
-            if not self.move_robot_client.service_is_ready():
+            # Stop motor directly via GPIO
+            success = self.gpio.stop_robot()
+            
+            if success:
+                self.get_logger().info('Robot stopped')
                 return jsonify({
-                    'success': False,
-                    'message': 'ROS2 move_robot service not ready'
-                }), 503
-
-            # Create service request for stop
-            request_msg = MoveRobot.Request()
-            request_msg.direction = "stop"
-            request_msg.speed = 0.0
-            request_msg.duration = 0.0
-
-            # Call ROS2 service asynchronously
-            future = self.move_robot_client.call_async(request_msg)
-            
-            # Wait for response with timeout (non-blocking spin)
-            timeout = 5.0
-            start_time = time.time()
-            while not future.done() and (time.time() - start_time) < timeout:
-                rclpy.spin_once(self, timeout_sec=0.1)
-            
-            if future.done():
-                try:
-                    response = future.result()
-                    return jsonify({
-                        'success': response.success,
-                        'message': response.message,
-                        'status': response.status
-                    })
-                except Exception as e:
-                    self.get_logger().error(f'Service call result error: {str(e)}')
-                    return jsonify({
-                        'success': False,
-                        'error': f'Service call failed: {str(e)}'
-                    }), 500
+                    'success': True,
+                    'message': 'Robot stopped',
+                    'status': 'STOPPED'
+                })
             else:
+                self.get_logger().error('Failed to stop robot')
                 return jsonify({
                     'success': False,
-                    'message': 'Service call timeout'
-                }), 504
+                    'error': 'Failed to stop robot',
+                    'gpio_initialized': self.gpio.gpio_initialized,
+                    'simulation_mode': self.gpio.simulation_mode
+                }), 500
 
         except Exception as e:
             self.get_logger().error(f'Stop robot error: {str(e)}', exc_info=True)
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def _turn_robot_endpoint(self):
-        """Handle robot turn POST request"""
+        """Handle robot turn POST request - Direct GPIO control"""
         try:
             data = request.get_json()
             if not data:
@@ -4500,54 +4475,34 @@ class WebRobotInterface(Node):
                     'error': f'Invalid direction: {direction}. Must be "left" or "right"'
                 }), 400
 
-            # Check if service client is available
-            if not hasattr(self, 'move_robot_client') or self.move_robot_client is None:
+            # Call GPIO controller directly
+            if not hasattr(self, 'gpio') or self.gpio is None:
+                self.get_logger().error('GPIO controller not initialized')
                 return jsonify({
                     'success': False,
-                    'message': 'ROS2 move_robot service client not available'
+                    'error': 'GPIO controller not available'
                 }), 503
 
-            # Check if service is available
-            if not self.move_robot_client.service_is_ready():
+            # Control motor directly via GPIO
+            success = self.gpio.turn_robot(direction, float(speed))
+            
+            if success:
+                self.get_logger().info(f'Robot turning {direction} at speed {speed}')
                 return jsonify({
-                    'success': False,
-                    'message': 'ROS2 move_robot service not ready'
-                }), 503
-
-            # Create service request (use MoveRobot service with turn direction)
-            request_msg = MoveRobot.Request()
-            request_msg.direction = str(direction)
-            request_msg.speed = float(speed)
-            request_msg.duration = 0.0  # Turn until stopped
-
-            # Call ROS2 service asynchronously
-            future = self.move_robot_client.call_async(request_msg)
-            
-            # Wait for response with timeout (non-blocking spin)
-            timeout = 5.0
-            start_time = time.time()
-            while not future.done() and (time.time() - start_time) < timeout:
-                rclpy.spin_once(self, timeout_sec=0.1)
-            
-            if future.done():
-                try:
-                    response = future.result()
-                    return jsonify({
-                        'success': response.success,
-                        'message': response.message,
-                        'status': response.status
-                    })
-                except Exception as e:
-                    self.get_logger().error(f'Service call result error: {str(e)}')
-                    return jsonify({
-                        'success': False,
-                        'error': f'Service call failed: {str(e)}'
-                    }), 500
+                    'success': True,
+                    'message': f'Robot turning {direction} at speed {speed}',
+                    'direction': direction,
+                    'speed': speed,
+                    'status': 'TURNING'
+                })
             else:
+                self.get_logger().error(f'Failed to turn robot {direction}')
                 return jsonify({
                     'success': False,
-                    'message': 'Service call timeout'
-                }), 504
+                    'error': f'Failed to turn robot {direction}',
+                    'gpio_initialized': self.gpio.gpio_initialized,
+                    'simulation_mode': self.gpio.simulation_mode
+                }), 500
 
         except Exception as e:
             self.get_logger().error(f'Turn robot error: {str(e)}', exc_info=True)
