@@ -26,16 +26,16 @@
 - **Control**: Built-in motor driver (no external driver needed)
 - **Control Interface**: Serial communication (UART/SPI) via DATA pins
 - **GPIO Pins**: 
-  - Front Left: GPIO17 (TX), GPIO27 (RX), GPIO5 (ENC_A), GPIO6 (ENC_B)
-  - Front Right: GPIO22 (TX), GPIO23 (RX), GPIO20 (ENC_A), GPIO21 (ENC_B)
-  - Back: GPIO24 (TX), GPIO25 (RX), GPIO22 (ENC_A), GPIO23 (ENC_B)
+  - Front Left: GPIO17 (DATA A), GPIO27 (DATA B) - same pins for control & encoder
+  - Front Right: GPIO22 (DATA A), GPIO23 (DATA B) - same pins for control & encoder
+  - Back: GPIO24 (DATA A), GPIO25 (DATA B) - same pins for control & encoder
 
 #### Gripper Lifter Motor (1x)
 - **Location**: Center of base plate
 - **Purpose**: Vertical lifting mechanism for gripper assembly
 - **Control**: Built-in motor driver (no external driver needed)
 - **Control Interface**: Serial communication (UART/SPI) via DATA pins
-- **GPIO Pins**: GPIO13 (TX), GPIO12 (RX), GPIO19 (ENC_A), GPIO16 (ENC_B)
+- **GPIO Pins**: GPIO13 (DATA A), GPIO12 (DATA B) - same pins for control & encoder
 
 ### PG23 Motor Pinout
 

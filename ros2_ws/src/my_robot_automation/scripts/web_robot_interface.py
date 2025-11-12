@@ -2554,29 +2554,22 @@ class GPIOController:
             'GRIPPER_BASE': 12,      # GPIO12 - Gripper Base Height
             
             # Omni Wheel Motors (PG23 with built-in driver - serial control via DATA pins)
-            # Front Left Motor - Serial Communication
-            'MOTOR_FL_TX': 17,       # GPIO17 - Front Left Motor Serial TX (DATA control)
-            'MOTOR_FL_RX': 27,       # GPIO27 - Front Left Motor Serial RX (DATA feedback)
-            'MOTOR_FL_ENCODER_A': 5, # GPIO5 - Front Left Encoder DATA(A) - built-in encoder
-            'MOTOR_FL_ENCODER_B': 6, # GPIO6 - Front Left Encoder DATA(B) - built-in encoder
+            # Note: DATA(A) and DATA(B) pins serve dual purpose: serial control AND encoder feedback
+            # Front Left Motor
+            'MOTOR_FL_DATA_A': 17,   # GPIO17 - DATA(A) pin (Serial TX / Encoder A - same pin)
+            'MOTOR_FL_DATA_B': 27,   # GPIO27 - DATA(B) pin (Serial RX / Encoder B - same pin)
             
-            # Front Right Motor - Serial Communication
-            'MOTOR_FR_TX': 22,       # GPIO22 - Front Right Motor Serial TX (DATA control)
-            'MOTOR_FR_RX': 23,       # GPIO23 - Front Right Motor Serial RX (DATA feedback)
-            'MOTOR_FR_ENCODER_A': 20,# GPIO20 - Front Right Encoder DATA(A) - built-in encoder
-            'MOTOR_FR_ENCODER_B': 21,# GPIO21 - Front Right Encoder DATA(B) - built-in encoder
+            # Front Right Motor
+            'MOTOR_FR_DATA_A': 22,   # GPIO22 - DATA(A) pin (Serial TX / Encoder A - same pin)
+            'MOTOR_FR_DATA_B': 23,   # GPIO23 - DATA(B) pin (Serial RX / Encoder B - same pin)
             
-            # Back Motor - Serial Communication
-            'MOTOR_BACK_TX': 24,     # GPIO24 - Back Motor Serial TX (DATA control)
-            'MOTOR_BACK_RX': 25,     # GPIO25 - Back Motor Serial RX (DATA feedback)
-            'MOTOR_BACK_ENCODER_A': 22, # GPIO22 - Back Encoder DATA(A) - built-in encoder
-            'MOTOR_BACK_ENCODER_B': 23, # GPIO23 - Back Encoder DATA(B) - built-in encoder
+            # Back Motor
+            'MOTOR_BACK_DATA_A': 24, # GPIO24 - DATA(A) pin (Serial TX / Encoder A - same pin)
+            'MOTOR_BACK_DATA_B': 25, # GPIO25 - DATA(B) pin (Serial RX / Encoder B - same pin)
             
-            # Gripper Lifter Motor (PG23 with built-in driver)
-            'LIFTER_TX': 13,         # GPIO13 - Lifter Motor Serial TX (DATA control)
-            'LIFTER_RX': 12,         # GPIO12 - Lifter Motor Serial RX (DATA feedback)
-            'LIFTER_ENCODER_A': 19,  # GPIO19 - Lifter Encoder DATA(A) - built-in encoder
-            'LIFTER_ENCODER_B': 16,  # GPIO16 - Lifter Encoder DATA(B) - built-in encoder
+            # Gripper Lifter Motor
+            'LIFTER_DATA_A': 13,     # GPIO13 - DATA(A) pin (Serial TX / Encoder A - same pin)
+            'LIFTER_DATA_B': 12,     # GPIO12 - DATA(B) pin (Serial RX / Encoder B - same pin)
             
             # Container Servos
             'CONTAINER_LF': 26,      # GPIO26 - Left Front Container
@@ -2618,20 +2611,12 @@ class GPIOController:
                         self.PINS['GRIPPER_BASE']
                     ]
 
-                    # Motor control pins (serial TX/RX for PG23 built-in driver)
-                    motor_control_pins = [
-                        self.PINS['MOTOR_FL_TX'], self.PINS['MOTOR_FL_RX'],
-                        self.PINS['MOTOR_FR_TX'], self.PINS['MOTOR_FR_RX'],
-                        self.PINS['MOTOR_BACK_TX'], self.PINS['MOTOR_BACK_RX'],
-                        self.PINS['LIFTER_TX'], self.PINS['LIFTER_RX']
-                    ]
-                    
-                    # Encoder pins (inputs for PG23 built-in encoder DATA channels)
-                    encoder_pins = [
-                        self.PINS['MOTOR_FL_ENCODER_A'], self.PINS['MOTOR_FL_ENCODER_B'],
-                        self.PINS['MOTOR_FR_ENCODER_A'], self.PINS['MOTOR_FR_ENCODER_B'],
-                        self.PINS['MOTOR_BACK_ENCODER_A'], self.PINS['MOTOR_BACK_ENCODER_B'],
-                        self.PINS['LIFTER_ENCODER_A'], self.PINS['LIFTER_ENCODER_B']
+                    # Motor DATA pins (PG23 built-in driver - same pins for serial control AND encoder)
+                    motor_data_pins = [
+                        self.PINS['MOTOR_FL_DATA_A'], self.PINS['MOTOR_FL_DATA_B'],
+                        self.PINS['MOTOR_FR_DATA_A'], self.PINS['MOTOR_FR_DATA_B'],
+                        self.PINS['MOTOR_BACK_DATA_A'], self.PINS['MOTOR_BACK_DATA_B'],
+                        self.PINS['LIFTER_DATA_A'], self.PINS['LIFTER_DATA_B']
                     ]
 
                     container_pins = [
@@ -2645,36 +2630,35 @@ class GPIOController:
                         lgpio.gpio_claim_output(self.gpio_handle, pin)
                         print(f"✓ GPIO{pin} claimed as output")
                     
-                    # Motor control pins: TX as outputs, RX as inputs (for serial communication)
-                    motor_tx_pins = [
-                        self.PINS['MOTOR_FL_TX'], self.PINS['MOTOR_FR_TX'],
-                        self.PINS['MOTOR_BACK_TX'], self.PINS['LIFTER_TX']
+                    # Motor DATA pins: Configure as bidirectional for serial communication
+                    # DATA(A) pins: TX output for serial control, also read encoder A
+                    # DATA(B) pins: RX input for serial feedback, also read encoder B
+                    motor_data_a_pins = [
+                        self.PINS['MOTOR_FL_DATA_A'], self.PINS['MOTOR_FR_DATA_A'],
+                        self.PINS['MOTOR_BACK_DATA_A'], self.PINS['LIFTER_DATA_A']
                     ]
-                    motor_rx_pins = [
-                        self.PINS['MOTOR_FL_RX'], self.PINS['MOTOR_FR_RX'],
-                        self.PINS['MOTOR_BACK_RX'], self.PINS['LIFTER_RX']
+                    motor_data_b_pins = [
+                        self.PINS['MOTOR_FL_DATA_B'], self.PINS['MOTOR_FR_DATA_B'],
+                        self.PINS['MOTOR_BACK_DATA_B'], self.PINS['LIFTER_DATA_B']
                     ]
                     
-                    for pin in motor_tx_pins:
+                    # DATA(A) pins: Output for serial TX, also read encoder A
+                    for pin in motor_data_a_pins:
                         lgpio.gpio_claim_output(self.gpio_handle, pin)
-                        print(f"✓ GPIO{pin} claimed as output (motor TX)")
+                        print(f"✓ GPIO{pin} claimed as output (DATA A - Serial TX / Encoder A)")
                     
-                    for pin in motor_rx_pins:
+                    # DATA(B) pins: Input for serial RX, also read encoder B
+                    for pin in motor_data_b_pins:
                         lgpio.gpio_claim_input(self.gpio_handle, pin)
-                        print(f"✓ GPIO{pin} claimed as input (motor RX)")
+                        print(f"✓ GPIO{pin} claimed as input (DATA B - Serial RX / Encoder B)")
                     
-                    # Claim encoder pins as inputs (for PG23 built-in encoder DATA channels)
-                    for pin in encoder_pins:
-                        lgpio.gpio_claim_input(self.gpio_handle, pin)
-                        print(f"✓ GPIO{pin} claimed as input (encoder)")
-                    
-                    all_pins = all_output_pins + motor_tx_pins + motor_rx_pins + encoder_pins
+                    all_pins = all_output_pins + motor_data_a_pins + motor_data_b_pins
 
                     self.gpio_initialized = True
                     print("✓ GPIO Controller initialized successfully with LGPIO!")
                     print(f"  - Total pins initialized: {len(all_pins)}")
-                    print("  - Servos: 4 pins, Motor Control (TX/RX): 8 pins, Encoders: 8 pins, Containers: 4 pins")
-                    print("  - Note: PG23 motors use built-in drivers - controlled via serial communication")
+                    print("  - Servos: 4 pins, Motor DATA pins: 8 pins (control & encoder), Containers: 4 pins")
+                    print("  - Note: PG23 motors use built-in drivers - DATA(A) and DATA(B) handle both serial control and encoder feedback")
 
                 except Exception as e:
                     print(f"✗ ERROR: Failed to initialize LGPIO: {str(e)}")

@@ -77,43 +77,34 @@ Common Ground ──→ PG23 GND (Pin 3)
 - Ensure stable 5V supply with proper filtering
 - Common ground connection is critical for proper operation
 
-### Control Connections
+### Control and Encoder Connections
 
-#### Serial Communication (Motor Control)
-
-The PG23 motor uses serial communication (UART/SPI) for motor control commands. The DATA pins serve dual purpose:
+**Important:** The PG23 motor has only 6 pins total. DATA(A) and DATA(B) pins serve dual purpose:
 1. Serial communication for motor control (TX/RX)
 2. Encoder feedback (A/B channels)
 
-**Connection for Motor Control:**
+The motor's built-in controller handles both functions on the same pins. You connect DATA(A) and DATA(B) to GPIO pins, and the motor controller manages both serial communication and encoder output.
+
+**Connection:**
 ```
-Raspberry Pi GPIO ──→ PG23 DATA(A) (Pin 5) - TX (Transmit)
-Raspberry Pi GPIO ──→ PG23 DATA(B) (Pin 6) - RX (Receive)
+Raspberry Pi GPIO ──→ PG23 DATA(A) (Pin 5) - Serial TX / Encoder A
+Raspberry Pi GPIO ──→ PG23 DATA(B) (Pin 6) - Serial RX / Encoder B
 ```
 
 **GPIO Pin Assignments:**
 
-| Motor Location | TX Pin (DATA A) | RX Pin (DATA B) | GPIO Numbers |
-|----------------|-----------------|-----------------|--------------|
-| Front Left | GPIO17 | GPIO27 | Pin 11, Pin 13 |
-| Front Right | GPIO22 | GPIO23 | Pin 15, Pin 16 |
-| Back | GPIO24 | GPIO25 | Pin 18, Pin 22 |
-| Gripper Lifter | GPIO13 | GPIO12 | Pin 33, Pin 32 |
+| Motor Location | DATA(A) Pin | DATA(B) Pin | GPIO Numbers | Notes |
+|----------------|-------------|-------------|--------------|-------|
+| Front Left | GPIO17 | GPIO27 | Pin 11, Pin 13 | Same pins for control & encoder |
+| Front Right | GPIO22 | GPIO23 | Pin 15, Pin 16 | Same pins for control & encoder |
+| Back | GPIO24 | GPIO25 | Pin 18, Pin 22 | Same pins for control & encoder |
+| Gripper Lifter | GPIO13 | GPIO12 | Pin 33, Pin 32 | Same pins for control & encoder |
 
-### Encoder Connections
-
-The built-in encoder provides position feedback via the same DATA pins. Encoder signals are quadrature-encoded A/B channels.
-
-**Encoder Pin Assignments:**
-
-| Motor Location | Encoder A Pin | Encoder B Pin | GPIO Numbers |
-|----------------|---------------|---------------|--------------|
-| Front Left | GPIO5 | GPIO6 | Pin 29, Pin 31 |
-| Front Right | GPIO20 | GPIO21 | Pin 38, Pin 40 |
-| Back | GPIO22 | GPIO23 | Pin 15, Pin 16 |
-| Gripper Lifter | GPIO19 | GPIO16 | Pin 35, Pin 36 |
-
-**Note:** Some encoder pins share GPIO numbers with serial control pins. The motor controller handles multiplexing between control and encoder signals.
+**How It Works:**
+- The motor's built-in controller uses DATA(A) and DATA(B) for serial communication (motor control commands)
+- The same pins also output quadrature encoder signals (A/B channels) for position feedback
+- The controller multiplexes or handles both functions automatically
+- Your software reads encoder signals from the same GPIO pins used for serial control
 
 ## Complete Wiring Diagram
 
@@ -141,18 +132,21 @@ The built-in encoder provides position feedback via the same DATA pins. Encoder 
                     │                  │
                     │                  │
                     ▼                  ▼
-            ┌───────────────────────────────┐
+                    ┌───────────────────────────────┐
             │      PG23 Motor              │
             │                              │
             │  [1] M+  ←── 12V            │
             │  [2] M-  ←── GND            │
             │  [3] GND ←── Common GND     │
             │  [4] VIN ←── 5V             │
-            │  [5] DATA(A) ←── GPIO17 (TX)│
-            │  [6] DATA(B) ←── GPIO27 (RX)│
+            │  [5] DATA(A) ←── GPIO17     │
+            │              (TX/Encoder A) │
+            │  [6] DATA(B) ←── GPIO27     │
+            │              (RX/Encoder B) │
             │                              │
-            │  Encoder A ←── GPIO5        │
-            │  Encoder B ←── GPIO6        │
+            │  Note: DATA(A) and DATA(B)  │
+            │  handle both serial control │
+            │  and encoder feedback       │
             └───────────────────────────────┘
 ```
 
@@ -166,13 +160,9 @@ Power:
   GND → Common Ground Bus
   VIN → 5V Power Rail
 
-Control:
-  DATA(A) → GPIO17 (Pin 11) - Serial TX
-  DATA(B) → GPIO27 (Pin 13) - Serial RX
-
-Encoder:
-  DATA(A) → GPIO5 (Pin 29) - Encoder Channel A
-  DATA(B) → GPIO6 (Pin 31) - Encoder Channel B
+Control & Encoder (Same Pins):
+  DATA(A) → GPIO17 (Pin 11) - Serial TX / Encoder A
+  DATA(B) → GPIO27 (Pin 13) - Serial RX / Encoder B
 ```
 
 ### Front Right Motor
@@ -183,13 +173,9 @@ Power:
   GND → Common Ground Bus
   VIN → 5V Power Rail
 
-Control:
-  DATA(A) → GPIO22 (Pin 15) - Serial TX
-  DATA(B) → GPIO23 (Pin 16) - Serial RX
-
-Encoder:
-  DATA(A) → GPIO20 (Pin 38) - Encoder Channel A
-  DATA(B) → GPIO21 (Pin 40) - Encoder Channel B
+Control & Encoder (Same Pins):
+  DATA(A) → GPIO22 (Pin 15) - Serial TX / Encoder A
+  DATA(B) → GPIO23 (Pin 16) - Serial RX / Encoder B
 ```
 
 ### Back Motor
@@ -200,13 +186,9 @@ Power:
   GND → Common Ground Bus
   VIN → 5V Power Rail
 
-Control:
-  DATA(A) → GPIO24 (Pin 18) - Serial TX
-  DATA(B) → GPIO25 (Pin 22) - Serial RX
-
-Encoder:
-  DATA(A) → GPIO22 (Pin 15) - Encoder Channel A
-  DATA(B) → GPIO23 (Pin 16) - Encoder Channel B
+Control & Encoder (Same Pins):
+  DATA(A) → GPIO24 (Pin 18) - Serial TX / Encoder A
+  DATA(B) → GPIO25 (Pin 22) - Serial RX / Encoder B
 ```
 
 ### Gripper Lifter Motor
@@ -217,13 +199,9 @@ Power:
   GND → Common Ground Bus
   VIN → 5V Power Rail
 
-Control:
-  DATA(A) → GPIO13 (Pin 33) - Serial TX
-  DATA(B) → GPIO12 (Pin 32) - Serial RX
-
-Encoder:
-  DATA(A) → GPIO19 (Pin 35) - Encoder Channel A
-  DATA(B) → GPIO16 (Pin 36) - Encoder Channel B
+Control & Encoder (Same Pins):
+  DATA(A) → GPIO13 (Pin 33) - Serial TX / Encoder A
+  DATA(B) → GPIO12 (Pin 32) - Serial RX / Encoder B
 ```
 
 ## Encoder Specifications
@@ -300,8 +278,7 @@ Common Ground Bus
 - [ ] All M- terminals connected to ground
 - [ ] All GND pins connected to common ground bus
 - [ ] All VIN pins connected to 5V power rail
-- [ ] Serial control pins (TX/RX) connected to correct GPIO pins
-- [ ] Encoder pins connected to correct GPIO pins
+- [ ] DATA(A) and DATA(B) pins connected to correct GPIO pins (same pins for control & encoder)
 - [ ] Common ground verified between all components
 - [ ] Power supply voltage verified (12V and 5V)
 - [ ] Fuses installed and checked
@@ -328,12 +305,13 @@ Common Ground Bus
 
 **Checklist:**
 1. Verify 5V power to VIN pin
-2. Check encoder DATA(A) and DATA(B) pin connections
-3. Verify GPIO pins configured as inputs
+2. Check DATA(A) and DATA(B) pin connections (same pins used for encoder feedback)
+3. Verify GPIO pins configured correctly (DATA A as output for TX, DATA B as input for RX/encoder)
 4. Check for proper pull-up resistors if required
-5. Test encoder signals with oscilloscope or logic analyzer
+5. Test encoder signals with oscilloscope or logic analyzer (read from DATA pins)
 6. Verify quadrature decoding in software
-7. Check for interference or noise on encoder lines
+7. Check for interference or noise on DATA lines
+8. Note: Encoder signals come from same DATA pins used for serial control
 
 ### Motor Runs Erratically
 **Symptoms:** Motor speed varies unexpectedly, jerky motion
@@ -351,13 +329,14 @@ Common Ground Bus
 **Symptoms:** Cannot communicate with motor, timeout errors
 
 **Checklist:**
-1. Verify TX/RX pin connections (not swapped)
+1. Verify DATA(A) and DATA(B) pin connections (DATA A = TX, DATA B = RX)
 2. Check baud rate matches motor specifications
 3. Verify serial protocol settings (data bits, parity, stop bits)
 4. Check for proper ground connection (critical for serial)
 5. Test with known-good serial device
-6. Verify GPIO pins are configured for serial communication
-7. Check for interference on serial lines
+6. Verify GPIO pins are configured correctly (DATA A as output, DATA B as input)
+7. Check for interference on DATA lines
+8. Note: Same pins handle both serial control and encoder feedback
 
 ## Safety Considerations
 
@@ -404,16 +383,16 @@ Pin 1 (M+)     → 12V Power Supply
 Pin 2 (M-)     → Ground
 Pin 3 (GND)    → Common Ground Bus
 Pin 4 (VIN)    → 5V Power Rail
-Pin 5 (DATA A) → GPIO TX / Encoder A
-Pin 6 (DATA B) → GPIO RX / Encoder B
+Pin 5 (DATA A) → GPIO Pin (Serial TX / Encoder A - same pin)
+Pin 6 (DATA B) → GPIO Pin (Serial RX / Encoder B - same pin)
 ```
 
 ### GPIO Quick Reference
 ```
-Front Left:  TX=GPIO17, RX=GPIO27, ENC_A=GPIO5, ENC_B=GPIO6
-Front Right: TX=GPIO22, RX=GPIO23, ENC_A=GPIO20, ENC_B=GPIO21
-Back:        TX=GPIO24, RX=GPIO25, ENC_A=GPIO22, ENC_B=GPIO23
-Lifter:      TX=GPIO13, RX=GPIO12, ENC_A=GPIO19, ENC_B=GPIO16
+Front Left:  DATA(A)=GPIO17, DATA(B)=GPIO27 (control & encoder on same pins)
+Front Right: DATA(A)=GPIO22, DATA(B)=GPIO23 (control & encoder on same pins)
+Back:        DATA(A)=GPIO24, DATA(B)=GPIO25 (control & encoder on same pins)
+Lifter:      DATA(A)=GPIO13, DATA(B)=GPIO12 (control & encoder on same pins)
 ```
 
 ### Power Quick Reference

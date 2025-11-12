@@ -58,30 +58,24 @@ Raspberry Pi 5 GPIO Header (40-pin)
 **Note:** PG23 motors have built-in drivers - no external L298N needed. Control via serial communication (UART/SPI).
 
 ```bash
-# Omni Wheel Motors (3x) - Serial Control
+# Omni Wheel Motors (3x) - Serial Control & Encoder (Same Pins)
+# Note: DATA(A) and DATA(B) pins handle both serial control and encoder feedback
+
 # Front Left Wheel
-GPIO17 (11) - Front Left Motor Serial TX (DATA control)
-GPIO27 (13) - Front Left Motor Serial RX (DATA feedback)
-GPIO5  (29) - Front Left Encoder DATA(A) - built-in encoder
-GPIO6  (31) - Front Left Encoder DATA(B) - built-in encoder
+GPIO17 (11) - Front Left DATA(A) - Serial TX / Encoder A (same pin)
+GPIO27 (13) - Front Left DATA(B) - Serial RX / Encoder B (same pin)
 
 # Front Right Wheel
-GPIO22 (15) - Front Right Motor Serial TX (DATA control)
-GPIO23 (16) - Front Right Motor Serial RX (DATA feedback)
-GPIO20 (38) - Front Right Encoder DATA(A) - built-in encoder
-GPIO21 (40) - Front Right Encoder DATA(B) - built-in encoder
+GPIO22 (15) - Front Right DATA(A) - Serial TX / Encoder A (same pin)
+GPIO23 (16) - Front Right DATA(B) - Serial RX / Encoder B (same pin)
 
 # Back Wheel
-GPIO24 (18) - Back Motor Serial TX (DATA control)
-GPIO25 (22) - Back Motor Serial RX (DATA feedback)
-GPIO22 (15) - Back Encoder DATA(A) - built-in encoder (shared with FR TX)
-GPIO23 (16) - Back Encoder DATA(B) - built-in encoder (shared with FR RX)
+GPIO24 (18) - Back DATA(A) - Serial TX / Encoder A (same pin)
+GPIO25 (22) - Back DATA(B) - Serial RX / Encoder B (same pin)
 
 # Gripper Lifter Motor (1x PG23)
-GPIO13 (33) - Lifter Motor Serial TX (DATA control)
-GPIO12 (32) - Lifter Motor Serial RX (DATA feedback)
-GPIO19 (35) - Lifter Encoder DATA(A) - built-in encoder
-GPIO16 (36) - Lifter Encoder DATA(B) - built-in encoder
+GPIO13 (33) - Lifter DATA(A) - Serial TX / Encoder A (same pin)
+GPIO12 (32) - Lifter DATA(B) - Serial RX / Encoder B (same pin)
 ```
 
 ### **Servo Motors (3x for Gripper System)**

@@ -105,10 +105,8 @@ PG23 Motor Connections:
 - PG23 M- → Ground
 - PG23 GND → Common Ground Bus
 - PG23 VIN → 5V Power Rail (encoder/controller power)
-- PG23 DATA(A) → GPIO24 (Pin 18) - Serial TX (motor control)
-- PG23 DATA(B) → GPIO25 (Pin 22) - Serial RX (motor feedback)
-- Encoder DATA(A) → GPIO22 (Pin 15) - Encoder Channel A (built-in encoder)
-- Encoder DATA(B) → GPIO23 (Pin 16) - Encoder Channel B (built-in encoder)
+- PG23 DATA(A) → GPIO24 (Pin 18) - Serial TX / Encoder A (same pin)
+- PG23 DATA(B) → GPIO25 (Pin 22) - Serial RX / Encoder B (same pin)
 
 # Motor 2: Front Left Wheel
 PG23 Motor Connections:
@@ -116,10 +114,8 @@ PG23 Motor Connections:
 - PG23 M- → Ground
 - PG23 GND → Common Ground Bus
 - PG23 VIN → 5V Power Rail (encoder/controller power)
-- PG23 DATA(A) → GPIO17 (Pin 11) - Serial TX (motor control)
-- PG23 DATA(B) → GPIO27 (Pin 13) - Serial RX (motor feedback)
-- Encoder DATA(A) → GPIO5 (Pin 29) - Encoder Channel A (built-in encoder)
-- Encoder DATA(B) → GPIO6 (Pin 31) - Encoder Channel B (built-in encoder)
+- PG23 DATA(A) → GPIO17 (Pin 11) - Serial TX / Encoder A (same pin)
+- PG23 DATA(B) → GPIO27 (Pin 13) - Serial RX / Encoder B (same pin)
 
 # Motor 3: Front Right Wheel
 PG23 Motor Connections:
@@ -127,10 +123,8 @@ PG23 Motor Connections:
 - PG23 M- → Ground
 - PG23 GND → Common Ground Bus
 - PG23 VIN → 5V Power Rail (encoder/controller power)
-- PG23 DATA(A) → GPIO22 (Pin 15) - Serial TX (motor control)
-- PG23 DATA(B) → GPIO23 (Pin 16) - Serial RX (motor feedback)
-- Encoder DATA(A) → GPIO20 (Pin 38) - Encoder Channel A (built-in encoder)
-- Encoder DATA(B) → GPIO21 (Pin 40) - Encoder Channel B (built-in encoder)
+- PG23 DATA(A) → GPIO22 (Pin 15) - Serial TX / Encoder A (same pin)
+- PG23 DATA(B) → GPIO23 (Pin 16) - Serial RX / Encoder B (same pin)
 
 # Motor 4: Gripper Lifter
 PG23 Motor Connections:
@@ -138,10 +132,8 @@ PG23 Motor Connections:
 - PG23 M- → Ground
 - PG23 GND → Common Ground Bus
 - PG23 VIN → 5V Power Rail (encoder/controller power)
-- PG23 DATA(A) → GPIO13 (Pin 33) - Serial TX (motor control)
-- PG23 DATA(B) → GPIO12 (Pin 32) - Serial RX (motor feedback)
-- Encoder DATA(A) → GPIO19 (Pin 35) - Encoder Channel A (built-in encoder)
-- Encoder DATA(B) → GPIO16 (Pin 36) - Encoder Channel B (built-in encoder)
+- PG23 DATA(A) → GPIO13 (Pin 33) - Serial TX / Encoder A (same pin)
+- PG23 DATA(B) → GPIO12 (Pin 32) - Serial RX / Encoder B (same pin)
 ```
 
 **Power Requirements:**
