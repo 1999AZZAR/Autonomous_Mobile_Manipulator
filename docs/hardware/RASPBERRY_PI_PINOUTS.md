@@ -176,16 +176,16 @@ USB3 - Optional: RPLIDAR backup (if needed)
 
 ```bash
 # Motor Driver 1 - Front Left Omni Wheel (PG23 motor)
-IN1: GPIO17 (11) - Direction control (forward/reverse)
-IN2: GPIO10 (19) - Direction control (forward/reverse)
-ENA: GPIO11 (23) - Enable/PWM speed control (NOTE: GPIO27 not working, using GPIO11)
+IN1: GPIO17 (Pin 11) - Direction control (forward/reverse)
+IN2: GPIO10 (Pin 19) - Direction control (forward/reverse)
+ENA: GPIO11 (Pin 23) - Enable/PWM speed control (NOTE: GPIO27 doesn't work, using GPIO11)
 Motor M+: L298N OUT1 (12V from L298N)
 Motor M-: L298N OUT2 (GND via L298N)
 L298N VS: 12V Power Supply (motor power)
-L298N VCC: 5V Power Supply (logic power - CRITICAL: must be 5V!)
+L298N VCC: 5V Power Supply (logic power - CRITICAL: must be 5V, not 3.3V!)
 L298N GND: Common Ground (shared with Raspberry Pi)
-Encoder DATA(A): GPIO22 (15) - Read only
-Encoder DATA(B): GPIO23 (16) - Read only
+Encoder DATA(A): GPIO22 (Pin 15) - Read only
+Encoder DATA(B): GPIO23 (Pin 16) - Read only
 
 # Motor Driver 2 - Front Right Omni Wheel (PG23 motor)
 IN1: GPIO24 (18) - DIR pin (Direction control)

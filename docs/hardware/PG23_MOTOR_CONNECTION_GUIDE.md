@@ -186,7 +186,7 @@ Power:
 L298N Control:
   IN1 → GPIO17 (Pin 11) - Direction control (forward/reverse)
   IN2 → GPIO10 (Pin 19) - Direction control (forward/reverse)
-  ENA → GPIO11 (Pin 23) - Enable/PWM speed control
+  ENA → GPIO11 (Pin 23) - Enable/PWM speed control (NOTE: GPIO27 doesn't work, using GPIO11)
   VS → 12V Power Supply (motor power)
   VCC → 5V Power Supply (logic power - CRITICAL: must be 5V, not 3.3V!)
   GND → Common Ground (shared with Raspberry Pi)

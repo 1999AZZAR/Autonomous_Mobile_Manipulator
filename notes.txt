@@ -148,14 +148,24 @@ recent updates (2025-11-11):
   - Updated notes.txt, hardware README.md, and RASPBERRY_PI_PINOUTS.md
   - Encoder resolution: 7 PPR × 4 (quadrature) = 28 counts per revolution
 
-- Removed L298N motor driver references (2025-01-XX)
-  - PG23 motors have built-in drivers - no external L298N needed
-  - Updated GPIO pin assignments to use serial communication (TX/RX) for motor control
-  - Updated motor_config.yaml to reflect serial control interface
-  - Updated all hardware documentation (HARDWARE_ASSEMBLY_GUIDE.md, RASPBERRY_PI_PINOUTS.md, README.md)
-  - Updated Python scripts (web_robot_interface.py, actuator_control_server.py) with new pin definitions
-  - Motors now controlled via serial communication (UART/SPI) using DATA pins
-  - Built-in encoders still use DATA pins for position feedback
+- Motor control configuration (2025-01-XX)
+  - PG23 motors have built-in encoders only (NOT built-in drivers)
+  - External L298N motor driver modules required for motor control
+  - L298N control: IN1, IN2, ENA pins (standard L298N configuration)
+  - Front Left Motor verified working pin assignments:
+    * IN1 → GPIO17 (Pin 11) ✓ Working
+    * IN2 → GPIO10 (Pin 19) ✓ Working
+    * ENA → GPIO11 (Pin 23) ✓ Working (GPIO27 doesn't work - stays HIGH)
+    * Encoder A → GPIO22 (Pin 15) ✓ Working
+    * Encoder B → GPIO23 (Pin 16) ✓ Working
+  - L298N power requirements:
+    * VS → 12V (motor power) - CRITICAL
+    * VCC → 5V (logic power) - CRITICAL (must be 5V, not 3.3V!)
+    * GND → Common ground with Raspberry Pi
+  - Updated all code and documentation with verified pin assignments
+  - Created test_motor_dedicated.py for motor control testing
+  - Created MOTOR_PIN_ASSIGNMENTS.md documenting verified configuration
+  - Created L298N_TROUBLESHOOTING.md for common issues
 
 to run :
 - "cd /home/raspi/Autonomous_Mobile_Manipulator/ros2_ws && source /opt/ros/jazzy/setup.bash && source install/setup.bash && python3 src/my_robot_automation/scripts/web_robot_interface.py --hardware"
