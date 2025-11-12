@@ -58,8 +58,14 @@ class PG23MotorController:
         # Initialize serial communication
         self._init_serial()
         
-        # Send STOP command immediately to ensure motor is stopped
-        self.stop()
+        # Send multiple stop commands to ensure motor is stopped
+        # Some motors need DISABLE instead of STOP to prevent free spinning
+        time.sleep(0.01)  # Small delay after serial init
+        self.disable()  # Disable motor first (prevents free spinning)
+        time.sleep(0.01)
+        self.stop()      # Then send stop command
+        time.sleep(0.01)
+        self.disable()   # Disable again to ensure it stays stopped
         
     def _init_serial(self):
         """Initialize serial communication on GPIO pins"""
@@ -74,8 +80,11 @@ class PG23MotorController:
             # Configure RX pin as input
             lgpio.gpio_claim_input(self.gpio_handle, self.rx_pin)
             
-            # Set TX pin to idle state (HIGH for UART)
-            lgpio.gpio_write(self.gpio_handle, self.tx_pin, 1)
+            # CRITICAL: Keep DATA(A) pin LOW to disable motor and prevent free spinning
+            # Many motor controllers disable when DATA pin is LOW
+            # We'll keep it LOW until we need to send commands
+            lgpio.gpio_write(self.gpio_handle, self.tx_pin, 0)
+            time.sleep(0.05)  # Give motor time to respond
             
             print(f"✓ [{self.motor_name}] Serial initialized: TX=GPIO{self.tx_pin}, RX=GPIO{self.rx_pin}, Baud={self.baud_rate}")
             
@@ -147,23 +156,44 @@ class PG23MotorController:
         return False
     
     def disable(self):
-        """Disable motor controller (motor will free spin)"""
-        if self._send_command(self.CMD_DISABLE):
-            self.is_enabled = False
-            self.current_speed = 0.0
-            self.current_direction = 0
-            print(f"✓ [{self.motor_name}] Motor disabled")
-            return True
-        return False
+        """Disable motor controller - Try pulling DATA(A) LOW to physically disable motor"""
+        # Try sending disable command first
+        self._send_command(self.CMD_DISABLE)
+        
+        # Also try pulling DATA(A) pin LOW - some motors disable when DATA pin is LOW
+        try:
+            if LGPIO_AVAILABLE and self.gpio_handle is not None:
+                lgpio.gpio_write(self.gpio_handle, self.tx_pin, 0)
+                time.sleep(0.01)
+                # Set back to HIGH for serial communication
+                lgpio.gpio_write(self.gpio_handle, self.tx_pin, 1)
+        except:
+            pass
+        
+        self.is_enabled = False
+        self.current_speed = 0.0
+        self.current_direction = 0
+        print(f"✓ [{self.motor_name}] Motor disabled")
+        return True
     
     def stop(self):
-        """Stop motor immediately (brake mode)"""
-        if self._send_command(self.CMD_STOP):
-            self.current_speed = 0.0
-            self.current_direction = 0
-            print(f"✓ [{self.motor_name}] Motor stopped")
-            return True
-        return False
+        """Stop motor immediately - Keep DATA(A) LOW to physically disable motor"""
+        # Keep DATA(A) pin LOW continuously - this physically disables the motor controller
+        # This prevents free spinning when protocol commands don't work
+        try:
+            if LGPIO_AVAILABLE and self.gpio_handle is not None:
+                lgpio.gpio_write(self.gpio_handle, self.tx_pin, 0)
+                time.sleep(0.05)  # Give motor time to stop
+        except Exception as e:
+            print(f"ERROR [{self.motor_name}]: Failed to set DATA pin LOW: {e}")
+        
+        # Also try sending stop command (in case protocol works)
+        self._send_command(self.CMD_STOP)
+        
+        self.current_speed = 0.0
+        self.current_direction = 0
+        print(f"✓ [{self.motor_name}] Motor stopped (DATA(A) pin kept LOW)")
+        return True
     
     def set_speed(self, speed, direction=1):
         """
@@ -180,23 +210,38 @@ class PG23MotorController:
         if speed == 0.0:
             return self.stop()
         
-        # Convert speed to byte (0-255)
-        speed_byte = int(speed * 255)
-        
-        # Send direction command
-        if direction > 0:
-            cmd = self.CMD_FORWARD
-            self.current_direction = 1
-        else:
-            cmd = self.CMD_REVERSE
-            self.current_direction = -1
-        
-        if self._send_command(cmd, speed_byte):
-            self.current_speed = speed
-            print(f"✓ [{self.motor_name}] Speed set: {speed:.2f}, Direction: {'Forward' if direction > 0 else 'Reverse'}")
-            return True
-        
+        # WARNING: Motor control disabled until correct protocol is implemented
+        # Currently keeping DATA(A) LOW prevents motor from running
+        print(f"WARNING [{self.motor_name}]: Motor control disabled - DATA(A) pin is kept LOW")
+        print(f"  To enable motor control, update protocol in pg23_motor_controller.py with correct command bytes")
         return False
+        
+        # Code below is disabled until protocol is fixed:
+        # # Convert speed to byte (0-255)
+        # speed_byte = int(speed * 255)
+        # 
+        # # Set DATA(A) HIGH first to enable motor controller
+        # try:
+        #     if LGPIO_AVAILABLE and self.gpio_handle is not None:
+        #         lgpio.gpio_write(self.gpio_handle, self.tx_pin, 1)
+        #         time.sleep(0.01)
+        # except:
+        #     pass
+        # 
+        # # Send direction command
+        # if direction > 0:
+        #     cmd = self.CMD_FORWARD
+        #     self.current_direction = 1
+        # else:
+        #     cmd = self.CMD_REVERSE
+        #     self.current_direction = -1
+        # 
+        # if self._send_command(cmd, speed_byte):
+        #     self.current_speed = speed
+        #     print(f"✓ [{self.motor_name}] Speed set: {speed:.2f}, Direction: {'Forward' if direction > 0 else 'Reverse'}")
+        #     return True
+        # 
+        # return False
     
     def forward(self, speed=0.5):
         """Move motor forward"""

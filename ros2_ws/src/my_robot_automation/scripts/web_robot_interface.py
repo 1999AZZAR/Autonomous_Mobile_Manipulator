@@ -2559,7 +2559,7 @@ class GPIOController:
             'GRIPPER_TILT': 18,      # GPIO18 - Gripper Tilt Servo
             'GRIPPER_OPEN_CLOSE': 19,# GPIO19 - Gripper Open/Close
             'GRIPPER_NECK': 21,      # GPIO21 - Gripper Extension (360° continuous)
-            'GRIPPER_BASE': 12,      # GPIO12 - Gripper Base Height
+            # NOTE: GRIPPER_BASE removed from GPIO12 - GPIO12 is needed for LIFTER_DATA_B motor control
             
             # Omni Wheel Motors (PG23 with built-in driver - serial control via DATA pins)
             # Note: DATA(A) and DATA(B) pins serve dual purpose: serial control AND encoder feedback
@@ -2618,8 +2618,8 @@ class GPIOController:
                     servo_pins = [
                         self.PINS['GRIPPER_TILT'],
                         self.PINS['GRIPPER_OPEN_CLOSE'],
-                        self.PINS['GRIPPER_NECK'],
-                        self.PINS['GRIPPER_BASE']
+                        self.PINS['GRIPPER_NECK']
+                        # NOTE: GRIPPER_BASE removed - GPIO12 is needed for LIFTER_DATA_B motor control
                     ]
 
                     # Motor DATA pins (PG23 built-in driver - same pins for serial control AND encoder)
@@ -2745,8 +2745,9 @@ class GPIOController:
             self.servos['gripper_open_close'] = AngularServo(
                 self.PINS['GRIPPER_OPEN_CLOSE'], min_angle=0, max_angle=180, pin_factory=factory)
             self.servos['gripper_neck'] = Servo(self.PINS['GRIPPER_NECK'], pin_factory=factory)
-            self.servos['gripper_base'] = AngularServo(
-                self.PINS['GRIPPER_BASE'], min_angle=0, max_angle=180, pin_factory=factory)
+            # NOTE: GRIPPER_BASE servo removed - GPIO12 is needed for LIFTER_DATA_B motor control
+            # self.servos['gripper_base'] = AngularServo(
+            #     self.PINS['GRIPPER_BASE'], min_angle=0, max_angle=180, pin_factory=factory)
 
             # Initialize motors
             self.motors['front_left'] = Motor(
@@ -2827,22 +2828,25 @@ class GPIOController:
             return False
     
     def set_gripper_base(self, height):
-        """Set gripper base height (0-1, normalized)"""
+        """Set gripper base height (0-1, normalized) - DISABLED: GPIO12 needed for motor control"""
         if self.simulation_mode:
             print(f"[SIM] Gripper base height: {height}")
             return True
 
-        try:
-            height = max(0, min(1, height))  # Clamp to 0-1
-            # Map height to GPIO value
-            pin = self.PINS['GRIPPER_BASE']
-            value = 1 if height > 0.5 else 0  # High for >50% height, Low for ≤50%
-            lgpio.gpio_write(self.gpio_handle, pin, value)
-            print(f"✓ Gripper base set to {height} (GPIO{pin} = {value})")
-            return True
-        except Exception as e:
-            print(f"ERROR setting gripper base: {str(e)}")
-            return False
+        print("WARNING: GRIPPER_BASE control disabled - GPIO12 is needed for LIFTER_DATA_B motor control")
+        return False
+        # NOTE: GPIO12 is now used for LIFTER_DATA_B motor control, so GRIPPER_BASE is disabled
+        # try:
+        #     height = max(0, min(1, height))  # Clamp to 0-1
+        #     # Map height to GPIO value
+        #     pin = self.PINS['GRIPPER_BASE']
+        #     value = 1 if height > 0.5 else 0  # High for >50% height, Low for ≤50%
+        #     lgpio.gpio_write(self.gpio_handle, pin, value)
+        #     print(f"✓ Gripper base set to {height} (GPIO{pin} = {value})")
+        #     return True
+        # except Exception as e:
+        #     print(f"ERROR setting gripper base: {str(e)}")
+        #     return False
     
     def home_servos(self):
         """Home all servos to neutral position"""
@@ -2855,7 +2859,7 @@ class GPIOController:
             lgpio.gpio_write(self.gpio_handle, self.PINS['GRIPPER_TILT'], 0)      # Neutral
             lgpio.gpio_write(self.gpio_handle, self.PINS['GRIPPER_OPEN_CLOSE'], 0) # Closed
             lgpio.gpio_write(self.gpio_handle, self.PINS['GRIPPER_NECK'], 0)      # Neutral
-            lgpio.gpio_write(self.gpio_handle, self.PINS['GRIPPER_BASE'], 0)      # Middle
+            # NOTE: GRIPPER_BASE removed - GPIO12 is needed for LIFTER_DATA_B motor control
             print("✓ All servos homed to neutral position")
             return True
         except Exception as e:
