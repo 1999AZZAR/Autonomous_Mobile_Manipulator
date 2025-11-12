@@ -94,81 +94,115 @@ Ground: GND → Servo 5 Ground
 
 #### **Motor Driver Connections (L298N Modules)**
 
+**PG23 Motor Pinout:** M+, M-, GND, VIN, DATA(A), DATA(B)
+
 ```bash
 # Motor Driver 1: Back Wheel
-IN1: GPIO17 (Pin 11) → Direction Control
-IN2: GPIO27 (Pin 13) → Direction Control
-ENA: GPIO27 (Pin 13) → PWM Speed Control
-
-Motor Connections:
-- Motor + → OUT1
-- Motor - → OUT2
-Power: 12V → VS, GND → GND
-Logic: 5V → VSS
-
-# Motor Driver 2: Front Left Wheel
 IN1: GPIO24 (Pin 18) → Direction Control
-IN2: GPIO25 (Pin 22) → Direction Control
+IN2: GPIO25 (Pin 22) → Direction Control (optional, can use IN1 only)
 ENA: GPIO25 (Pin 22) → PWM Speed Control
 
-Motor Connections:
-- Motor + → OUT1
-- Motor - → OUT2
-Power: 12V → VS, GND → GND
-Logic: 5V → VSS
+PG23 Motor Connections:
+- PG23 M+ → L298N OUT1
+- PG23 M- → L298N OUT2
+- PG23 GND → Common Ground Bus
+- PG23 VIN → 5V Power Rail (encoder power)
+- PG23 DATA(A) → GPIO22 (Pin 15) - Encoder Channel A
+- PG23 DATA(B) → GPIO23 (Pin 16) - Encoder Channel B
+
+Motor Driver Power:
+- 12V → VS (motor power)
+- GND → GND
+- 5V → VSS (logic power)
+
+# Motor Driver 2: Front Left Wheel
+IN1: GPIO17 (Pin 11) → Direction Control
+IN2: GPIO27 (Pin 13) → Direction Control (optional)
+ENA: GPIO27 (Pin 13) → PWM Speed Control
+
+PG23 Motor Connections:
+- PG23 M+ → L298N OUT1
+- PG23 M- → L298N OUT2
+- PG23 GND → Common Ground Bus
+- PG23 VIN → 5V Power Rail (encoder power)
+- PG23 DATA(A) → GPIO5 (Pin 29) - Encoder Channel A
+- PG23 DATA(B) → GPIO6 (Pin 31) - Encoder Channel B
+
+Motor Driver Power:
+- 12V → VS (motor power)
+- GND → GND
+- 5V → VSS (logic power)
 
 # Motor Driver 3: Front Right Wheel
-IN1: GPIO16 (Pin 36) → Direction Control
-IN2: GPIO26 (Pin 37) → Direction Control
-ENA: GPIO26 (Pin 37) → PWM Speed Control
+IN1: GPIO22 (Pin 15) → Direction Control
+IN2: GPIO23 (Pin 16) → Direction Control (optional)
+ENA: GPIO23 (Pin 16) → PWM Speed Control
 
-Motor Connections:
-- Motor + → OUT1
-- Motor - → OUT2
-Power: 12V → VS, GND → GND
-Logic: 5V → VSS
+PG23 Motor Connections:
+- PG23 M+ → L298N OUT1
+- PG23 M- → L298N OUT2
+- PG23 GND → Common Ground Bus
+- PG23 VIN → 5V Power Rail (encoder power)
+- PG23 DATA(A) → GPIO20 (Pin 38) - Encoder Channel A
+- PG23 DATA(B) → GPIO21 (Pin 40) - Encoder Channel B
+
+Motor Driver Power:
+- 12V → VS (motor power)
+- GND → GND
+- 5V → VSS (logic power)
 
 # Lifter Motor Driver
-IN1: GPIO12 (Pin 32) → Direction Control ⚠️ CONFLICT with Servo 1
-IN2: GPIO13 (Pin 33) → Direction Control ⚠️ CONFLICT with Servo 2
-ENA: GPIO13 (Pin 33) → PWM Speed Control ⚠️ CONFLICT with Servo 2
+IN1: GPIO13 (Pin 33) → Direction Control
+IN2: GPIO12 (Pin 32) → Direction Control (optional)
+ENA: GPIO12 (Pin 32) → PWM Speed Control
 
-Motor Connections:
-- Motor + → OUT1
-- Motor - → OUT2
-Power: 12V → VS, GND → GND
-Logic: 5V → VSS
+PG23 Motor Connections:
+- PG23 M+ → L298N OUT1
+- PG23 M- → L298N OUT2
+- PG23 GND → Common Ground Bus
+- PG23 VIN → 5V Power Rail (encoder power)
+- PG23 DATA(A) → GPIO19 (Pin 35) - Encoder Channel A
+- PG23 DATA(B) → GPIO16 (Pin 36) - Encoder Channel B
+
+Motor Driver Power:
+- 12V → VS (motor power)
+- GND → GND
+- 5V → VSS (logic power)
 ```
 
 ### **Step 3: Encoder Connections**
 
-#### **Wheel Encoders**
+**Note:** PG23 motors have built-in encoders. The encoder connections are part of the motor wiring (DATA pins).
+
+#### **Wheel Encoders (PG23 Built-in)**
 
 ```bash
-# Back Wheel Encoder
-Encoder A: GPIO22 (Pin 15) → Encoder Channel A
-Encoder B: GPIO23 (Pin 16) → Encoder Channel B
-Power: 5V → Encoder VCC
-Ground: GND → Encoder GND
+# Back Wheel Encoder (PG23 DATA pins)
+PG23 DATA(A): GPIO22 (Pin 15) → Encoder Channel A
+PG23 DATA(B): GPIO23 (Pin 16) → Encoder Channel B
+PG23 VIN: 5V → Encoder Power Supply
+PG23 GND: Common Ground → Encoder Ground
 
-# Front Left Wheel Encoder
-Encoder A: GPIO5 (Pin 29) → Encoder Channel A
-Encoder B: GPIO6 (Pin 31) → Encoder Channel B
-Power: 5V → Encoder VCC
-Ground: GND → Encoder GND
+# Front Left Wheel Encoder (PG23 DATA pins)
+PG23 DATA(A): GPIO5 (Pin 29) → Encoder Channel A
+PG23 DATA(B): GPIO6 (Pin 31) → Encoder Channel B
+PG23 VIN: 5V → Encoder Power Supply
+PG23 GND: Common Ground → Encoder Ground
 
-# Front Right Wheel Encoder
-Encoder A: GPIO20 (Pin 38) → Encoder Channel A
-Encoder B: GPIO21 (Pin 40) → Encoder Channel B ⚠️ CONFLICT with Servo 5
-Power: 5V → Encoder VCC
-Ground: GND → Encoder GND
+# Front Right Wheel Encoder (PG23 DATA pins)
+PG23 DATA(A): GPIO20 (Pin 38) → Encoder Channel A
+PG23 DATA(B): GPIO21 (Pin 40) → Encoder Channel B
+PG23 VIN: 5V → Encoder Power Supply
+PG23 GND: Common Ground → Encoder Ground
 
-# Lifter Encoder
-Encoder A: GPIO19 (Pin 35) → Encoder Channel A ⚠️ CONFLICT with Servo 4
-Encoder B: GPIO16 (Pin 36) → Encoder Channel B ⚠️ CONFLICT with Motor FR Dir
-Power: 5V → Encoder VCC
-Ground: GND → Encoder GND
+# Lifter Encoder (PG23 DATA pins)
+PG23 DATA(A): GPIO19 (Pin 35) → Encoder Channel A
+PG23 DATA(B): GPIO16 (Pin 36) → Encoder Channel B
+PG23 VIN: 5V → Encoder Power Supply
+PG23 GND: Common Ground → Encoder Ground
 ```
+
+**Important:** All encoder DATA pins are 5V logic. Ensure proper voltage level matching if connecting directly to 3.3V GPIO (may require voltage dividers or level shifters).
 
 ### **Step 4: Sensor Connections**
 

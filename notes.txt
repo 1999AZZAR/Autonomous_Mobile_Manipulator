@@ -10,12 +10,16 @@ main body and nav:
         - back
         - front left
         - front right
+        - Motor type: PG23 built-in encoder motor
+        - Motor specifications: 15.5k RPM (no-load), 7 PPR (pulses per revolution)
 
     - single poin lidar (tf_luna)(i2c/uart)
     - imu (mpu6050)
 
 main gripper:
     - 1x motor (same motor used on omni)(move up down)
+        - Motor type: PG23 built-in encoder motor
+        - Motor specifications: 15.5k RPM (no-load), 7 PPR (pulses per revolution)
     - 2x servo (1 tilt, 1 open/close)
     - 1x 360degree (free rotation) servo (optional) (used to move the gripper asembly forward/backward)
     - 1 usb based camera (can move up down with the gripper mechanism)
@@ -130,6 +134,15 @@ recent updates (2025-11-11):
   - Created SCRIPT_CONSOLIDATION_SUMMARY.md documentation
   - Benefits: simpler commands, less confusion, easier maintenance
   - All features preserved, nothing lost in consolidation
+
+- Updated motor specifications (2025-01-XX)
+  - Changed motor type to PG23 built-in encoder motor
+  - Motor specifications: 15.5k RPM (no-load), 7 PPR (pulses per revolution)
+  - Updated all hardware documentation to reflect new motor type
+  - Created MOTOR_SPECIFICATIONS.md with detailed encoder parameters
+  - Created motor_config.yaml configuration file with encoder settings
+  - Updated notes.txt, hardware README.md, and RASPBERRY_PI_PINOUTS.md
+  - Encoder resolution: 7 PPR × 4 (quadrature) = 28 counts per revolution
 
 to run :
 - "cd /home/raspi/Autonomous_Mobile_Manipulator/ros2_ws && source /opt/ros/jazzy/setup.bash && source install/setup.bash && python3 src/my_robot_automation/scripts/web_robot_interface.py --hardware"

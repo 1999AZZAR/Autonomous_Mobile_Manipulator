@@ -2543,6 +2543,7 @@ class GPIOController:
         self.gpio_initialized = False
         
         # GPIO pin definitions (from RASPBERRY_PI_PINOUTS.md)
+        # PG23 Motor Pinout: M+, M-, GND, VIN, DATA(A), DATA(B)
         self.PINS = {
             # Servos (Hardware PWM)
             'GRIPPER_TILT': 18,      # GPIO18 - Gripper Tilt Servo
@@ -2550,17 +2551,29 @@ class GPIOController:
             'GRIPPER_NECK': 21,      # GPIO21 - Gripper Extension (360° continuous)
             'GRIPPER_BASE': 12,      # GPIO12 - Gripper Base Height
             
-            # Omni Wheel Motors
-            'MOTOR_FL_DIR': 17,      # GPIO17 - Front Left Wheel Direction
-            'MOTOR_FL_PWM': 27,      # GPIO27 - Front Left Wheel PWM
-            'MOTOR_FR_DIR': 22,      # GPIO22 - Front Right Wheel Direction
-            'MOTOR_FR_PWM': 23,      # GPIO23 - Front Right Wheel PWM
-            'MOTOR_BACK_DIR': 24,    # GPIO24 - Back Wheel Direction
-            'MOTOR_BACK_PWM': 25,    # GPIO25 - Back Wheel PWM
+            # Omni Wheel Motors (PG23 - M+/M- connect to motor driver OUT1/OUT2)
+            'MOTOR_FL_DIR': 17,      # GPIO17 - Front Left Wheel Direction (L298N IN1)
+            'MOTOR_FL_PWM': 27,      # GPIO27 - Front Left Wheel PWM (L298N ENA)
+            'MOTOR_FR_DIR': 22,      # GPIO22 - Front Right Wheel Direction (L298N IN1)
+            'MOTOR_FR_PWM': 23,      # GPIO23 - Front Right Wheel PWM (L298N ENA)
+            'MOTOR_BACK_DIR': 24,    # GPIO24 - Back Wheel Direction (L298N IN1)
+            'MOTOR_BACK_PWM': 25,    # GPIO25 - Back Wheel PWM (L298N ENA)
             
-            # Gripper Lifter Motor
-            'LIFTER_DIR': 13,        # GPIO13 - Lifter Direction
-            'LIFTER_PWM': 12,        # GPIO12 - Lifter PWM (shared with base servo)
+            # Omni Wheel Encoders (PG23 DATA pins)
+            'ENC_FL_A': 5,           # GPIO5 - Front Left Encoder DATA(A)
+            'ENC_FL_B': 6,           # GPIO6 - Front Left Encoder DATA(B)
+            'ENC_FR_A': 20,          # GPIO20 - Front Right Encoder DATA(A)
+            'ENC_FR_B': 21,          # GPIO21 - Front Right Encoder DATA(B)
+            'ENC_BACK_A': 22,        # GPIO22 - Back Wheel Encoder DATA(A)
+            'ENC_BACK_B': 23,        # GPIO23 - Back Wheel Encoder DATA(B)
+            
+            # Gripper Lifter Motor (PG23)
+            'LIFTER_DIR': 13,        # GPIO13 - Lifter Direction (L298N IN1)
+            'LIFTER_PWM': 12,        # GPIO12 - Lifter PWM (L298N ENA)
+            
+            # Gripper Lifter Encoder (PG23 DATA pins)
+            'ENC_LIFTER_A': 19,      # GPIO19 - Lifter Encoder DATA(A)
+            'ENC_LIFTER_B': 16,      # GPIO16 - Lifter Encoder DATA(B)
             
             # Container Servos
             'CONTAINER_LF': 26,      # GPIO26 - Left Front Container
@@ -2608,22 +2621,37 @@ class GPIOController:
                         self.PINS['MOTOR_BACK_DIR'], self.PINS['MOTOR_BACK_PWM'],
                         self.PINS['LIFTER_DIR'], self.PINS['LIFTER_PWM']
                     ]
+                    
+                    # Encoder pins (inputs for PG23 DATA channels)
+                    encoder_pins = [
+                        self.PINS['ENC_FL_A'], self.PINS['ENC_FL_B'],
+                        self.PINS['ENC_FR_A'], self.PINS['ENC_FR_B'],
+                        self.PINS['ENC_BACK_A'], self.PINS['ENC_BACK_B'],
+                        self.PINS['ENC_LIFTER_A'], self.PINS['ENC_LIFTER_B']
+                    ]
 
                     container_pins = [
                         self.PINS['CONTAINER_LF'], self.PINS['CONTAINER_LB'],
                         self.PINS['CONTAINER_RF'], self.PINS['CONTAINER_RB']
                     ]
 
-                    # Claim all pins as outputs
-                    all_pins = servo_pins + motor_pins + container_pins
-                    for pin in all_pins:
+                    # Claim motor/servo pins as outputs
+                    all_output_pins = servo_pins + motor_pins + container_pins
+                    for pin in all_output_pins:
                         lgpio.gpio_claim_output(self.gpio_handle, pin)
                         print(f"✓ GPIO{pin} claimed as output")
+                    
+                    # Claim encoder pins as inputs (for PG23 DATA channels)
+                    for pin in encoder_pins:
+                        lgpio.gpio_claim_input(self.gpio_handle, pin)
+                        print(f"✓ GPIO{pin} claimed as input (encoder)")
+                    
+                    all_pins = all_output_pins + encoder_pins
 
                     self.gpio_initialized = True
                     print("✓ GPIO Controller initialized successfully with LGPIO!")
                     print(f"  - Total pins initialized: {len(all_pins)}")
-                    print("  - Servos: 4 pins, Motors: 8 pins, Containers: 4 pins")
+                    print("  - Servos: 4 pins, Motors: 8 pins, Encoders: 8 pins, Containers: 4 pins")
 
                 except Exception as e:
                     print(f"✗ ERROR: Failed to initialize LGPIO: {str(e)}")
@@ -3066,6 +3094,10 @@ class WebRobotInterface(Node):
         def stop_robot_endpoint():
             return self._stop_robot_endpoint()
 
+        @self.app.route('/api/robot/turn', methods=['POST'])
+        def turn_robot_endpoint():
+            return self._turn_robot_endpoint()
+
         @self.app.route('/api/robot/picker/gripper', methods=['POST'])
         def control_gripper_endpoint():
             return self._control_gripper_endpoint()
@@ -3172,10 +3204,17 @@ class WebRobotInterface(Node):
 
     def ros2_move_robot_callback(self, request, response):
         """ROS2 service callback for robot movement"""
-        success = self.gpio.move_robot(request.direction, request.speed)
-        response.success = success
-        response.message = f"Moving {request.direction}" if success else "Move failed"
-        response.status = "MOVING" if success else "ERROR"
+        # Check if this is a turn command
+        if request.direction in ['left', 'right']:
+            success = self.gpio.turn_robot(request.direction, request.speed)
+            response.success = success
+            response.message = f"Turning {request.direction}" if success else "Turn failed"
+            response.status = "TURNING" if success else "ERROR"
+        else:
+            success = self.gpio.move_robot(request.direction, request.speed)
+            response.success = success
+            response.message = f"Moving {request.direction}" if success else "Move failed"
+            response.status = "MOVING" if success else "ERROR"
         return response
 
     def ros2_control_container_callback(self, request, response):
@@ -3350,21 +3389,7 @@ class WebRobotInterface(Node):
                 self.get_logger().error(f'Move error: {str(e)}')
                 return jsonify({'success': False, 'error': str(e)}), 500
         
-        @self.app.route('/api/robot/turn', methods=['POST'])
-        def robot_turn():
-            try:
-                data = request.get_json()
-                direction = data.get('direction')
-                speed = data.get('speed', 0.5)
-                
-                success = self.gpio.turn_robot(direction, speed)
-                return jsonify({
-                    'success': success,
-                    'message': f'Turning {direction}' if success else 'Turn failed'
-                })
-            except Exception as e:
-                self.get_logger().error(f'Turn error: {str(e)}')
-                return jsonify({'success': False, 'error': str(e)}), 500
+        # Old /api/robot/turn route removed - now handled by _turn_robot_endpoint() in initialize_flask_app()
         
         @self.app.route('/api/robot/stop', methods=['POST'])
         def robot_stop():
@@ -4352,6 +4377,79 @@ class WebRobotInterface(Node):
 
         except Exception as e:
             self.get_logger().error(f'Stop robot error: {str(e)}', exc_info=True)
+            return jsonify({'success': False, 'error': str(e)}), 500
+
+    def _turn_robot_endpoint(self):
+        """Handle robot turn POST request"""
+        try:
+            data = request.get_json()
+            if not data:
+                return jsonify({'success': False, 'error': 'No data provided'}), 400
+                
+            direction = data.get('direction')
+            speed = data.get('speed', 0.5)
+
+            if not direction:
+                return jsonify({'success': False, 'error': 'Direction not specified'}), 400
+
+            # Validate direction
+            if direction not in ['left', 'right']:
+                return jsonify({
+                    'success': False,
+                    'error': f'Invalid direction: {direction}. Must be "left" or "right"'
+                }), 400
+
+            # Check if service client is available
+            if not hasattr(self, 'move_robot_client') or self.move_robot_client is None:
+                return jsonify({
+                    'success': False,
+                    'message': 'ROS2 move_robot service client not available'
+                }), 503
+
+            # Check if service is available
+            if not self.move_robot_client.service_is_ready():
+                return jsonify({
+                    'success': False,
+                    'message': 'ROS2 move_robot service not ready'
+                }), 503
+
+            # Create service request (use MoveRobot service with turn direction)
+            request_msg = MoveRobot.Request()
+            request_msg.direction = str(direction)
+            request_msg.speed = float(speed)
+            request_msg.duration = 0.0  # Turn until stopped
+
+            # Call ROS2 service asynchronously
+            future = self.move_robot_client.call_async(request_msg)
+            
+            # Wait for response with timeout (non-blocking spin)
+            timeout = 5.0
+            start_time = time.time()
+            while not future.done() and (time.time() - start_time) < timeout:
+                rclpy.spin_once(self, timeout_sec=0.1)
+            
+            if future.done():
+                try:
+                    response = future.result()
+                    return jsonify({
+                        'success': response.success,
+                        'message': response.message,
+                        'status': response.status
+                    })
+                except Exception as e:
+                    self.get_logger().error(f'Service call result error: {str(e)}')
+                    return jsonify({
+                        'success': False,
+                        'error': f'Service call failed: {str(e)}'
+                    }), 500
+            else:
+                return jsonify({
+                    'success': False,
+                    'message': 'Service call timeout'
+                }), 504
+
+        except Exception as e:
+            self.get_logger().error(f'Turn robot error: {str(e)}', exc_info=True)
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def _set_gripper_neck_endpoint(self):

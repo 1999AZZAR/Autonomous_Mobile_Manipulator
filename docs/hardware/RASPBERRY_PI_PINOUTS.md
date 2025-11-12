@@ -413,8 +413,8 @@ Some pins are assigned to multiple functions. Prioritize based on hardware capab
 ### **Core Components**
 
 - **Raspberry Pi 5** with Ubuntu Server 24.04 LTS
-- **3x Omni Wheel Motors** (DC motors with encoders, 12V)
-- **1x DC Motor** for gripper lifter (12V)
+- **3x Omni Wheel Motors** (PG23 built-in encoder motors, 12V, 15.5k RPM, 7 PPR)
+- **1x DC Motor** for gripper lifter (PG23 built-in encoder motor, 12V, 15.5k RPM, 7 PPR)
 - **4x L298N Motor Drivers** (for 3 omni wheels + 1 lifter)
 - **3x Servo Motors** for gripper system (MG996R or similar)
 - **6x VL53L0X Laser Distance Sensors** (for wall alignment)

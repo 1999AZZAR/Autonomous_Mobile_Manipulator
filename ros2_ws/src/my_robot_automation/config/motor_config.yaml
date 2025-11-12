@@ -1,0 +1,101 @@
+# Motor Configuration
+# PG23 Built-in Encoder Motor Specifications
+
+motor_specifications:
+  # Motor model
+  model: "PG23"
+  type: "DC Motor with Built-in Encoder"
+  
+  # Motor electrical specifications
+  voltage: 12.0  # Volts
+  no_load_rpm: 15500  # RPM (15.5k RPM)
+  
+  # Encoder specifications
+  encoder:
+    ppr: 7  # Pulses Per Revolution
+    quadrature_multiplier: 4  # A/B channel quadrature encoding
+    counts_per_revolution: 28  # PPR * quadrature_multiplier
+    
+  # Wheel specifications
+  wheel:
+    radius: 0.075  # meters (75mm)
+    width: 0.04  # meters (40mm)
+    
+  # Encoder calculation constants
+  # Distance per encoder count (meters)
+  # distance_per_count = (2 * pi * wheel_radius) / counts_per_revolution
+  distance_per_count: 0.0168  # meters (approximately 16.8 mm per count)
+
+# Motor applications
+# PG23 Motor Pinout: M+, M-, GND, VIN, DATA(A), DATA(B)
+motors:
+  omni_wheels:
+    count: 3
+    locations:
+      - name: "front_left"
+        motor_driver:
+          dir: 17      # GPIO17 - L298N IN1 (Direction)
+          pwm: 27      # GPIO27 - L298N ENA (PWM Speed)
+        motor_connections:
+          m_plus: "L298N OUT1"   # PG23 M+ → L298N OUT1
+          m_minus: "L298N OUT2"  # PG23 M- → L298N OUT2
+          gnd: "Common GND"      # PG23 GND → Common Ground
+          vin: "5V"              # PG23 VIN → 5V (encoder power)
+        encoder:
+          data_a: 5   # GPIO5 - PG23 DATA(A) channel
+          data_b: 6   # GPIO6 - PG23 DATA(B) channel
+      - name: "front_right"
+        motor_driver:
+          dir: 22      # GPIO22 - L298N IN1 (Direction)
+          pwm: 23      # GPIO23 - L298N ENA (PWM Speed)
+        motor_connections:
+          m_plus: "L298N OUT1"
+          m_minus: "L298N OUT2"
+          gnd: "Common GND"
+          vin: "5V"
+        encoder:
+          data_a: 20  # GPIO20 - PG23 DATA(A) channel
+          data_b: 21  # GPIO21 - PG23 DATA(B) channel
+      - name: "back"
+        motor_driver:
+          dir: 24      # GPIO24 - L298N IN1 (Direction)
+          pwm: 25      # GPIO25 - L298N ENA (PWM Speed)
+        motor_connections:
+          m_plus: "L298N OUT1"
+          m_minus: "L298N OUT2"
+          gnd: "Common GND"
+          vin: "5V"
+        encoder:
+          data_a: 22  # GPIO22 - PG23 DATA(A) channel
+          data_b: 23  # GPIO23 - PG23 DATA(B) channel
+        
+  gripper_lifter:
+    count: 1
+    location:
+      name: "center"
+      motor_driver:
+        dir: 13      # GPIO13 - L298N IN1 (Direction)
+        pwm: 12      # GPIO12 - L298N ENA (PWM Speed)
+      motor_connections:
+        m_plus: "L298N OUT1"
+        m_minus: "L298N OUT2"
+        gnd: "Common GND"
+        vin: "5V"
+      encoder:
+        data_a: 19   # GPIO19 - PG23 DATA(A) channel
+        data_b: 16   # GPIO16 - PG23 DATA(B) channel
+
+# PID control parameters (may need tuning)
+pid_control:
+  kp: 0.5    # Proportional gain
+  ki: 0.01   # Integral gain
+  kd: 0.1    # Derivative gain
+  
+  # Velocity limits
+  max_velocity: 1.0      # m/s
+  max_acceleration: 2.0  # m/s²
+  
+  # Position control
+  position_tolerance: 0.01  # meters
+  velocity_tolerance: 0.05  # m/s
+

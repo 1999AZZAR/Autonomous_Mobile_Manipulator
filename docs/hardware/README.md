@@ -54,7 +54,7 @@ The LKS Autonomous Mobile Manipulator consists of:
 |-----------|-------------------|----------|---------|
 | Raspberry Pi 5 | 8GB RAM, Ubuntu Server | 1 | Main computer and ROS2 processing |
 | Motor Driver | TB6600 or similar | 4 | 3x omni wheels + 1x lifter motor |
-| DC Motors | 12V, high torque | 4 | 3x wheels + 1x lifter actuation |
+| DC Motors | PG23 built-in encoder, 12V, 15.5k RPM, 7 PPR | 4 | 3x wheels + 1x lifter actuation |
 | Omni Wheels | 75mm diameter | 3 | Omnidirectional movement (Back, Front Left, Front Right) |
 | RPLIDAR A1 | 380° scanning | 1 | Laser-based obstacle detection and mapping |
 | Microsoft USB Camera | Standard webcam | 1 | Object recognition and computer vision |
@@ -63,7 +63,7 @@ The LKS Autonomous Mobile Manipulator consists of:
 | IMU Sensor | MPU6050/BNO055 | 1 | Orientation and motion sensing |
 | Servo Motors | MG996R or similar | 5 | Picker system actuation |
 | Gripper Servo | Standard servo | 1 | Object grasping |
-| Lifter Motor | DC motor with encoder | 1 | Vertical lifting mechanism |
+| Lifter Motor | PG23 built-in encoder motor, 12V, 15.5k RPM, 7 PPR | 1 | Vertical lifting mechanism |
 | Battery | 12V LiPo 5000mAh | 1 | Power supply |
 | Voltage Regulator | 5V/12V buck converter | 2 | Power management |
 | Container System | 4-compartment | 1 | Material transport and storage |
@@ -486,6 +486,7 @@ ros2 launch my_robot_bringup robot.launch.py
 - MPU6050/BNO055 IMU Datasheets
 - TB6600 Motor Driver Manual
 - Servo Motor Specifications
+- PG23 Motor Specifications (see MOTOR_SPECIFICATIONS.md)
 
 ### Community Resources
 - [ROS Discourse](https://discourse.ros.org/)

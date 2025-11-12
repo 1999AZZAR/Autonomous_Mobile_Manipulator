@@ -22,6 +22,7 @@ class ActuatorControlServer(Node):
         self.gpio_initialized = False
 
         # GPIO pin definitions
+        # PG23 Motor Pinout: M+, M-, GND, VIN, DATA(A), DATA(B)
         self.PINS = {
             # Servos (Hardware PWM)
             'GRIPPER_TILT': 18,
@@ -29,17 +30,29 @@ class ActuatorControlServer(Node):
             'GRIPPER_NECK': 21,
             'GRIPPER_BASE': 12,
 
-            # Omni Wheel Motors
-            'MOTOR_FL_DIR': 17,
-            'MOTOR_FL_PWM': 27,
-            'MOTOR_FR_DIR': 22,
-            'MOTOR_FR_PWM': 23,
-            'MOTOR_BACK_DIR': 24,
-            'MOTOR_BACK_PWM': 25,
+            # Omni Wheel Motors (PG23 - M+/M- connect to motor driver OUT1/OUT2)
+            'MOTOR_FL_DIR': 17,      # GPIO17 - Front Left Direction (L298N IN1)
+            'MOTOR_FL_PWM': 27,      # GPIO27 - Front Left PWM (L298N ENA)
+            'MOTOR_FR_DIR': 22,      # GPIO22 - Front Right Direction (L298N IN1)
+            'MOTOR_FR_PWM': 23,      # GPIO23 - Front Right PWM (L298N ENA)
+            'MOTOR_BACK_DIR': 24,    # GPIO24 - Back Direction (L298N IN1)
+            'MOTOR_BACK_PWM': 25,    # GPIO25 - Back PWM (L298N ENA)
 
-            # Gripper Lifter Motor
-            'LIFTER_DIR': 13,
-            'LIFTER_PWM': 12,
+            # Omni Wheel Encoders (PG23 DATA pins)
+            'ENC_FL_A': 5,           # GPIO5 - Front Left Encoder DATA(A)
+            'ENC_FL_B': 6,           # GPIO6 - Front Left Encoder DATA(B)
+            'ENC_FR_A': 20,          # GPIO20 - Front Right Encoder DATA(A)
+            'ENC_FR_B': 21,          # GPIO21 - Front Right Encoder DATA(B)
+            'ENC_BACK_A': 22,        # GPIO22 - Back Encoder DATA(A)
+            'ENC_BACK_B': 23,        # GPIO23 - Back Encoder DATA(B)
+
+            # Gripper Lifter Motor (PG23)
+            'LIFTER_DIR': 13,        # GPIO13 - Lifter Direction (L298N IN1)
+            'LIFTER_PWM': 12,        # GPIO12 - Lifter PWM (L298N ENA)
+
+            # Gripper Lifter Encoder (PG23 DATA pins)
+            'ENC_LIFTER_A': 19,      # GPIO19 - Lifter Encoder DATA(A)
+            'ENC_LIFTER_B': 16,      # GPIO16 - Lifter Encoder DATA(B)
 
             # Container Servos
             'CONTAINER_LF': 26,
@@ -79,17 +92,32 @@ class ActuatorControlServer(Node):
                 self.PINS['MOTOR_BACK_DIR'], self.PINS['MOTOR_BACK_PWM'],
                 self.PINS['LIFTER_DIR'], self.PINS['LIFTER_PWM']
             ]
+            
+            # Encoder pins (inputs for PG23 DATA channels)
+            encoder_pins = [
+                self.PINS['ENC_FL_A'], self.PINS['ENC_FL_B'],
+                self.PINS['ENC_FR_A'], self.PINS['ENC_FR_B'],
+                self.PINS['ENC_BACK_A'], self.PINS['ENC_BACK_B'],
+                self.PINS['ENC_LIFTER_A'], self.PINS['ENC_LIFTER_B']
+            ]
 
             container_pins = [
                 self.PINS['CONTAINER_LF'], self.PINS['CONTAINER_LB'],
                 self.PINS['CONTAINER_RF'], self.PINS['CONTAINER_RB']
             ]
 
-            # Claim all pins as outputs
-            all_pins = servo_pins + motor_pins + container_pins
-            for pin in all_pins:
+            # Claim motor/servo pins as outputs
+            all_output_pins = servo_pins + motor_pins + container_pins
+            for pin in all_output_pins:
                 lgpio.gpio_claim_output(self.gpio_handle, pin)
                 self.get_logger().info(f'✓ GPIO{pin} claimed as output')
+            
+            # Claim encoder pins as inputs (for PG23 DATA channels)
+            for pin in encoder_pins:
+                lgpio.gpio_claim_input(self.gpio_handle, pin)
+                self.get_logger().info(f'✓ GPIO{pin} claimed as input (encoder)')
+            
+            all_pins = all_output_pins + encoder_pins
 
             self.gpio_initialized = True
             self.get_logger().info('✓ GPIO Controller initialized successfully with lgpio!')
