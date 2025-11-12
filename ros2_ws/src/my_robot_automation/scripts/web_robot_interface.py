@@ -19,6 +19,14 @@ _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
     sys.path.insert(0, _script_dir)
 
+# Import PG23 motor controller
+try:
+    from pg23_motor_controller import PG23MotorManager
+    MOTOR_CONTROLLER_AVAILABLE = True
+except ImportError as e:
+    MOTOR_CONTROLLER_AVAILABLE = False
+    print(f"WARNING: Could not import PG23MotorController: {e}")
+
 # Try to import spidev, but allow graceful degradation
 try:
     import spidev
@@ -2583,6 +2591,9 @@ class GPIOController:
         self.motors = {}
         self.containers = {}
         
+        # Motor controller manager
+        self.motor_manager = None
+        
         # Initialize GPIO if not in simulation mode
         if not self.simulation_mode:
             # Try LGPIO first (works on Pi 5)
@@ -2659,6 +2670,38 @@ class GPIOController:
                     print(f"  - Total pins initialized: {len(all_pins)}")
                     print("  - Servos: 4 pins, Motor DATA pins: 8 pins (control & encoder), Containers: 4 pins")
                     print("  - Note: PG23 motors use built-in drivers - DATA(A) and DATA(B) handle both serial control and encoder feedback")
+                    
+                    # Initialize motor controllers
+                    if MOTOR_CONTROLLER_AVAILABLE:
+                        self.motor_manager = PG23MotorManager(self.gpio_handle)
+                        
+                        # Add all motors
+                        self.motor_manager.add_motor(
+                            'front_left',
+                            self.PINS['MOTOR_FL_DATA_A'],
+                            self.PINS['MOTOR_FL_DATA_B']
+                        )
+                        self.motor_manager.add_motor(
+                            'front_right',
+                            self.PINS['MOTOR_FR_DATA_A'],
+                            self.PINS['MOTOR_FR_DATA_B']
+                        )
+                        self.motor_manager.add_motor(
+                            'back',
+                            self.PINS['MOTOR_BACK_DATA_A'],
+                            self.PINS['MOTOR_BACK_DATA_B']
+                        )
+                        self.motor_manager.add_motor(
+                            'lifter',
+                            self.PINS['LIFTER_DATA_A'],
+                            self.PINS['LIFTER_DATA_B']
+                        )
+                        
+                        # Ensure all motors are stopped on initialization
+                        self.motor_manager.stop_all()
+                        print("✓ PG23 Motor controllers initialized - all motors stopped")
+                    else:
+                        print("⚠ Motor controller not available - motors will not be controlled")
 
                 except Exception as e:
                     print(f"✗ ERROR: Failed to initialize LGPIO: {str(e)}")
@@ -2820,78 +2863,91 @@ class GPIOController:
             return False
     
     def move_robot(self, direction, speed=0.5):
-        """Move robot in specified direction using omni wheels"""
+        """Move robot in specified direction using PG23 motor controllers"""
         if self.simulation_mode:
             print(f"[SIM] Moving {direction} at speed {speed}")
             return True
 
+        if not self.motor_manager:
+            print("ERROR: Motor manager not initialized")
+            return False
+
         try:
-            speed = max(0, min(1, speed))  # Clamp speed
-            pwm_value = 1 if speed > 0.5 else 0  # Simple on/off for now
+            speed = max(0.0, min(1.0, speed))  # Clamp speed
 
             if direction == 'forward':
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)  # Forward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)  # Forward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)  # Forward
-                print(f"✓ Moving forward (speed: {speed})")
+                # All motors forward
+                self.motor_manager['front_left'].forward(speed)
+                self.motor_manager['front_right'].forward(speed)
+                self.motor_manager['back'].forward(speed)
+                print(f"✓ Moving forward (speed: {speed:.2f})")
             elif direction == 'backward':
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)  # Backward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)  # Backward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)  # Backward
-                print(f"✓ Moving backward (speed: {speed})")
+                # All motors reverse
+                self.motor_manager['front_left'].reverse(speed)
+                self.motor_manager['front_right'].reverse(speed)
+                self.motor_manager['back'].reverse(speed)
+                print(f"✓ Moving backward (speed: {speed:.2f})")
             elif direction == 'strafe_left':
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)  # FL backward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)  # FR forward
-                # Back motor stopped
-                print(f"✓ Strafing left (speed: {speed})")
+                # Front left reverse, front right forward, back stopped
+                self.motor_manager['front_left'].reverse(speed)
+                self.motor_manager['front_right'].forward(speed)
+                self.motor_manager['back'].stop()
+                print(f"✓ Strafing left (speed: {speed:.2f})")
             elif direction == 'strafe_right':
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)  # FL forward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)  # FR backward
-                # Back motor stopped
-                print(f"✓ Strafing right (speed: {speed})")
+                # Front left forward, front right reverse, back stopped
+                self.motor_manager['front_left'].forward(speed)
+                self.motor_manager['front_right'].reverse(speed)
+                self.motor_manager['back'].stop()
+                print(f"✓ Strafing right (speed: {speed:.2f})")
             return True
         except Exception as e:
             print(f"ERROR moving robot: {str(e)}")
             return False
     
     def turn_robot(self, direction, speed=0.5):
-        """Turn robot left or right"""
+        """Turn robot left or right using PG23 motor controllers"""
         if self.simulation_mode:
             print(f"[SIM] Turning {direction} at speed {speed}")
             return True
 
+        if not self.motor_manager:
+            print("ERROR: Motor manager not initialized")
+            return False
+
         try:
-            speed = max(0, min(1, speed))
+            speed = max(0.0, min(1.0, speed))
 
             if direction == 'left':
-                # FL backward, FR forward, Back backward = turn left
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)  # FL backward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)  # FR forward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0) # Back backward
-                print(f"✓ Turning left (speed: {speed})")
+                # FL backward, FR forward, Back forward = turn left
+                self.motor_manager['front_left'].reverse(speed)
+                self.motor_manager['front_right'].forward(speed)
+                self.motor_manager['back'].forward(speed)
+                print(f"✓ Turning left (speed: {speed:.2f})")
             elif direction == 'right':
-                # FL forward, FR backward, Back forward = turn right
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)  # FL forward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)  # FR backward
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1) # Back forward
-                print(f"✓ Turning right (speed: {speed})")
+                # FL forward, FR backward, Back reverse = turn right
+                self.motor_manager['front_left'].forward(speed)
+                self.motor_manager['front_right'].reverse(speed)
+                self.motor_manager['back'].reverse(speed)
+                print(f"✓ Turning right (speed: {speed:.2f})")
             return True
         except Exception as e:
             print(f"ERROR turning robot: {str(e)}")
             return False
     
     def stop_robot(self):
-        """Stop all motors"""
+        """Stop all motors using PG23 motor controllers"""
         if self.simulation_mode:
             print("[SIM] Stopping robot")
             return True
 
+        if not self.motor_manager:
+            print("WARNING: Motor manager not available - cannot stop motors")
+            return False
+
         try:
-            # Set all motor direction pins to 0 (stop)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
-            print("✓ Robot stopped")
+            # Send STOP command to all motors
+            self.motor_manager.stop_all()
+            print("✓ Robot stopped - all motors sent STOP command")
             return True
         except Exception as e:
             print(f"ERROR stopping robot: {str(e)}")
@@ -2930,9 +2986,15 @@ class GPIOController:
             return False
     
     def cleanup(self):
-        """Cleanup GPIO resources"""
+        """Cleanup GPIO resources and stop all motors"""
         if not self.simulation_mode and self.gpio_initialized and hasattr(self, 'gpio_handle'):
             try:
+                # Stop all motors before cleanup
+                if self.motor_manager:
+                    print("Stopping all motors before cleanup...")
+                    self.motor_manager.stop_all()
+                    time.sleep(0.1)  # Give motors time to stop
+                
                 # Close GPIO chip
                 lgpio.gpiochip_close(self.gpio_handle)
                 self.gpio_handle = None
