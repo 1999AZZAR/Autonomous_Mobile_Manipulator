@@ -19,13 +19,8 @@ _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
     sys.path.insert(0, _script_dir)
 
-# Import PG23 motor controller
-try:
-    from pg23_motor_controller import PG23MotorManager
-    MOTOR_CONTROLLER_AVAILABLE = True
-except ImportError as e:
-    MOTOR_CONTROLLER_AVAILABLE = False
-    print(f"WARNING: Could not import PG23MotorController: {e}")
+# Note: PG23 motors have built-in encoders only - controlled via L298N drivers
+# No serial motor controller needed - using direct GPIO control for L298N DIR/PWM pins
 
 # Try to import spidev, but allow graceful degradation
 try:
@@ -2559,40 +2554,47 @@ class GPIOController:
             'GRIPPER_TILT': 18,      # GPIO18 - Gripper Tilt Servo
             'GRIPPER_OPEN_CLOSE': 19,# GPIO19 - Gripper Open/Close
             'GRIPPER_NECK': 21,      # GPIO21 - Gripper Extension (360° continuous)
-            # NOTE: GRIPPER_BASE removed from GPIO12 - GPIO12 is needed for LIFTER_DATA_B motor control
+            # NOTE: GRIPPER_BASE removed from GPIO12 - GPIO12 is needed for LIFTER_PWM motor control
             
-            # Omni Wheel Motors (PG23 with built-in driver - serial control via DATA pins)
-            # Note: DATA(A) and DATA(B) pins serve dual purpose: serial control AND encoder feedback
+            # Omni Wheel Motors (PG23 with built-in encoder - controlled via L298N drivers)
+            # Motor Control: L298N DIR and PWM pins
+            # Encoder Reading: DATA(A) and DATA(B) pins (encoder feedback only)
+            
             # Front Left Motor
-            'MOTOR_FL_DATA_A': 17,   # GPIO17 - DATA(A) pin (Serial TX / Encoder A - same pin)
-            'MOTOR_FL_DATA_B': 27,   # GPIO27 - DATA(B) pin (Serial RX / Encoder B - same pin)
+            'MOTOR_FL_DIR': 17,      # GPIO17 - L298N Direction pin (OUT1/OUT2 control)
+            'MOTOR_FL_PWM': 27,      # GPIO27 - L298N PWM pin (speed control)
+            'MOTOR_FL_ENCODER_A': 22, # GPIO22 - Encoder DATA(A) pin (read only)
+            'MOTOR_FL_ENCODER_B': 23, # GPIO23 - Encoder DATA(B) pin (read only)
             
             # Front Right Motor
-            'MOTOR_FR_DATA_A': 22,   # GPIO22 - DATA(A) pin (Serial TX / Encoder A - same pin)
-            'MOTOR_FR_DATA_B': 23,   # GPIO23 - DATA(B) pin (Serial RX / Encoder B - same pin)
+            'MOTOR_FR_DIR': 24,      # GPIO24 - L298N Direction pin
+            'MOTOR_FR_PWM': 25,      # GPIO25 - L298N PWM pin
+            'MOTOR_FR_ENCODER_A': 16, # GPIO16 - Encoder DATA(A) pin (read only)
+            'MOTOR_FR_ENCODER_B': 26, # GPIO26 - Encoder DATA(B) pin (read only)
             
             # Back Motor
-            'MOTOR_BACK_DATA_A': 24, # GPIO24 - DATA(A) pin (Serial TX / Encoder A - same pin)
-            'MOTOR_BACK_DATA_B': 25, # GPIO25 - DATA(B) pin (Serial RX / Encoder B - same pin)
+            'MOTOR_BACK_DIR': 5,     # GPIO5 - L298N Direction pin
+            'MOTOR_BACK_PWM': 6,     # GPIO6 - L298N PWM pin
+            'MOTOR_BACK_ENCODER_A': 7, # GPIO7 - Encoder DATA(A) pin (read only)
+            'MOTOR_BACK_ENCODER_B': 9, # GPIO9 - Encoder DATA(B) pin (read only, moved from GPIO8)
             
             # Gripper Lifter Motor
-            'LIFTER_DATA_A': 13,     # GPIO13 - DATA(A) pin (Serial TX / Encoder A - same pin)
-            'LIFTER_DATA_B': 12,     # GPIO12 - DATA(B) pin (Serial RX / Encoder B - same pin)
+            'LIFTER_DIR': 13,        # GPIO13 - L298N Direction pin
+            'LIFTER_PWM': 12,       # GPIO12 - L298N PWM pin
+            'LIFTER_ENCODER_A': 20,  # GPIO20 - Encoder DATA(A) pin (read only)
+            'LIFTER_ENCODER_B': 21,  # GPIO21 - Encoder DATA(B) pin (read only)
             
-            # Container Servos
-            'CONTAINER_LF': 26,      # GPIO26 - Left Front Container
-            'CONTAINER_LB': 5,       # GPIO5 - Left Back Container
-            'CONTAINER_RF': 6,       # GPIO6 - Right Front Container
-            'CONTAINER_RB': 7,       # GPIO7 - Right Back Container
+            # Container Servos (reassigned to avoid conflicts with motor pins)
+            'CONTAINER_LF': 14,      # GPIO14 - Left Front Container
+            'CONTAINER_LB': 15,      # GPIO15 - Left Back Container
+            'CONTAINER_RF': 4,       # GPIO4 - Right Front Container
+            'CONTAINER_RB': 8,       # GPIO8 - Right Back Container (note: GPIO8 was MOTOR_BACK_ENCODER_B, moved to GPIO9)
         }
         
         # Hardware objects
         self.servos = {}
         self.motors = {}
         self.containers = {}
-        
-        # Motor controller manager
-        self.motor_manager = None
         
         # Initialize GPIO if not in simulation mode
         if not self.simulation_mode:
@@ -2614,20 +2616,40 @@ class GPIOController:
                     self.gpio_handle = lgpio.gpiochip_open(0)
                     print("✓ GPIO chip opened successfully")
 
-                    # Initialize all GPIO pins as outputs
+                    # Initialize all GPIO pins
                     servo_pins = [
                         self.PINS['GRIPPER_TILT'],
                         self.PINS['GRIPPER_OPEN_CLOSE'],
                         self.PINS['GRIPPER_NECK']
-                        # NOTE: GRIPPER_BASE removed - GPIO12 is needed for LIFTER_DATA_B motor control
+                        # NOTE: GRIPPER_BASE removed - GPIO12 is needed for LIFTER_PWM motor control
                     ]
 
-                    # Motor DATA pins (PG23 built-in driver - same pins for serial control AND encoder)
-                    motor_data_pins = [
-                        self.PINS['MOTOR_FL_DATA_A'], self.PINS['MOTOR_FL_DATA_B'],
-                        self.PINS['MOTOR_FR_DATA_A'], self.PINS['MOTOR_FR_DATA_B'],
-                        self.PINS['MOTOR_BACK_DATA_A'], self.PINS['MOTOR_BACK_DATA_B'],
-                        self.PINS['LIFTER_DATA_A'], self.PINS['LIFTER_DATA_B']
+                    # L298N Motor Control pins (DIR and PWM)
+                    motor_dir_pins = [
+                        self.PINS['MOTOR_FL_DIR'],
+                        self.PINS['MOTOR_FR_DIR'],
+                        self.PINS['MOTOR_BACK_DIR'],
+                        self.PINS['LIFTER_DIR']
+                    ]
+                    motor_pwm_pins = [
+                        self.PINS['MOTOR_FL_PWM'],
+                        self.PINS['MOTOR_FR_PWM'],
+                        self.PINS['MOTOR_BACK_PWM'],
+                        self.PINS['LIFTER_PWM']
+                    ]
+                    
+                    # Encoder pins (DATA A and B - read only)
+                    encoder_a_pins = [
+                        self.PINS['MOTOR_FL_ENCODER_A'],
+                        self.PINS['MOTOR_FR_ENCODER_A'],
+                        self.PINS['MOTOR_BACK_ENCODER_A'],
+                        self.PINS['LIFTER_ENCODER_A']
+                    ]
+                    encoder_b_pins = [
+                        self.PINS['MOTOR_FL_ENCODER_B'],
+                        self.PINS['MOTOR_FR_ENCODER_B'],
+                        self.PINS['MOTOR_BACK_ENCODER_B'],
+                        self.PINS['LIFTER_ENCODER_B']
                     ]
 
                     container_pins = [
@@ -2636,72 +2658,30 @@ class GPIOController:
                     ]
 
                     # Claim servo pins as outputs
-                    all_output_pins = servo_pins + container_pins
+                    all_output_pins = servo_pins + motor_dir_pins + motor_pwm_pins + container_pins
                     for pin in all_output_pins:
                         lgpio.gpio_claim_output(self.gpio_handle, pin)
                         print(f"✓ GPIO{pin} claimed as output")
                     
-                    # Motor DATA pins: Configure as bidirectional for serial communication
-                    # DATA(A) pins: TX output for serial control, also read encoder A
-                    # DATA(B) pins: RX input for serial feedback, also read encoder B
-                    motor_data_a_pins = [
-                        self.PINS['MOTOR_FL_DATA_A'], self.PINS['MOTOR_FR_DATA_A'],
-                        self.PINS['MOTOR_BACK_DATA_A'], self.PINS['LIFTER_DATA_A']
-                    ]
-                    motor_data_b_pins = [
-                        self.PINS['MOTOR_FL_DATA_B'], self.PINS['MOTOR_FR_DATA_B'],
-                        self.PINS['MOTOR_BACK_DATA_B'], self.PINS['LIFTER_DATA_B']
-                    ]
-                    
-                    # DATA(A) pins: Output for serial TX, also read encoder A
-                    for pin in motor_data_a_pins:
-                        lgpio.gpio_claim_output(self.gpio_handle, pin)
-                        print(f"✓ GPIO{pin} claimed as output (DATA A - Serial TX / Encoder A)")
-                    
-                    # DATA(B) pins: Input for serial RX, also read encoder B
-                    for pin in motor_data_b_pins:
+                    # Encoder pins: Input only (read encoder feedback)
+                    for pin in encoder_a_pins + encoder_b_pins:
                         lgpio.gpio_claim_input(self.gpio_handle, pin)
-                        print(f"✓ GPIO{pin} claimed as input (DATA B - Serial RX / Encoder B)")
+                        print(f"✓ GPIO{pin} claimed as input (Encoder)")
                     
-                    all_pins = all_output_pins + motor_data_a_pins + motor_data_b_pins
+                    # Initialize all motors to STOP (DIR=0, PWM=0)
+                    for dir_pin in motor_dir_pins:
+                        lgpio.gpio_write(self.gpio_handle, dir_pin, 0)
+                    for pwm_pin in motor_pwm_pins:
+                        lgpio.gpio_write(self.gpio_handle, pwm_pin, 0)
+                    
+                    all_pins = all_output_pins + encoder_a_pins + encoder_b_pins
 
                     self.gpio_initialized = True
                     print("✓ GPIO Controller initialized successfully with LGPIO!")
                     print(f"  - Total pins initialized: {len(all_pins)}")
-                    print("  - Servos: 4 pins, Motor DATA pins: 8 pins (control & encoder), Containers: 4 pins")
-                    print("  - Note: PG23 motors use built-in drivers - DATA(A) and DATA(B) handle both serial control and encoder feedback")
-                    
-                    # Initialize motor controllers
-                    if MOTOR_CONTROLLER_AVAILABLE:
-                        self.motor_manager = PG23MotorManager(self.gpio_handle)
-                        
-                        # Add all motors
-                        self.motor_manager.add_motor(
-                            'front_left',
-                            self.PINS['MOTOR_FL_DATA_A'],
-                            self.PINS['MOTOR_FL_DATA_B']
-                        )
-                        self.motor_manager.add_motor(
-                            'front_right',
-                            self.PINS['MOTOR_FR_DATA_A'],
-                            self.PINS['MOTOR_FR_DATA_B']
-                        )
-                        self.motor_manager.add_motor(
-                            'back',
-                            self.PINS['MOTOR_BACK_DATA_A'],
-                            self.PINS['MOTOR_BACK_DATA_B']
-                        )
-                        self.motor_manager.add_motor(
-                            'lifter',
-                            self.PINS['LIFTER_DATA_A'],
-                            self.PINS['LIFTER_DATA_B']
-                        )
-                        
-                        # Ensure all motors are stopped on initialization
-                        self.motor_manager.stop_all()
-                        print("✓ PG23 Motor controllers initialized - all motors stopped")
-                    else:
-                        print("⚠ Motor controller not available - motors will not be controlled")
+                    print("  - Servos: 3 pins, L298N Motor Control: 8 pins (DIR+PWM), Encoders: 8 pins (read only), Containers: 4 pins")
+                    print("  - Note: PG23 motors have built-in encoders - controlled via L298N drivers")
+                    print("  - All motors initialized to STOP state")
 
                 except Exception as e:
                     print(f"✗ ERROR: Failed to initialize LGPIO: {str(e)}")
@@ -2867,41 +2847,54 @@ class GPIOController:
             return False
     
     def move_robot(self, direction, speed=0.5):
-        """Move robot in specified direction using PG23 motor controllers"""
+        """Move robot in specified direction using L298N motor drivers"""
         if self.simulation_mode:
             print(f"[SIM] Moving {direction} at speed {speed}")
             return True
 
-        if not self.motor_manager:
-            print("ERROR: Motor manager not initialized")
+        if not self.gpio_initialized:
+            print("ERROR: GPIO not initialized")
             return False
 
         try:
             speed = max(0.0, min(1.0, speed))  # Clamp speed
+            pwm_value = 1 if speed > 0.5 else 0  # Simple on/off for now (can use PWM later)
 
             if direction == 'forward':
-                # All motors forward
-                self.motor_manager['front_left'].forward(speed)
-                self.motor_manager['front_right'].forward(speed)
-                self.motor_manager['back'].forward(speed)
+                # All motors forward (DIR=1, PWM=1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 print(f"✓ Moving forward (speed: {speed:.2f})")
             elif direction == 'backward':
-                # All motors reverse
-                self.motor_manager['front_left'].reverse(speed)
-                self.motor_manager['front_right'].reverse(speed)
-                self.motor_manager['back'].reverse(speed)
+                # All motors reverse (DIR=0, PWM=1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 print(f"✓ Moving backward (speed: {speed:.2f})")
             elif direction == 'strafe_left':
                 # Front left reverse, front right forward, back stopped
-                self.motor_manager['front_left'].reverse(speed)
-                self.motor_manager['front_right'].forward(speed)
-                self.motor_manager['back'].stop()
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
                 print(f"✓ Strafing left (speed: {speed:.2f})")
             elif direction == 'strafe_right':
                 # Front left forward, front right reverse, back stopped
-                self.motor_manager['front_left'].forward(speed)
-                self.motor_manager['front_right'].reverse(speed)
-                self.motor_manager['back'].stop()
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
                 print(f"✓ Strafing right (speed: {speed:.2f})")
             return True
         except Exception as e:
@@ -2909,29 +2902,36 @@ class GPIOController:
             return False
     
     def turn_robot(self, direction, speed=0.5):
-        """Turn robot left or right using PG23 motor controllers"""
+        """Turn robot left or right using L298N motor drivers"""
         if self.simulation_mode:
             print(f"[SIM] Turning {direction} at speed {speed}")
             return True
 
-        if not self.motor_manager:
-            print("ERROR: Motor manager not initialized")
+        if not self.gpio_initialized:
+            print("ERROR: GPIO not initialized")
             return False
 
         try:
             speed = max(0.0, min(1.0, speed))
+            pwm_value = 1 if speed > 0.5 else 0  # Simple on/off for now
 
             if direction == 'left':
-                # FL backward, FR forward, Back forward = turn left
-                self.motor_manager['front_left'].reverse(speed)
-                self.motor_manager['front_right'].forward(speed)
-                self.motor_manager['back'].forward(speed)
+                # FL backward (DIR=0), FR forward (DIR=1), Back forward (DIR=1) = turn left
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 print(f"✓ Turning left (speed: {speed:.2f})")
             elif direction == 'right':
-                # FL forward, FR backward, Back reverse = turn right
-                self.motor_manager['front_left'].forward(speed)
-                self.motor_manager['front_right'].reverse(speed)
-                self.motor_manager['back'].reverse(speed)
+                # FL forward (DIR=1), FR backward (DIR=0), Back reverse (DIR=0) = turn right
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 print(f"✓ Turning right (speed: {speed:.2f})")
             return True
         except Exception as e:
@@ -2939,19 +2939,22 @@ class GPIOController:
             return False
     
     def stop_robot(self):
-        """Stop all motors using PG23 motor controllers"""
+        """Stop all motors using L298N motor drivers"""
         if self.simulation_mode:
             print("[SIM] Stopping robot")
             return True
 
-        if not self.motor_manager:
-            print("WARNING: Motor manager not available - cannot stop motors")
+        if not self.gpio_initialized:
+            print("WARNING: GPIO not initialized - cannot stop motors")
             return False
 
         try:
-            # Send STOP command to all motors
-            self.motor_manager.stop_all()
-            print("✓ Robot stopped - all motors sent STOP command")
+            # Set all PWM pins to 0 (stop motors)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], 0)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], 0)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['LIFTER_PWM'], 0)
+            print("✓ Robot stopped")
             return True
         except Exception as e:
             print(f"ERROR stopping robot: {str(e)}")
@@ -2993,11 +2996,10 @@ class GPIOController:
         """Cleanup GPIO resources and stop all motors"""
         if not self.simulation_mode and self.gpio_initialized and hasattr(self, 'gpio_handle'):
             try:
-                # Stop all motors before cleanup
-                if self.motor_manager:
-                    print("Stopping all motors before cleanup...")
-                    self.motor_manager.stop_all()
-                    time.sleep(0.1)  # Give motors time to stop
+                # Stop all motors before cleanup (set PWM pins to 0)
+                print("Stopping all motors before cleanup...")
+                self.stop_robot()
+                time.sleep(0.1)  # Give motors time to stop
                 
                 # Close GPIO chip
                 lgpio.gpiochip_close(self.gpio_handle)

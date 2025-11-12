@@ -53,29 +53,38 @@ Raspberry Pi 5 GPIO Header (40-pin)
 
 ## GPIO Pin Assignments (Hexagonal Robot Architecture)
 
-### **Motor Control (PG23 Built-in Driver - 3x for Omni Wheels + 1x for Gripper)**
+### **Motor Control (L298N Drivers - 3x for Omni Wheels + 1x for Gripper)**
 
-**Note:** PG23 motors have built-in drivers - no external L298N needed. Control via serial communication (UART/SPI).
+**Note:** PG23 motors have built-in encoders only - controlled via L298N motor drivers.
 
 ```bash
-# Omni Wheel Motors (3x) - Serial Control & Encoder (Same Pins)
-# Note: DATA(A) and DATA(B) pins handle both serial control and encoder feedback
+# Omni Wheel Motors (3x) - L298N Control & Encoder (Separate Pins)
+# Motor Control: L298N DIR and PWM pins
+# Encoder Reading: DATA(A) and DATA(B) pins (read only)
 
 # Front Left Wheel
-GPIO17 (11) - Front Left DATA(A) - Serial TX / Encoder A (same pin)
-GPIO27 (13) - Front Left DATA(B) - Serial RX / Encoder B (same pin)
+GPIO17 (11) - Front Left DIR - L298N Direction pin (OUT1/OUT2 control)
+GPIO27 (13) - Front Left PWM - L298N PWM pin (speed control)
+GPIO22 (15) - Front Left Encoder A - DATA(A) pin (read only)
+GPIO23 (16) - Front Left Encoder B - DATA(B) pin (read only)
 
 # Front Right Wheel
-GPIO22 (15) - Front Right DATA(A) - Serial TX / Encoder A (same pin)
-GPIO23 (16) - Front Right DATA(B) - Serial RX / Encoder B (same pin)
+GPIO24 (18) - Front Right DIR - L298N Direction pin
+GPIO25 (22) - Front Right PWM - L298N PWM pin
+GPIO16 (36) - Front Right Encoder A - DATA(A) pin (read only)
+GPIO26 (37) - Front Right Encoder B - DATA(B) pin (read only)
 
 # Back Wheel
-GPIO24 (18) - Back DATA(A) - Serial TX / Encoder A (same pin)
-GPIO25 (22) - Back DATA(B) - Serial RX / Encoder B (same pin)
+GPIO5  (29) - Back DIR - L298N Direction pin
+GPIO6  (31) - Back PWM - L298N PWM pin
+GPIO7  (26) - Back Encoder A - DATA(A) pin (read only)
+GPIO9  (21) - Back Encoder B - DATA(B) pin (read only)
 
 # Gripper Lifter Motor (1x PG23)
-GPIO13 (33) - Lifter DATA(A) - Serial TX / Encoder A (same pin)
-GPIO12 (32) - Lifter DATA(B) - Serial RX / Encoder B (same pin)
+GPIO13 (33) - Lifter DIR - L298N Direction pin
+GPIO12 (32) - Lifter PWM - L298N PWM pin
+GPIO20 (38) - Lifter Encoder A - DATA(A) pin (read only)
+GPIO21 (40) - Lifter Encoder B - DATA(B) pin (read only)
 ```
 
 ### **Servo Motors (3x for Gripper System)**
@@ -163,33 +172,47 @@ USB3 - Optional: RPLIDAR backup (if needed)
 
 ## Hardware Connections
 
-### **Motor Driver Connections (L298N or similar)**
+### **Motor Driver Connections (L298N)**
 
 ```bash
-# Motor Driver 1 - Front Left Omni Wheel
-IN1: GPIO17 (11) - Direction (Forward)
-IN2: GPIO27 (13) - Direction (Reverse)
-ENA: GPIO27 (13) - PWM Speed Control
+# Motor Driver 1 - Front Left Omni Wheel (PG23 motor)
+IN1: GPIO17 (11) - DIR pin (Direction control: 1=forward, 0=reverse)
+ENA: GPIO27 (13) - PWM pin (Speed control: 0=stop, 1=full speed)
+Motor M+: 12V Power Supply
+Motor M-: L298N OUT1
+Encoder DATA(A): GPIO22 (15) - Read only
+Encoder DATA(B): GPIO23 (16) - Read only
 
-# Motor Driver 2 - Front Right Omni Wheel
-IN3: GPIO22 (15) - Direction (Forward)
-IN4: GPIO23 (16) - Direction (Reverse)
-ENB: GPIO23 (16) - PWM Speed Control
+# Motor Driver 2 - Front Right Omni Wheel (PG23 motor)
+IN1: GPIO24 (18) - DIR pin (Direction control)
+ENA: GPIO25 (22) - PWM pin (Speed control)
+Motor M+: 12V Power Supply
+Motor M-: L298N OUT1
+Encoder DATA(A): GPIO16 (36) - Read only
+Encoder DATA(B): GPIO26 (37) - Read only
 
-# Motor Driver 3 - Back Omni Wheel
-IN1: GPIO24 (18) - Direction (Forward)
-IN2: GPIO25 (22) - Direction (Reverse)
-ENA: GPIO25 (22) - PWM Speed Control
+# Motor Driver 3 - Back Omni Wheel (PG23 motor)
+IN1: GPIO5  (29) - DIR pin (Direction control)
+ENA: GPIO6  (31) - PWM pin (Speed control)
+Motor M+: 12V Power Supply
+Motor M-: L298N OUT1
+Encoder DATA(A): GPIO7  (26) - Read only
+Encoder DATA(B): GPIO9  (21) - Read only
 
-# Motor Driver 4 - Gripper Lifter (DC Motor)
-IN1: GPIO12 (32) - Direction (Up)
-IN2: GPIO13 (33) - Direction (Down)
-ENA: GPIO13 (33) - PWM Speed Control
+# Motor Driver 4 - Gripper Lifter (PG23 motor)
+IN1: GPIO13 (33) - DIR pin (Direction control)
+ENA: GPIO12 (32) - PWM pin (Speed control)
+Motor M+: 12V Power Supply
+Motor M-: L298N OUT1
+Encoder DATA(A): GPIO20 (38) - Read only
+Encoder DATA(B): GPIO21 (40) - Read only
 
-# Power Connections (12V)
-All motor drivers connect to 12V supply
-Logic pins connect to 5V from Raspberry Pi
-Ground pins connect to common GND
+# Note: All L298N modules require:
+# - VCC: 5V (logic power)
+# - GND: Common ground
+# - VS: 12V (motor power)
+# - OUT1/OUT2: Connect to motor M+/M- terminals
+# - Heat sinks recommended for continuous operation
 ```
 
 ### **Sensor Connections**
@@ -424,7 +447,7 @@ Some pins are assigned to multiple functions. Prioritize based on hardware capab
 - **Raspberry Pi 5** with Ubuntu Server 24.04 LTS
 - **3x Omni Wheel Motors** (PG23 built-in encoder motors, 12V, 15.5k RPM, 7 PPR)
 - **1x DC Motor** for gripper lifter (PG23 built-in encoder motor, 12V, 15.5k RPM, 7 PPR)
-- **4x PG23 Motors** with built-in drivers (3 omni wheels + 1 lifter) - no external drivers needed
+- **4x L298N Motor Driver Modules** (for controlling PG23 motors - motors have built-in encoders only)
 - **3x Servo Motors** for gripper system (MG996R or similar)
 - **6x VL53L0X Laser Distance Sensors** (for wall alignment)
 - **2x HC-SR04 Ultrasonic Sensors** (for front obstacle detection)
@@ -443,7 +466,7 @@ Some pins are assigned to multiple functions. Prioritize based on hardware capab
 - **Voltage regulators**: 12V→5V (5A), 5V→3.3V (1A)
 - **Resistors**: 1kΩ and 2kΩ (for ultrasonic voltage dividers)
 - **Capacitors**: 10µF, 100nF (for motor driver noise filtering)
-- **Heat sinks** for voltage regulators (motors have built-in drivers)
+- **Heat sinks** for L298N motor drivers and voltage regulators
 - **Terminal blocks** for power distribution
 - **Push buttons** (3x) for emergency stop, start, and mode selection
 

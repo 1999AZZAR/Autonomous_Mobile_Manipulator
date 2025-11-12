@@ -7,17 +7,8 @@ import time
 import sys
 import os
 
-# Add script directory to path to import pg23_motor_controller
-script_dir = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, script_dir)
-
-# Import PG23 motor controller
-try:
-    from pg23_motor_controller import PG23MotorManager
-    MOTOR_CONTROLLER_AVAILABLE = True
-except ImportError as e:
-    print(f"WARNING: Could not import PG23MotorController: {e}")
-    MOTOR_CONTROLLER_AVAILABLE = False
+# Note: PG23 motors have built-in encoders only - controlled via L298N drivers
+# No serial motor controller needed - using direct GPIO control for L298N DIR/PWM pins
 
 # ROS2 service imports
 from my_robot_automation.srv import (
@@ -34,44 +25,49 @@ class ActuatorControlServer(Node):
         # GPIO setup
         self.gpio_handle = None
         self.gpio_initialized = False
-        
-        # Motor controller manager
-        self.motor_manager = None
 
         # GPIO pin definitions
         # PG23 Motor Pinout: M+, M-, GND, VIN, DATA(A), DATA(B)
-        # Note: PG23 motors have built-in drivers - no external L298N needed
-        # DATA pins are used for serial communication (UART/SPI) to control motor
+        # Note: PG23 motors have built-in encoders only - controlled via L298N drivers
+        # Motor Control: L298N DIR and PWM pins
+        # Encoder Reading: DATA(A) and DATA(B) pins (encoder feedback only)
         self.PINS = {
             # Servos (Hardware PWM)
             'GRIPPER_TILT': 18,
             'GRIPPER_OPEN_CLOSE': 19,
             'GRIPPER_NECK': 21,
-            'GRIPPER_BASE': 12,
+            # NOTE: GRIPPER_BASE removed - GPIO12 is needed for LIFTER_PWM motor control
 
-            # Omni Wheel Motors (PG23 with built-in driver - serial control via DATA pins)
-            # Note: DATA(A) and DATA(B) pins serve dual purpose: serial control AND encoder feedback
+            # Omni Wheel Motors (PG23 with built-in encoder - controlled via L298N drivers)
             # Front Left Motor
-            'MOTOR_FL_DATA_A': 17,   # GPIO17 - DATA(A) pin (Serial TX / Encoder A - same pin)
-            'MOTOR_FL_DATA_B': 27,   # GPIO27 - DATA(B) pin (Serial RX / Encoder B - same pin)
+            'MOTOR_FL_DIR': 17,      # GPIO17 - L298N Direction pin (OUT1/OUT2 control)
+            'MOTOR_FL_PWM': 27,      # GPIO27 - L298N PWM pin (speed control)
+            'MOTOR_FL_ENCODER_A': 22, # GPIO22 - Encoder DATA(A) pin (read only)
+            'MOTOR_FL_ENCODER_B': 23, # GPIO23 - Encoder DATA(B) pin (read only)
             
             # Front Right Motor
-            'MOTOR_FR_DATA_A': 22,   # GPIO22 - DATA(A) pin (Serial TX / Encoder A - same pin)
-            'MOTOR_FR_DATA_B': 23,   # GPIO23 - DATA(B) pin (Serial RX / Encoder B - same pin)
+            'MOTOR_FR_DIR': 24,      # GPIO24 - L298N Direction pin
+            'MOTOR_FR_PWM': 25,      # GPIO25 - L298N PWM pin
+            'MOTOR_FR_ENCODER_A': 16, # GPIO16 - Encoder DATA(A) pin (read only)
+            'MOTOR_FR_ENCODER_B': 26, # GPIO26 - Encoder DATA(B) pin (read only)
             
             # Back Motor
-            'MOTOR_BACK_DATA_A': 24, # GPIO24 - DATA(A) pin (Serial TX / Encoder A - same pin)
-            'MOTOR_BACK_DATA_B': 25, # GPIO25 - DATA(B) pin (Serial RX / Encoder B - same pin)
+            'MOTOR_BACK_DIR': 5,     # GPIO5 - L298N Direction pin
+            'MOTOR_BACK_PWM': 6,     # GPIO6 - L298N PWM pin
+            'MOTOR_BACK_ENCODER_A': 7, # GPIO7 - Encoder DATA(A) pin (read only)
+            'MOTOR_BACK_ENCODER_B': 9, # GPIO9 - Encoder DATA(B) pin (read only)
 
             # Gripper Lifter Motor
-            'LIFTER_DATA_A': 13,     # GPIO13 - DATA(A) pin (Serial TX / Encoder A - same pin)
-            'LIFTER_DATA_B': 12,     # GPIO12 - DATA(B) pin (Serial RX / Encoder B - same pin)
+            'LIFTER_DIR': 13,        # GPIO13 - L298N Direction pin
+            'LIFTER_PWM': 12,       # GPIO12 - L298N PWM pin
+            'LIFTER_ENCODER_A': 20,  # GPIO20 - Encoder DATA(A) pin (read only)
+            'LIFTER_ENCODER_B': 21,  # GPIO21 - Encoder DATA(B) pin (read only)
 
-            # Container Servos
-            'CONTAINER_LF': 26,
-            'CONTAINER_LB': 5,
-            'CONTAINER_RF': 6,
-            'CONTAINER_RB': 7,
+            # Container Servos (reassigned to avoid conflicts with motor pins)
+            'CONTAINER_LF': 14,      # GPIO14 - Left Front Container
+            'CONTAINER_LB': 15,      # GPIO15 - Left Back Container
+            'CONTAINER_RF': 4,       # GPIO4 - Right Front Container
+            'CONTAINER_RB': 8,       # GPIO8 - Right Back Container
         }
 
         # Initialize GPIO
@@ -91,22 +87,40 @@ class ActuatorControlServer(Node):
             self.gpio_handle = lgpio.gpiochip_open(0)
             self.get_logger().info('GPIO chip opened successfully')
 
-            # Initialize all GPIO pins as outputs
+            # Initialize all GPIO pins
             servo_pins = [
                 self.PINS['GRIPPER_TILT'],
                 self.PINS['GRIPPER_OPEN_CLOSE'],
-                self.PINS['GRIPPER_NECK'],
-                self.PINS['GRIPPER_BASE']
+                self.PINS['GRIPPER_NECK']
+                # NOTE: GRIPPER_BASE removed - GPIO12 is needed for LIFTER_PWM motor control
             ]
 
-            # Motor DATA pins (PG23 built-in driver - same pins for serial control AND encoder)
-            motor_data_a_pins = [
-                self.PINS['MOTOR_FL_DATA_A'], self.PINS['MOTOR_FR_DATA_A'],
-                self.PINS['MOTOR_BACK_DATA_A'], self.PINS['LIFTER_DATA_A']
+            # L298N Motor Control pins (DIR and PWM)
+            motor_dir_pins = [
+                self.PINS['MOTOR_FL_DIR'],
+                self.PINS['MOTOR_FR_DIR'],
+                self.PINS['MOTOR_BACK_DIR'],
+                self.PINS['LIFTER_DIR']
             ]
-            motor_data_b_pins = [
-                self.PINS['MOTOR_FL_DATA_B'], self.PINS['MOTOR_FR_DATA_B'],
-                self.PINS['MOTOR_BACK_DATA_B'], self.PINS['LIFTER_DATA_B']
+            motor_pwm_pins = [
+                self.PINS['MOTOR_FL_PWM'],
+                self.PINS['MOTOR_FR_PWM'],
+                self.PINS['MOTOR_BACK_PWM'],
+                self.PINS['LIFTER_PWM']
+            ]
+            
+            # Encoder pins (DATA A and B - read only)
+            encoder_a_pins = [
+                self.PINS['MOTOR_FL_ENCODER_A'],
+                self.PINS['MOTOR_FR_ENCODER_A'],
+                self.PINS['MOTOR_BACK_ENCODER_A'],
+                self.PINS['LIFTER_ENCODER_A']
+            ]
+            encoder_b_pins = [
+                self.PINS['MOTOR_FL_ENCODER_B'],
+                self.PINS['MOTOR_FR_ENCODER_B'],
+                self.PINS['MOTOR_BACK_ENCODER_B'],
+                self.PINS['LIFTER_ENCODER_B']
             ]
 
             container_pins = [
@@ -115,59 +129,30 @@ class ActuatorControlServer(Node):
             ]
 
             # Claim servo pins as outputs
-            all_output_pins = servo_pins + container_pins
+            all_output_pins = servo_pins + motor_dir_pins + motor_pwm_pins + container_pins
             for pin in all_output_pins:
                 lgpio.gpio_claim_output(self.gpio_handle, pin)
                 self.get_logger().info(f'✓ GPIO{pin} claimed as output')
             
-            # Motor DATA pins: Configure for serial communication
-            # DATA(A) pins: Output for serial TX, also read encoder A
-            for pin in motor_data_a_pins:
-                lgpio.gpio_claim_output(self.gpio_handle, pin)
-                self.get_logger().info(f'✓ GPIO{pin} claimed as output (DATA A - Serial TX / Encoder A)')
-            
-            # DATA(B) pins: Input for serial RX, also read encoder B
-            for pin in motor_data_b_pins:
+            # Encoder pins: Input only (read encoder feedback)
+            for pin in encoder_a_pins + encoder_b_pins:
                 lgpio.gpio_claim_input(self.gpio_handle, pin)
-                self.get_logger().info(f'✓ GPIO{pin} claimed as input (DATA B - Serial RX / Encoder B)')
+                self.get_logger().info(f'✓ GPIO{pin} claimed as input (Encoder)')
             
-            all_pins = all_output_pins + motor_data_a_pins + motor_data_b_pins
+            # Initialize all motors to STOP (DIR=0, PWM=0)
+            for dir_pin in motor_dir_pins:
+                lgpio.gpio_write(self.gpio_handle, dir_pin, 0)
+            for pwm_pin in motor_pwm_pins:
+                lgpio.gpio_write(self.gpio_handle, pwm_pin, 0)
+            
+            all_pins = all_output_pins + encoder_a_pins + encoder_b_pins
 
             self.gpio_initialized = True
             self.get_logger().info('✓ GPIO Controller initialized successfully with lgpio!')
             self.get_logger().info(f'  - Total pins initialized: {len(all_pins)}')
-            
-            # Initialize motor controllers
-            if MOTOR_CONTROLLER_AVAILABLE:
-                self.motor_manager = PG23MotorManager(self.gpio_handle)
-                
-                # Add all motors
-                self.motor_manager.add_motor(
-                    'front_left',
-                    self.PINS['MOTOR_FL_DATA_A'],
-                    self.PINS['MOTOR_FL_DATA_B']
-                )
-                self.motor_manager.add_motor(
-                    'front_right',
-                    self.PINS['MOTOR_FR_DATA_A'],
-                    self.PINS['MOTOR_FR_DATA_B']
-                )
-                self.motor_manager.add_motor(
-                    'back',
-                    self.PINS['MOTOR_BACK_DATA_A'],
-                    self.PINS['MOTOR_BACK_DATA_B']
-                )
-                self.motor_manager.add_motor(
-                    'lifter',
-                    self.PINS['LIFTER_DATA_A'],
-                    self.PINS['LIFTER_DATA_B']
-                )
-                
-                # Ensure all motors are stopped on initialization
-                self.motor_manager.stop_all()
-                self.get_logger().info('✓ PG23 Motor controllers initialized - all motors stopped')
-            else:
-                self.get_logger().warn('⚠ Motor controller not available - motors will not be controlled')
+            self.get_logger().info('  - Servos: 3 pins, L298N Motor Control: 8 pins (DIR+PWM), Encoders: 8 pins (read only), Containers: 4 pins')
+            self.get_logger().info('  - Note: PG23 motors have built-in encoders - controlled via L298N drivers')
+            self.get_logger().info('  - All motors initialized to STOP state')
 
         except Exception as e:
             self.get_logger().error(f'✗ GPIO initialization failed: {str(e)}')
@@ -296,63 +281,90 @@ class ActuatorControlServer(Node):
         return response
 
     def execute_movement(self, direction, speed):
-        """Execute robot movement using PG23 motor controllers"""
-        if not self.motor_manager:
-            self.get_logger().error("Motor manager not initialized")
+        """Execute robot movement using L298N motor drivers"""
+        if not self.gpio_initialized:
+            self.get_logger().error("GPIO not initialized")
             return
             
         # Clamp speed
         speed = max(0.0, min(1.0, speed))
+        pwm_value = 1 if speed > 0.5 else 0  # Simple on/off for now (can use PWM later)
         
         try:
             if direction == 'stop':
                 self.stop_robot()
             elif direction == 'forward':
-                # All motors forward
-                self.motor_manager['front_left'].forward(speed)
-                self.motor_manager['front_right'].forward(speed)
-                self.motor_manager['back'].forward(speed)
+                # All motors forward (DIR=1, PWM=1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 self.get_logger().info(f"Moving forward at speed {speed:.2f}")
             elif direction == 'backward':
-                # All motors reverse
-                self.motor_manager['front_left'].reverse(speed)
-                self.motor_manager['front_right'].reverse(speed)
-                self.motor_manager['back'].reverse(speed)
+                # All motors reverse (DIR=0, PWM=1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 self.get_logger().info(f"Moving backward at speed {speed:.2f}")
             elif direction == 'strafe_left':
                 # Front left reverse, front right forward, back stopped
-                self.motor_manager['front_left'].reverse(speed)
-                self.motor_manager['front_right'].forward(speed)
-                self.motor_manager['back'].stop()
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
                 self.get_logger().info(f"Strafing left at speed {speed:.2f}")
             elif direction == 'strafe_right':
                 # Front left forward, front right reverse, back stopped
-                self.motor_manager['front_left'].forward(speed)
-                self.motor_manager['front_right'].reverse(speed)
-                self.motor_manager['back'].stop()
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
                 self.get_logger().info(f"Strafing right at speed {speed:.2f}")
             elif direction == 'turn_left':
-                # Front left reverse, front right forward, back forward
-                self.motor_manager['front_left'].reverse(speed)
-                self.motor_manager['front_right'].forward(speed)
-                self.motor_manager['back'].forward(speed)
+                # FL backward (DIR=0), FR forward (DIR=1), Back forward (DIR=1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 self.get_logger().info(f"Turning left at speed {speed:.2f}")
             elif direction == 'turn_right':
-                # Front left forward, front right reverse, back reverse
-                self.motor_manager['front_left'].forward(speed)
-                self.motor_manager['front_right'].reverse(speed)
-                self.motor_manager['back'].reverse(speed)
+                # FL forward (DIR=1), FR backward (DIR=0), Back reverse (DIR=0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_DIR'], 1)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
+                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
                 self.get_logger().info(f"Turning right at speed {speed:.2f}")
         except Exception as e:
             self.get_logger().error(f"Movement error: {e}")
 
     def stop_robot(self):
-        """Stop all robot motors"""
-        if self.motor_manager:
-            self.motor_manager.stop_all()
-            self.get_logger().info("Robot stopped - all motors sent STOP command")
-        else:
-            self.get_logger().warn("Motor manager not available - cannot stop motors")
+        """Stop all robot motors using L298N motor drivers"""
+        if not self.gpio_initialized:
+            self.get_logger().warn("GPIO not initialized - cannot stop motors")
+            return
+        
+        try:
+            # Set all PWM pins to 0 (stop motors)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_PWM'], 0)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], 0)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
+            lgpio.gpio_write(self.gpio_handle, self.PINS['LIFTER_PWM'], 0)
+            self.get_logger().info("Robot stopped - all motors PWM set to 0")
+        except Exception as e:
+            self.get_logger().error(f"Error stopping robot: {e}")
 
     def control_container_callback(self, request, response):
         """Handle container control service calls"""
@@ -410,10 +422,10 @@ class ActuatorControlServer(Node):
     def cleanup(self):
         """Cleanup GPIO resources and stop all motors"""
         try:
-            # Stop all motors before cleanup
-            if self.motor_manager:
+            # Stop all motors before cleanup (set PWM pins to 0)
+            if self.gpio_initialized:
                 self.get_logger().info('Stopping all motors before cleanup...')
-                self.motor_manager.stop_all()
+                self.stop_robot()
                 time.sleep(0.1)  # Give motors time to stop
             
             if self.gpio_handle is not None and self.gpio_initialized:

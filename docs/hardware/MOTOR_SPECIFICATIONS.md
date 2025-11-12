@@ -23,19 +23,21 @@
 #### Omni Wheel Motors (3x)
 - **Location**: Front Left, Front Right, Back
 - **Purpose**: Omnidirectional movement
-- **Control**: Built-in motor driver (no external driver needed)
-- **Control Interface**: Serial communication (UART/SPI) via DATA pins
+- **Control**: L298N motor driver modules (motors have built-in encoders only)
+- **Control Interface**: L298N DIR and PWM pins for motor control
+- **Encoder Interface**: DATA(A) and DATA(B) pins for encoder feedback (read only)
 - **GPIO Pins**: 
-  - Front Left: GPIO17 (DATA A), GPIO27 (DATA B) - same pins for control & encoder
-  - Front Right: GPIO22 (DATA A), GPIO23 (DATA B) - same pins for control & encoder
-  - Back: GPIO24 (DATA A), GPIO25 (DATA B) - same pins for control & encoder
+  - Front Left: DIR=GPIO17, PWM=GPIO27, Encoder A=GPIO22, Encoder B=GPIO23
+  - Front Right: DIR=GPIO24, PWM=GPIO25, Encoder A=GPIO16, Encoder B=GPIO26
+  - Back: DIR=GPIO5, PWM=GPIO6, Encoder A=GPIO7, Encoder B=GPIO9
 
 #### Gripper Lifter Motor (1x)
 - **Location**: Center of base plate
 - **Purpose**: Vertical lifting mechanism for gripper assembly
-- **Control**: Built-in motor driver (no external driver needed)
-- **Control Interface**: Serial communication (UART/SPI) via DATA pins
-- **GPIO Pins**: GPIO13 (DATA A), GPIO12 (DATA B) - same pins for control & encoder
+- **Control**: L298N motor driver module (motor has built-in encoder only)
+- **Control Interface**: L298N DIR and PWM pins for motor control
+- **Encoder Interface**: DATA(A) and DATA(B) pins for encoder feedback (read only)
+- **GPIO Pins**: DIR=GPIO13, PWM=GPIO12, Encoder A=GPIO20, Encoder B=GPIO21
 
 ### PG23 Motor Pinout
 
@@ -43,43 +45,42 @@ Each PG23 motor has 6 pins:
 
 | Pin | Name | Description | Connection |
 |-----|------|-------------|------------|
-| 1 | M+ | Motor Positive Terminal | 12V Power Supply |
-| 2 | M- | Motor Negative Terminal | Ground |
+| 1 | M+ | Motor Positive Terminal | L298N OUT1 (12V from L298N) |
+| 2 | M- | Motor Negative Terminal | L298N OUT2 (GND via L298N) |
 | 3 | GND | Ground | Common Ground Bus |
-| 4 | VIN | Encoder/Controller Power Supply | 5V Power Rail |
-| 5 | DATA(A) | Serial Control TX / Encoder Channel A | GPIO Pin (TX Output / Encoder Input) |
-| 6 | DATA(B) | Serial Control RX / Encoder Channel B | GPIO Pin (RX Input / Encoder Input) |
+| 4 | VIN | Encoder Power Supply | 5V Power Rail (for encoder only) |
+| 5 | DATA(A) | Encoder Channel A | GPIO Pin (Input - read only) |
+| 6 | DATA(B) | Encoder Channel B | GPIO Pin (Input - read only) |
 
 **Wiring Notes:**
-- M+ connects directly to 12V power supply (motor has built-in driver)
-- M- connects to ground
+- M+ and M- connect to L298N motor driver OUT1 and OUT2 terminals
+- L298N requires: VCC=5V (logic), VS=12V (motor power), GND=common ground
+- L298N control pins: IN1=DIR pin (GPIO), ENA=PWM pin (GPIO)
 - GND must be connected to common ground
-- VIN requires 5V for encoder and controller operation
-- DATA(A) and DATA(B) serve dual purpose:
-  - Serial communication (TX/RX) for motor control commands
-  - Quadrature encoder outputs (5V logic) for position feedback
-- No external motor driver (L298N) required - motor has built-in driver
+- VIN requires 5V for encoder operation only
+- DATA(A) and DATA(B) are encoder outputs only (read-only inputs on Raspberry Pi)
+- External L298N motor driver required - motor has built-in encoder only, not driver
 
 ### Encoder Connections
 
-All motors use built-in encoders with A/B channel outputs:
+All motors use built-in encoders with A/B channel outputs (read-only):
 
 #### Omni Wheel Encoders
-- **Back Wheel Encoder**:
-  - Channel A: GPIO22 (Pin 15)
-  - Channel B: GPIO23 (Pin 16)
-  
 - **Front Left Wheel Encoder**:
-  - Channel A: GPIO5 (Pin 29)
-  - Channel B: GPIO6 (Pin 31)
+  - Channel A: GPIO22 (Pin 15) - DATA(A) pin
+  - Channel B: GPIO23 (Pin 16) - DATA(B) pin
   
 - **Front Right Wheel Encoder**:
-  - Channel A: GPIO20 (Pin 38)
-  - Channel B: GPIO21 (Pin 40)
+  - Channel A: GPIO16 (Pin 36) - DATA(A) pin
+  - Channel B: GPIO26 (Pin 37) - DATA(B) pin
+  
+- **Back Wheel Encoder**:
+  - Channel A: GPIO7 (Pin 26) - DATA(A) pin
+  - Channel B: GPIO9 (Pin 21) - DATA(B) pin
 
 #### Gripper Lifter Encoder
-- **Channel A**: GPIO19 (Pin 35)
-- **Channel B**: GPIO16 (Pin 36)
+- **Channel A**: GPIO20 (Pin 38) - DATA(A) pin
+- **Channel B**: GPIO21 (Pin 40) - DATA(B) pin
 
 ### Encoder Reading Calculation
 

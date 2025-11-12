@@ -2,19 +2,20 @@
 
 ## Overview
 
-The PG23 is a DC motor with built-in encoder and motor driver. This guide provides detailed connection instructions, pinout information, and wiring diagrams for integrating PG23 motors into the robot system.
+The PG23 is a DC motor with built-in encoder. This guide provides detailed connection instructions, pinout information, and wiring diagrams for integrating PG23 motors into the robot system using L298N motor drivers.
 
 ## Motor Specifications
 
 ### General Specifications
 - **Model**: PG23 Built-in Encoder Motor
-- **Type**: DC Motor with Built-in Driver and Encoder
+- **Type**: DC Motor with Built-in Encoder (encoder only, not driver)
 - **Voltage**: 12V DC (motor power)
 - **No-load Speed**: 15,500 RPM (15.5k RPM)
 - **Encoder Resolution**: 7 PPR (Pulses Per Revolution)
 - **Effective Encoder Resolution**: 28 counts per revolution (7 PPR × 4 quadrature)
-- **Control Interface**: Serial Communication (UART/SPI) via DATA pins
-- **Built-in Driver**: Yes (no external motor driver required)
+- **Control Interface**: L298N Motor Driver (DIR and PWM pins)
+- **Encoder Interface**: DATA(A) and DATA(B) pins (read-only encoder feedback)
+- **External Driver Required**: Yes (L298N motor driver module)
 
 ### Power Requirements
 - **Motor Power**: 12V DC (M+ terminal)
@@ -43,68 +44,82 @@ The PG23 is a DC motor with built-in encoder and motor driver. This guide provid
 
 | Pin # | Name | Type | Description | Connection |
 |-------|------|------|-------------|------------|
-| 1 | M+ | Power | Motor Positive Terminal | 12V Power Supply (direct connection) |
-| 2 | M- | Power | Motor Negative Terminal | Ground |
+| 1 | M+ | Power | Motor Positive Terminal | L298N OUT1 (12V from L298N) |
+| 2 | M- | Power | Motor Negative Terminal | L298N OUT2 (GND via L298N) |
 | 3 | GND | Ground | Common Ground | Common Ground Bus |
-| 4 | VIN | Power | Encoder/Controller Power Supply | 5V Power Rail |
-| 5 | DATA(A) | I/O | Serial Control TX / Encoder Channel A | GPIO Pin (TX Output / Encoder Input) |
-| 6 | DATA(B) | I/O | Serial Control RX / Encoder Channel B | GPIO Pin (RX Input / Encoder Input) |
+| 4 | VIN | Power | Encoder Power Supply | 5V Power Rail (encoder only) |
+| 5 | DATA(A) | Input | Encoder Channel A | GPIO Pin (Input - read only) |
+| 6 | DATA(B) | Input | Encoder Channel B | GPIO Pin (Input - read only) |
 
 ## Connection Guide
 
 ### Power Connections
 
-#### Motor Power (12V)
+#### Motor Power (12V via L298N)
 ```
-12V Power Supply (+) ──→ PG23 M+ (Pin 1)
-12V Power Supply (-) ──→ PG23 M- (Pin 2)
+12V Power Supply (+) ──→ L298N VS (Motor Power)
+12V Power Supply (-) ──→ Common Ground
+L298N OUT1 ──→ PG23 M+ (Pin 1)
+L298N OUT2 ──→ PG23 M- (Pin 2)
 ```
 
 **Important Notes:**
-- Connect M+ directly to 12V power supply (no external driver needed)
+- Motor connects to L298N OUT1 and OUT2 terminals
+- L298N VS pin connects to 12V power supply
+- L298N VCC pin connects to 5V (logic power)
 - Ensure power supply can provide sufficient current for motor operation
 - Use appropriate wire gauge for current requirements
 - Install fuse protection on power supply line
+- Heat sinks recommended on L298N modules
 
-#### Encoder/Controller Power (5V)
+#### Encoder Power (5V)
 ```
 5V Power Rail (+) ──→ PG23 VIN (Pin 4)
 Common Ground ──→ PG23 GND (Pin 3)
 ```
 
 **Important Notes:**
-- VIN requires 5V for encoder and built-in controller operation
+- VIN requires 5V for encoder operation only
 - Ensure stable 5V supply with proper filtering
 - Common ground connection is critical for proper operation
 
-### Control and Encoder Connections
+### Motor Control Connections (L298N)
 
-**Important:** The PG23 motor has only 6 pins total. DATA(A) and DATA(B) pins serve dual purpose:
-1. Serial communication for motor control (TX/RX)
-2. Encoder feedback (A/B channels)
+**L298N Motor Driver Connections:**
+```
+Raspberry Pi GPIO ──→ L298N IN1 (Direction control: 1=forward, 0=reverse)
+Raspberry Pi GPIO ──→ L298N ENA (PWM speed control: 0=stop, 1=full speed)
+L298N OUT1 ──→ PG23 M+ (Pin 1)
+L298N OUT2 ──→ PG23 M- (Pin 2)
+L298N VCC ──→ 5V (Logic power)
+L298N VS ──→ 12V (Motor power)
+L298N GND ──→ Common Ground
+```
 
-The motor's built-in controller handles both functions on the same pins. You connect DATA(A) and DATA(B) to GPIO pins, and the motor controller manages both serial communication and encoder output.
+### Encoder Connections
+
+**Important:** DATA(A) and DATA(B) pins are encoder outputs only (read-only on Raspberry Pi).
 
 **Connection:**
 ```
-Raspberry Pi GPIO ──→ PG23 DATA(A) (Pin 5) - Serial TX / Encoder A
-Raspberry Pi GPIO ──→ PG23 DATA(B) (Pin 6) - Serial RX / Encoder B
+PG23 DATA(A) (Pin 5) ──→ Raspberry Pi GPIO (Input - Encoder A)
+PG23 DATA(B) (Pin 6) ──→ Raspberry Pi GPIO (Input - Encoder B)
 ```
 
 **GPIO Pin Assignments:**
 
-| Motor Location | DATA(A) Pin | DATA(B) Pin | GPIO Numbers | Notes |
-|----------------|-------------|-------------|--------------|-------|
-| Front Left | GPIO17 | GPIO27 | Pin 11, Pin 13 | Same pins for control & encoder |
-| Front Right | GPIO22 | GPIO23 | Pin 15, Pin 16 | Same pins for control & encoder |
-| Back | GPIO24 | GPIO25 | Pin 18, Pin 22 | Same pins for control & encoder |
-| Gripper Lifter | GPIO13 | GPIO12 | Pin 33, Pin 32 | Same pins for control & encoder |
+| Motor Location | DIR Pin | PWM Pin | Encoder A | Encoder B | GPIO Numbers |
+|----------------|---------|---------|-----------|-----------|--------------|
+| Front Left | GPIO17 | GPIO27 | GPIO22 | GPIO23 | Pin 11, 13, 15, 16 |
+| Front Right | GPIO24 | GPIO25 | GPIO16 | GPIO26 | Pin 18, 22, 36, 37 |
+| Back | GPIO5 | GPIO6 | GPIO7 | GPIO9 | Pin 29, 31, 26, 21 |
+| Lifter | GPIO13 | GPIO12 | GPIO20 | GPIO21 | Pin 33, 32, 38, 40 |
 
 **How It Works:**
-- The motor's built-in controller uses DATA(A) and DATA(B) for serial communication (motor control commands)
-- The same pins also output quadrature encoder signals (A/B channels) for position feedback
-- The controller multiplexes or handles both functions automatically
-- Your software reads encoder signals from the same GPIO pins used for serial control
+- Motor control: L298N DIR pin controls direction (1=forward, 0=reverse)
+- Motor speed: L298N PWM pin controls speed (0=stop, 1=full speed, or use PWM for variable speed)
+- Encoder feedback: DATA(A) and DATA(B) pins output quadrature encoder signals (read-only on Raspberry Pi)
+- Motor power: L298N OUT1/OUT2 connect to motor M+/M- terminals
 
 ## Complete Wiring Diagram
 
@@ -114,12 +129,11 @@ Raspberry Pi GPIO ──→ PG23 DATA(B) (Pin 6) - Serial RX / Encoder B
                     ┌─────────────────┐
                     │  Raspberry Pi 5 │
                     │                 │
-     GPIO17 (TX) ───┤ Pin 11          │
-     GPIO27 (RX) ───┤ Pin 13          │
-     GPIO5 (ENC A) ─┤ Pin 29          │
-     GPIO6 (ENC B) ─┤ Pin 31          │
+     GPIO17 (DIR) ──┤ Pin 11          │
+     GPIO27 (PWM) ──┤ Pin 13          │
+     GPIO22 (ENC A) ┤ Pin 15          │
+     GPIO23 (ENC B) ┤ Pin 16          │
                     └─────────────────┘
-                            │
                             │
                     ┌───────┴────────┐
                     │                │
@@ -130,23 +144,32 @@ Raspberry Pi GPIO ──→ PG23 DATA(B) (Pin 6) - Serial RX / Encoder B
             │  (+)          │  │  (+)          │
             └───────┬───────┘  └───────┬───────┘
                     │                  │
-                    │                  │
                     ▼                  ▼
+            ┌───────────────┐  ┌──────────────┐
+            │  L298N Driver │  │              │
+            │               │  │              │
+            │  VS ←── 12V   │  │              │
+            │  VCC ←── 5V   │  │              │
+            │  IN1 ←── DIR  │  │              │
+            │  ENA ←── PWM  │  │              │
+            │  OUT1 ──┐     │  │              │
+            │  OUT2 ──┘     │  │              │
+            └───────────────┘  │              │
+                    │          │              │
+                    ▼          ▼              ▼
                     ┌───────────────────────────────┐
             │      PG23 Motor              │
             │                              │
-            │  [1] M+  ←── 12V            │
-            │  [2] M-  ←── GND            │
+            │  [1] M+  ←── L298N OUT1     │
+            │  [2] M-  ←── L298N OUT2     │
             │  [3] GND ←── Common GND     │
             │  [4] VIN ←── 5V             │
-            │  [5] DATA(A) ←── GPIO17     │
-            │              (TX/Encoder A) │
-            │  [6] DATA(B) ←── GPIO27     │
-            │              (RX/Encoder B) │
+            │  [5] DATA(A) → GPIO22 (ENC A)│
+            │  [6] DATA(B) → GPIO23 (ENC B)│
             │                              │
-            │  Note: DATA(A) and DATA(B)  │
-            │  handle both serial control │
-            │  and encoder feedback       │
+            │  Note: Motor controlled via │
+            │  L298N DIR/PWM pins         │
+            │  Encoder read from DATA pins │
             └───────────────────────────────┘
 ```
 
@@ -155,53 +178,81 @@ Raspberry Pi GPIO ──→ PG23 DATA(B) (Pin 6) - Serial RX / Encoder B
 ### Front Left Motor
 ```
 Power:
-  M+  → 12V Power Supply
-  M-  → Ground
+  M+  → L298N OUT1 (12V from L298N)
+  M-  → L298N OUT2 (GND via L298N)
   GND → Common Ground Bus
-  VIN → 5V Power Rail
+  VIN → 5V Power Rail (encoder only)
 
-Control & Encoder (Same Pins):
-  DATA(A) → GPIO17 (Pin 11) - Serial TX / Encoder A
-  DATA(B) → GPIO27 (Pin 13) - Serial RX / Encoder B
+L298N Control:
+  IN1 (DIR) → GPIO17 (Pin 11) - Direction control
+  ENA (PWM) → GPIO27 (Pin 13) - Speed control
+  VS → 12V Power Supply
+  VCC → 5V (logic power)
+  GND → Common Ground
+
+Encoder (Read Only):
+  DATA(A) → GPIO22 (Pin 15) - Encoder A
+  DATA(B) → GPIO23 (Pin 16) - Encoder B
 ```
 
 ### Front Right Motor
 ```
 Power:
-  M+  → 12V Power Supply
-  M-  → Ground
+  M+  → L298N OUT1 (12V from L298N)
+  M-  → L298N OUT2 (GND via L298N)
   GND → Common Ground Bus
-  VIN → 5V Power Rail
+  VIN → 5V Power Rail (encoder only)
 
-Control & Encoder (Same Pins):
-  DATA(A) → GPIO22 (Pin 15) - Serial TX / Encoder A
-  DATA(B) → GPIO23 (Pin 16) - Serial RX / Encoder B
+L298N Control:
+  IN1 (DIR) → GPIO24 (Pin 18) - Direction control
+  ENA (PWM) → GPIO25 (Pin 22) - Speed control
+  VS → 12V Power Supply
+  VCC → 5V (logic power)
+  GND → Common Ground
+
+Encoder (Read Only):
+  DATA(A) → GPIO16 (Pin 36) - Encoder A
+  DATA(B) → GPIO26 (Pin 37) - Encoder B
 ```
 
 ### Back Motor
 ```
 Power:
-  M+  → 12V Power Supply
-  M-  → Ground
+  M+  → L298N OUT1 (12V from L298N)
+  M-  → L298N OUT2 (GND via L298N)
   GND → Common Ground Bus
-  VIN → 5V Power Rail
+  VIN → 5V Power Rail (encoder only)
 
-Control & Encoder (Same Pins):
-  DATA(A) → GPIO24 (Pin 18) - Serial TX / Encoder A
-  DATA(B) → GPIO25 (Pin 22) - Serial RX / Encoder B
+L298N Control:
+  IN1 (DIR) → GPIO5 (Pin 29) - Direction control
+  ENA (PWM) → GPIO6 (Pin 31) - Speed control
+  VS → 12V Power Supply
+  VCC → 5V (logic power)
+  GND → Common Ground
+
+Encoder (Read Only):
+  DATA(A) → GPIO7 (Pin 26) - Encoder A
+  DATA(B) → GPIO9 (Pin 21) - Encoder B
 ```
 
 ### Gripper Lifter Motor
 ```
 Power:
-  M+  → 12V Power Supply
-  M-  → Ground
+  M+  → L298N OUT1 (12V from L298N)
+  M-  → L298N OUT2 (GND via L298N)
   GND → Common Ground Bus
-  VIN → 5V Power Rail
+  VIN → 5V Power Rail (encoder only)
 
-Control & Encoder (Same Pins):
-  DATA(A) → GPIO13 (Pin 33) - Serial TX / Encoder A
-  DATA(B) → GPIO12 (Pin 32) - Serial RX / Encoder B
+L298N Control:
+  IN1 (DIR) → GPIO13 (Pin 33) - Direction control
+  ENA (PWM) → GPIO12 (Pin 32) - Speed control
+  VS → 12V Power Supply
+  VCC → 5V (logic power)
+  GND → Common Ground
+
+Encoder (Read Only):
+  DATA(A) → GPIO20 (Pin 38) - Encoder A
+  DATA(B) → GPIO21 (Pin 40) - Encoder B
 ```
 
 ## Encoder Specifications
