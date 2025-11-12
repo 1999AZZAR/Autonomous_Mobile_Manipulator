@@ -184,11 +184,12 @@ Power:
   VIN → 5V Power Rail (encoder only)
 
 L298N Control:
-  IN1 (DIR) → GPIO17 (Pin 11) - Direction control
-  ENA (PWM) → GPIO27 (Pin 13) - Speed control
-  VS → 12V Power Supply
-  VCC → 5V (logic power)
-  GND → Common Ground
+  IN1 → GPIO17 (Pin 11) - Direction control (forward/reverse)
+  IN2 → GPIO10 (Pin 19) - Direction control (forward/reverse)
+  ENA → GPIO11 (Pin 23) - Enable/PWM speed control
+  VS → 12V Power Supply (motor power)
+  VCC → 5V Power Supply (logic power - CRITICAL: must be 5V, not 3.3V!)
+  GND → Common Ground (shared with Raspberry Pi)
 
 Encoder (Read Only):
   DATA(A) → GPIO22 (Pin 15) - Encoder A
