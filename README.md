@@ -44,8 +44,11 @@ This project provides a complete production-ready robotics platform featuring:
 - **Hexagonal robot design** with 3-wheel omnidirectional movement system
 - **Advanced manipulation** with 4-component picker system for precise object handling
 - **Container load management** with 4-container system for material transport
-- **Comprehensive sensor suite** including LIDAR, camera, IMU, and distance sensors
+- **Distributed sensor architecture:**
+  - **Arduino Mega:** IR Sharp distance sensors (6x), HC-SR04 ultrasonic sensors (2x), motor control
+  - **Raspberry Pi:** TF-Luna LiDAR, USB camera, MPU6050 IMU, line sensors (3x)
 - **ROS 2 Iron** for robust robot control and navigation
+- **Serial communication** between RPi and Arduino Mega for coordinated control
 - **n8n workflow automation** for high-level task orchestration
 - **Docker containerization** for reliable deployment
 - **Hardware control systems** for safety and operational management
@@ -60,6 +63,32 @@ The architecture is centered around a ROS 2 workspace (`ros2_ws`) containing sev
 - **`my_robot_manipulation`:** Servo-based manipulation control (currently minimal implementation).
 - **`my_robot_automation`:** The core automation package. It acts as a bridge between ROS 2 and external systems, hosting the REST, WebSocket, and MQTT servers, and implementing servo-based manipulation, navigation, and automation services.
 
+#### Distributed Hardware Architecture
+
+The system uses a distributed architecture with coordinated control between Raspberry Pi and Arduino Mega:
+
+**Raspberry Pi 4 Responsibilities:**
+- High-level ROS 2 control and navigation
+- IMU sensor (MPU6050) for orientation tracking
+- TF-Luna LiDAR for obstacle detection
+- USB camera for vision tasks
+- Line sensors for line following
+- Serial communication with Arduino Mega
+- Web interfaces and automation workflows
+
+**Arduino Mega Responsibilities:**
+- Motor control for 3-wheel omnidirectional drive
+- IR Sharp distance sensors (6x wall alignment)
+- HC-SR04 ultrasonic sensors (2x front obstacle detection)
+- Gripper servo control (open/close, tilt)
+- Emergency stop handling
+- Real-time motor kinematics and odometry
+
+**Communication:**
+- Serial USB connection (/dev/ttyACM0) for command exchange
+- ROS 2 topics for sensor data sharing
+- Coordinated control through mega_serial_interface node
+
 External control systems interact with the `my_robot_automation` package, which translates high-level commands into specific ROS 2 messages, service calls, and action goals.
 
 ### Control Interface Architecture
@@ -71,7 +100,7 @@ The Web UI at http://localhost:8000 provides complete robot control and monitori
 
 - **Direct Control:** All movement, gripper, and container operations
 - **Path Planning:** Visual waypoint manager with pre-built patterns (square, triangle, hexagon)
-- **Real-time Monitoring:** All sensor data (6 laser, 2 ultrasonic, TF-Luna LIDAR, 3 line sensors, IMU)
+- **Real-time Monitoring:** All sensor data from distributed architecture (IR Sharp, HC-SR04, TF-Luna LIDAR, line sensors, IMU, camera)
 - **System Management:** Status monitoring, logs, command history, IMU calibration
 - **Hardware Reference:** Complete GPIO pinout and power distribution information
 

@@ -19,16 +19,16 @@ _script_dir = os.path.dirname(os.path.abspath(__file__))
 if _script_dir not in sys.path:
     sys.path.insert(0, _script_dir)
 
-# Note: PG23 motors have built-in encoders only - controlled via L298N drivers
-# No serial motor controller needed - using direct GPIO control for L298N DIR/PWM pins
+# Distributed Architecture: Motors and some sensors controlled by Arduino Mega via serial
+# RPi handles IMU, LiDAR, Camera, and coordinates with Mega via serial communication
 
-# Try to import spidev, but allow graceful degradation
+# Try to import serial for Mega communication
 try:
-    import spidev
-    SPIDEV_AVAILABLE = True
+    import serial
+    SERIAL_AVAILABLE = True
 except ImportError:
-    SPIDEV_AVAILABLE = False
-    print("WARNING: spidev not available. Running in SIMULATION mode.")
+    SERIAL_AVAILABLE = False
+    print("WARNING: serial not available. Mega communication disabled.")
 
 # Try to import MPU6050 reader
 MPU6050_MODULE = None
@@ -53,30 +53,10 @@ from my_robot_automation.srv import (
     ControlContainer
 )
 
-# Try to import GPIO libraries for direct hardware control
-try:
-    import lgpio
-    LGPIO_AVAILABLE = True
-except ImportError:
-    LGPIO_AVAILABLE = False
-    print("WARNING: lgpio not available. GPIO control will be simulated.")
-
-# Try gpiozero as fallback (may not work on Pi 5)
-try:
-    from gpiozero import Servo, Motor, AngularServo, OutputDevice
-    from gpiozero.pins.pigpio import PiGPIOFactory
-    import pigpio
-    GPIOZERO_AVAILABLE = True
-except ImportError:
-    GPIOZERO_AVAILABLE = False
-    print("WARNING: gpiozero not available.")
-
-try:
-    import RPi.GPIO as GPIO
-    RPI_GPIO_AVAILABLE = True
-except ImportError:
-    RPI_GPIO_AVAILABLE = False
-    print("WARNING: RPi.GPIO not available.")
+# GPIO libraries removed - motor control now handled by Arduino Mega
+# Only keeping minimal GPIO for any RPi-specific sensors if needed
+GPIO_AVAILABLE = False
+print("INFO: GPIO control removed - motors handled by Arduino Mega")
 
 # Modern Professional Web Interface Template
 HTML_TEMPLATE = """
@@ -3041,15 +3021,20 @@ class WebRobotInterface(Node):
 
         # Determine operation mode
         if simulation_mode is None:
-            self.simulation_mode = not SPIDEV_AVAILABLE
+            self.simulation_mode = not SERIAL_AVAILABLE
         else:
             self.simulation_mode = simulation_mode
-        
-        # Initialize GPIO Controller
-        self.gpio = GPIOController(simulation_mode=self.simulation_mode)
-        self.get_logger().info(f'GPIO Controller initialized (simulation={self.simulation_mode})')
 
-        # Initialize sensors and peripherals
+        # Initialize serial communication to Arduino Mega
+        self.mega_serial = None
+        self.mega_connected = False
+        if not self.simulation_mode and SERIAL_AVAILABLE:
+            self.connect_to_mega()
+
+        # Initialize ROS2 subscribers for sensor data from Mega
+        self.setup_sensor_subscribers()
+
+        # Initialize sensors and peripherals (IMU, LiDAR, Camera on RPi)
         self.initialize_sensors()
 
         # Initialize Flask web interface
@@ -3061,51 +3046,160 @@ class WebRobotInterface(Node):
         # Initialize ROS2 actuator clients for Flask API calls
         self.initialize_actuator_clients()
 
-    def initialize_sensors(self):
-        """Initialize sensors and peripherals"""
-        # Initialize SPI interface for ADC (MCP3008)
-        self.spi = None
-        self.spi_initialized = False
+    def connect_to_mega(self):
+        """Connect to Arduino Mega via serial"""
+        try:
+            self.mega_serial = serial.Serial(
+                port='/dev/ttyACM0',
+                baudrate=115200,
+                timeout=1,
+                write_timeout=1
+            )
+            time.sleep(2)  # Wait for connection
+            self.mega_connected = True
+            self.get_logger().info('Connected to Arduino Mega on /dev/ttyACM0')
+        except Exception as e:
+            self.get_logger().error(f'Failed to connect to Mega: {e}')
+            self.mega_connected = False
 
-        if not self.simulation_mode and SPIDEV_AVAILABLE:
-            try:
-                self.spi = spidev.SpiDev()
-                self.spi.open(0, 0)  # bus 0, device 0
-                self.spi.max_speed_hz = 1350000
-                self.spi.mode = 0
-                self.spi_initialized = True
-                self.get_logger().info('SPI interface initialized successfully')
-            except Exception as e:
-                self.get_logger().error(f'Failed to initialize SPI: {str(e)}')
-                self.spi_initialized = False
-        else:
-            if not SPIDEV_AVAILABLE:
-                self.get_logger().info('spidev module not available')
-            else:
-                self.get_logger().info('SPI will be simulated')
+    def send_command_to_mega(self, command):
+        """Send command to Arduino Mega"""
+        if not self.mega_connected:
+            self.get_logger().warn('Not connected to Mega, attempting reconnect...')
+            self.connect_to_mega()
+            return
 
-        # Define sensor channels (ADC channels for distance sensors)
-        self.sensor_channels = {
-            'front_left': 0,
-            'front_center': 1,
-            'front_right': 2,
-            'back_left': 3,
-            'back_center': 4,
-            'back_right': 5,
-            'side_left': 6,
-            'side_right': 7
+        try:
+            self.mega_serial.write(command.encode())
+            self.mega_serial.write(b'\n')
+            self.mega_serial.flush()
+            self.get_logger().debug(f'Sent to Mega: {command}')
+        except Exception as e:
+            self.get_logger().error(f'Failed to send command to Mega: {e}')
+            self.mega_connected = False
+
+    def setup_sensor_subscribers(self):
+        """Setup ROS2 subscribers for sensor data from Arduino Mega"""
+        # IR Distance sensors (from Mega)
+        self.distance_left_front_sub = self.create_subscription(
+            Range, '/distance/left_front', self.distance_left_front_callback, 10)
+        self.distance_left_back_sub = self.create_subscription(
+            Range, '/distance/left_back', self.distance_left_back_callback, 10)
+        self.distance_right_front_sub = self.create_subscription(
+            Range, '/distance/right_front', self.distance_right_front_callback, 10)
+        self.distance_right_back_sub = self.create_subscription(
+            Range, '/distance/right_back', self.distance_right_back_callback, 10)
+        self.distance_back_left_sub = self.create_subscription(
+            Range, '/distance/back_left', self.distance_back_left_callback, 10)
+        self.distance_back_right_sub = self.create_subscription(
+            Range, '/distance/back_right', self.distance_back_right_callback, 10)
+
+        # Ultrasonic sensors (from Mega)
+        self.ultrasonic_front_left_sub = self.create_subscription(
+            Range, '/ultrasonic/front_left', self.ultrasonic_front_left_callback, 10)
+        self.ultrasonic_front_right_sub = self.create_subscription(
+            Range, '/ultrasonic/front_right', self.ultrasonic_front_right_callback, 10)
+
+        # Line sensors (RPi)
+        self.line_sensor_left_sub = self.create_subscription(
+            Int32, '/line_sensor/left', self.line_sensor_left_callback, 10)
+        self.line_sensor_center_sub = self.create_subscription(
+            Int32, '/line_sensor/center', self.line_sensor_center_callback, 10)
+        self.line_sensor_right_sub = self.create_subscription(
+            Int32, '/line_sensor/right', self.line_sensor_right_callback, 10)
+
+        # TF-Luna LiDAR (RPi)
+        self.tf_luna_sub = self.create_subscription(
+            Range, '/tf_luna/range', self.tf_luna_callback, 10)
+
+        # IMU (RPi)
+        self.imu_sub = self.create_subscription(
+            Imu, '/imu/data', self.imu_callback, 10)
+
+        # Initialize sensor data storage
+        self.sensor_data = {
+            'laser_sensors': {
+                'left_front': None, 'left_back': None, 'right_front': None,
+                'right_back': None, 'back_left': None, 'back_right': None
+            },
+            'ultrasonic_sensors': {
+                'front_left': None, 'front_right': None
+            },
+            'line_sensors': {
+                'left': None, 'center': None, 'right': None
+            },
+            'tf_luna': {
+                'distance': None, 'strength': None
+            },
+            'imu': {
+                'orientation': None, 'angular_velocity': None,
+                'linear_acceleration': None, 'temperature': None
+            }
         }
 
-        # Sensor health tracking
-        self.sensor_health = {name: {'status': 'unknown', 'last_read': None, 'error_count': 0}
-                             for name in self.sensor_channels.keys()}
-
-        # ADC reference voltage (typically 3.3V on Raspberry Pi)
-        self.adc_vref = 3.3
-        self.adc_resolution = 1024
+    def initialize_sensors(self):
+        """Initialize sensors and peripherals (RPi sensors only: IMU, LiDAR, Camera)"""
+        # REMOVED: SPI interface for ADC - IR Sharp sensors now on Arduino Mega
+        # REMOVED: HC-SR04 ultrasonic sensors - now on Arduino Mega
 
         # Simulation data (for testing without hardware)
         self.sim_counter = 0
+
+    # Sensor callback methods
+    def distance_left_front_callback(self, msg):
+        self.sensor_data['laser_sensors']['left_front'] = msg.range * 1000  # Convert to mm
+
+    def distance_left_back_callback(self, msg):
+        self.sensor_data['laser_sensors']['left_back'] = msg.range * 1000
+
+    def distance_right_front_callback(self, msg):
+        self.sensor_data['laser_sensors']['right_front'] = msg.range * 1000
+
+    def distance_right_back_callback(self, msg):
+        self.sensor_data['laser_sensors']['right_back'] = msg.range * 1000
+
+    def distance_back_left_callback(self, msg):
+        self.sensor_data['laser_sensors']['back_left'] = msg.range * 1000
+
+    def distance_back_right_callback(self, msg):
+        self.sensor_data['laser_sensors']['back_right'] = msg.range * 1000
+
+    def ultrasonic_front_left_callback(self, msg):
+        self.sensor_data['ultrasonic_sensors']['front_left'] = msg.range * 100  # Convert to cm
+
+    def ultrasonic_front_right_callback(self, msg):
+        self.sensor_data['ultrasonic_sensors']['front_right'] = msg.range * 100
+
+    def line_sensor_left_callback(self, msg):
+        self.sensor_data['line_sensors']['left'] = msg.data > 500  # Assuming threshold
+
+    def line_sensor_center_callback(self, msg):
+        self.sensor_data['line_sensors']['center'] = msg.data > 500
+
+    def line_sensor_right_callback(self, msg):
+        self.sensor_data['line_sensors']['right'] = msg.data > 500
+
+    def tf_luna_callback(self, msg):
+        self.sensor_data['tf_luna']['distance'] = msg.range * 100  # Convert to cm
+
+    def imu_callback(self, msg):
+        self.sensor_data['imu'] = {
+            'orientation': {
+                'x': msg.orientation.x,
+                'y': msg.orientation.y,
+                'z': msg.orientation.z
+            },
+            'angular_velocity': {
+                'x': msg.angular_velocity.x,
+                'y': msg.angular_velocity.y,
+                'z': msg.angular_velocity.z
+            },
+            'linear_acceleration': {
+                'x': msg.linear_acceleration.x,
+                'y': msg.linear_acceleration.y,
+                'z': msg.linear_acceleration.z
+            }
+        }
 
         # Initialize MPU6050 IMU sensor
         self.imu = None
@@ -4064,84 +4158,72 @@ class WebRobotInterface(Node):
         })
 
     def _get_sensors(self):
-        """Get sensor data in the format expected by the frontend"""
+        """Get sensor data from ROS2 topics (distributed architecture)"""
         try:
-            # Check if SPI is initialized
-            if not hasattr(self, 'spi_initialized') or not self.spi_initialized:
-                return jsonify({
-                    'success': True,
-                    'data': {
-                        'laser_sensors': {},
-                        'ultrasonic_sensors': {},
-                        'tf_luna': {},
-                        'line_sensors': {},
-                        'container_sensors': {}
-                    },
-                    'status': {
-                        'spi_initialized': False,
-                        'hardware_available': False,
-                        'message': 'SPI interface not initialized - sensors not available'
-                    },
-                    'timestamp': time.time()
-                })
-            
-            sensor_data = self.read_all_sensors()
-            
-            # Count working vs faulty sensors
-            working_sensors = sum(1 for v in sensor_data.values() if v is not None)
-            faulty_sensors = sum(1 for v in sensor_data.values() if v is None)
-            total_sensors = len(sensor_data)
-            
-            # Transform sensor data to match frontend expectations
+            # Use sensor data from ROS2 topic subscribers
             formatted_data = {
-                # IR Distance Sensors (Sharp GP2Y0A02YK0F) - in mm
+                # IR Distance Sensors (Sharp GP2Y0A02YK0F) - from Mega via ROS2 topics - in mm
                 'laser_sensors': {
-                    'left_front': int(sensor_data.get('front_left', 0) * 10) if sensor_data.get('front_left') is not None else None,
-                    'left_back': int(sensor_data.get('back_left', 0) * 10) if sensor_data.get('back_left') is not None else None,
-                    'right_front': int(sensor_data.get('front_right', 0) * 10) if sensor_data.get('front_right') is not None else None,
-                    'right_back': int(sensor_data.get('back_right', 0) * 10) if sensor_data.get('back_right') is not None else None,
-                    'back_left': int(sensor_data.get('side_left', 0) * 10) if sensor_data.get('side_left') is not None else None,
-                    'back_right': int(sensor_data.get('side_right', 0) * 10) if sensor_data.get('side_right') is not None else None,
+                    'left_front': self.sensor_data['laser_sensors']['left_front'],
+                    'left_back': self.sensor_data['laser_sensors']['left_back'],
+                    'right_front': self.sensor_data['laser_sensors']['right_front'],
+                    'right_back': self.sensor_data['laser_sensors']['right_back'],
+                    'back_left': self.sensor_data['laser_sensors']['back_left'],
+                    'back_right': self.sensor_data['laser_sensors']['back_right'],
                 },
-                # Ultrasonic Sensors (HC-SR04) - in cm
+                # Ultrasonic Sensors (HC-SR04) - from Mega via ROS2 topics - in cm
                 'ultrasonic_sensors': {
-                    'front_left': round(sensor_data.get('front_left', 0), 1) if sensor_data.get('front_left') is not None else None,
-                    'front_right': round(sensor_data.get('front_right', 0), 1) if sensor_data.get('front_right') is not None else None,
+                    'front_left': self.sensor_data['ultrasonic_sensors']['front_left'],
+                    'front_right': self.sensor_data['ultrasonic_sensors']['front_right'],
                 },
-                # TF-Luna LIDAR - in cm
+                # TF-Luna LIDAR - RPi sensor - in cm
                 'tf_luna': {
-                    'distance': round(sensor_data.get('front_center', 0), 1) if sensor_data.get('front_center') is not None else None,
-                    'strength': 100 if sensor_data.get('front_center') is not None else None,
+                    'distance': self.sensor_data['tf_luna']['distance'],
+                    'strength': 100 if self.sensor_data['tf_luna']['distance'] is not None else None,
                 },
-                # Line Sensors (3x IR) - boolean (only if sensor reading available)
+                # Line Sensors (3x IR) - RPi sensors - boolean
                 'line_sensors': {
-                    'left': sensor_data.get('front_left', 0) < 30 if sensor_data.get('front_left') is not None else None,
-                    'center': sensor_data.get('front_center', 0) < 30 if sensor_data.get('front_center') is not None else None,
-                    'right': sensor_data.get('front_right', 0) < 30 if sensor_data.get('front_right') is not None else None,
+                    'left': self.sensor_data['line_sensors']['left'],
+                    'center': self.sensor_data['line_sensors']['center'],
+                    'right': self.sensor_data['line_sensors']['right'],
                 },
-                # Container Load Sensors - boolean
+                # Container Load Sensors - boolean (not implemented yet)
                 'container_sensors': {
-                    'left_front': False,  # Would need actual load sensor readings
+                    'left_front': False,
                     'left_back': False,
                     'right_front': False,
                     'right_back': False,
                 }
             }
-            
+
+            # Count working vs total sensors
+            total_ir_sensors = 6
+            working_ir_sensors = sum(1 for v in self.sensor_data['laser_sensors'].values() if v is not None)
+            total_ultrasonic = 2
+            working_ultrasonic = sum(1 for v in self.sensor_data['ultrasonic_sensors'].values() if v is not None)
+            total_line = 3
+            working_line = sum(1 for v in self.sensor_data['line_sensors'].values() if v is not None)
+            tf_luna_working = 1 if self.sensor_data['tf_luna']['distance'] is not None else 0
+
+            working_sensors = working_ir_sensors + working_ultrasonic + working_line + tf_luna_working
+            total_sensors = total_ir_sensors + total_ultrasonic + total_line + 1  # +1 for TF-Luna
+
             # Add sensor health status
             sensor_status = {
-                'spi_initialized': self.spi_initialized,
+                'mega_connected': self.mega_connected,
+                'imu_initialized': self.imu_initialized,
                 'hardware_available': True,
                 'working_sensors': working_sensors,
-                'faulty_sensors': faulty_sensors,
                 'total_sensors': total_sensors,
-                'sensor_health': {name: {
-                    'status': self.sensor_health[name]['status'],
-                    'error_count': self.sensor_health[name].get('error_count', 0),
-                    'last_read': self.sensor_health[name].get('last_read')
-                } for name in self.sensor_channels.keys()}
+                'sensor_breakdown': {
+                    'ir_sensors': f'{working_ir_sensors}/{total_ir_sensors}',
+                    'ultrasonic': f'{working_ultrasonic}/{total_ultrasonic}',
+                    'line_sensors': f'{working_line}/{total_line}',
+                    'tf_luna': f'{tf_luna_working}/1'
+                },
+                'message': 'Distributed sensor system - IR/Ultrasonic from Mega, others from RPi'
             }
-            
+
             return jsonify({
                 'success': True,
                 'data': formatted_data,
@@ -4161,7 +4243,7 @@ class WebRobotInterface(Node):
                     'container_sensors': {}
                 },
                 'status': {
-                    'spi_initialized': False,
+                    'mega_connected': False,
                     'hardware_available': False,
                     'error': str(e)
                 },
@@ -4169,66 +4251,58 @@ class WebRobotInterface(Node):
             })
 
     def _get_imu_position(self):
-        """Get IMU position data in the format expected by the frontend"""
+        """Get IMU position data from ROS2 topic (RPi sensor)"""
         try:
-            imu_data = self.read_imu_data()
-            
-            # Transform IMU data to match frontend expectations
-            if imu_data:
-                # Convert accelerometer to orientation (simplified - using accelerometer as orientation indicator)
-                accel = imu_data.get('accelerometer', {})
-                gyro = imu_data.get('gyroscope', {})
-                
-                # Calculate orientation from accelerometer (pitch and roll)
-                # This is a simplified calculation - real IMU would use quaternions
-                accel_x = accel.get('x', 0)
-                accel_y = accel.get('y', 0)
-                accel_z = accel.get('z', 9.81)
-                
-                # Calculate pitch and roll in degrees
-                pitch = math.degrees(math.atan2(accel_y, math.sqrt(accel_x**2 + accel_z**2)))
-                roll = math.degrees(math.atan2(-accel_x, accel_z))
-                yaw = 0.0  # Yaw requires magnetometer or integration
-                
+            imu_data = self.sensor_data['imu']
+
+            # Check if we have IMU data from ROS2 topic
+            if imu_data and imu_data['orientation'] is not None:
+                # Convert quaternion orientation to euler angles for display
+                # This is a simplified conversion - assumes small angles
+                orientation = imu_data['orientation']
+                angular_vel = imu_data['angular_velocity']
+                linear_accel = imu_data['linear_acceleration']
+
                 formatted_data = {
-                    # Orientation in degrees
+                    # Orientation in degrees (convert from quaternion if needed)
                     'orientation': {
-                        'x': round(pitch, 2),
-                        'y': round(roll, 2),
-                        'z': round(yaw, 2)
+                        'x': round(math.degrees(orientation['x']), 2),  # Roll
+                        'y': round(math.degrees(orientation['y']), 2),  # Pitch
+                        'z': round(math.degrees(orientation['z']), 2)   # Yaw
                     },
                     # Angular velocity in rad/s
                     'angular_velocity': {
-                        'x': round(gyro.get('x', 0) * math.pi / 180, 3),  # Convert deg/s to rad/s
-                        'y': round(gyro.get('y', 0) * math.pi / 180, 3),
-                        'z': round(gyro.get('z', 0) * math.pi / 180, 3)
+                        'x': round(angular_vel['x'], 3),
+                        'y': round(angular_vel['y'], 3),
+                        'z': round(angular_vel['z'], 3)
                     },
                     # Linear acceleration in m/s²
                     'linear_acceleration': {
-                        'x': round(accel_x, 2),
-                        'y': round(accel_y, 2),
-                        'z': round(accel_z - 9.81, 2)  # Remove gravity
+                        'x': round(linear_accel['x'], 2),
+                        'y': round(linear_accel['y'], 2),
+                        'z': round(linear_accel['z'], 2)
                     },
                     'temperature': round(imu_data.get('temperature', 25.0), 1)
                 }
-                
+
                 return jsonify({
                     'success': True,
                     'data': formatted_data,
                     'status': {
-                        'imu_initialized': self.imu_initialized,
-                        'hardware_available': True
+                        'imu_initialized': True,
+                        'hardware_available': True,
+                        'source': 'RPi ROS2 topic'
                     },
                     'timestamp': time.time()
                 })
             else:
-                # IMU not available or faulty
+                # IMU data not available
                 imu_status = {
-                    'imu_initialized': self.imu_initialized if hasattr(self, 'imu_initialized') else False,
+                    'imu_initialized': self.imu_initialized,
                     'hardware_available': False,
-                    'message': 'IMU sensor not available or faulty - check hardware connection'
+                    'message': 'IMU data not available from ROS2 topic - check RPi IMU sensor'
                 }
-                
+
                 return jsonify({
                     'success': True,
                     'data': {
@@ -4358,12 +4432,12 @@ class WebRobotInterface(Node):
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def _move_robot_endpoint(self):
-        """Handle robot movement POST request - Direct GPIO control"""
+        """Handle robot movement POST request - Send to Arduino Mega"""
         try:
             data = request.get_json()
             if not data:
                 return jsonify({'success': False, 'error': 'No data provided'}), 400
-                
+
             direction = data.get('direction')
             speed = data.get('speed', 0.5)
             duration = data.get('duration', 0.0)
@@ -4379,89 +4453,70 @@ class WebRobotInterface(Node):
                     'error': f'Invalid direction: {direction}. Must be one of: {valid_directions}'
                 }), 400
 
-            # Call GPIO controller directly
-            if not hasattr(self, 'gpio') or self.gpio is None:
-                self.get_logger().error('GPIO controller not initialized')
-                return jsonify({
-                    'success': False,
-                    'error': 'GPIO controller not available'
-                }), 503
+            # Map direction to Mega command
+            command_map = {
+                'forward': 'f',
+                'backward': 'b',
+                'strafe_left': 'l',
+                'strafe_right': 'r'
+            }
 
-            # Control motor directly via GPIO
-            success = self.gpio.move_robot(direction, float(speed))
-            
-            if success:
-                self.get_logger().info(f'Robot moving {direction} at speed {speed}')
-                # If duration is specified, schedule stop after duration
-                if duration > 0:
-                    import threading
-                    def stop_after_duration():
-                        time.sleep(duration)
-                        self.gpio.stop_robot()
-                        self.get_logger().info(f'Robot stopped after {duration}s')
-                    threading.Thread(target=stop_after_duration, daemon=True).start()
-                
-                return jsonify({
-                    'success': True,
-                    'message': f'Robot moving {direction} at speed {speed}',
-                    'direction': direction,
-                    'speed': speed,
-                    'duration': duration
-                })
-            else:
-                self.get_logger().error(f'Failed to move robot {direction}')
-                return jsonify({
-                    'success': False,
-                    'error': f'Failed to move robot {direction}',
-                    'gpio_initialized': self.gpio.gpio_initialized,
-                    'simulation_mode': self.gpio.simulation_mode
-                }), 500
+            command = command_map.get(direction)
+            if not command:
+                return jsonify({'success': False, 'error': 'Invalid direction mapping'}), 400
+
+            # Send command to Mega
+            self.send_command_to_mega(command)
+
+            self.get_logger().info(f'Robot moving {direction} at speed {speed} - sent command: {command}')
+
+            # If duration is specified, schedule stop after duration
+            if duration > 0:
+                import threading
+                def stop_after_duration():
+                    time.sleep(duration)
+                    self.send_command_to_mega('s')  # Stop command
+                    self.get_logger().info(f'Robot stopped after {duration}s')
+                threading.Thread(target=stop_after_duration, daemon=True).start()
+
+            return jsonify({
+                'success': True,
+                'message': f'Robot moving {direction} at speed {speed}',
+                'direction': direction,
+                'speed': speed,
+                'duration': duration,
+                'mega_connected': self.mega_connected
+            })
 
         except Exception as e:
             self.get_logger().error(f'Move robot error: {str(e)}', exc_info=True)
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def _stop_robot_endpoint(self):
-        """Handle robot stop POST request - Direct GPIO control"""
+        """Handle robot stop POST request - Send to Arduino Mega"""
         try:
-            # Call GPIO controller directly
-            if not hasattr(self, 'gpio') or self.gpio is None:
-                self.get_logger().error('GPIO controller not initialized')
-                return jsonify({
-                    'success': False,
-                    'error': 'GPIO controller not available'
-                }), 503
+            # Send stop command to Mega
+            self.send_command_to_mega('s')
 
-            # Stop motor directly via GPIO
-            success = self.gpio.stop_robot()
-            
-            if success:
-                self.get_logger().info('Robot stopped')
-                return jsonify({
-                    'success': True,
-                    'message': 'Robot stopped',
-                    'status': 'STOPPED'
-                })
-            else:
-                self.get_logger().error('Failed to stop robot')
-                return jsonify({
-                    'success': False,
-                    'error': 'Failed to stop robot',
-                    'gpio_initialized': self.gpio.gpio_initialized,
-                    'simulation_mode': self.gpio.simulation_mode
-                }), 500
+            self.get_logger().info('Robot stop command sent to Mega')
+            return jsonify({
+                'success': True,
+                'message': 'Robot stop command sent',
+                'status': 'STOPPED',
+                'mega_connected': self.mega_connected
+            })
 
         except Exception as e:
             self.get_logger().error(f'Stop robot error: {str(e)}', exc_info=True)
             return jsonify({'success': False, 'error': str(e)}), 500
 
     def _turn_robot_endpoint(self):
-        """Handle robot turn POST request - Direct GPIO control"""
+        """Handle robot turn POST request - Send to Arduino Mega"""
         try:
             data = request.get_json()
             if not data:
                 return jsonify({'success': False, 'error': 'No data provided'}), 400
-                
+
             direction = data.get('direction')
             speed = data.get('speed', 0.5)
 
@@ -4475,34 +4530,28 @@ class WebRobotInterface(Node):
                     'error': f'Invalid direction: {direction}. Must be "left" or "right"'
                 }), 400
 
-            # Call GPIO controller directly
-            if not hasattr(self, 'gpio') or self.gpio is None:
-                self.get_logger().error('GPIO controller not initialized')
-                return jsonify({
-                    'success': False,
-                    'error': 'GPIO controller not available'
-                }), 503
+            # Map direction to Mega command
+            command_map = {
+                'left': 'w',   # counter-clockwise
+                'right': 'c'   # clockwise
+            }
 
-            # Control motor directly via GPIO
-            success = self.gpio.turn_robot(direction, float(speed))
-            
-            if success:
-                self.get_logger().info(f'Robot turning {direction} at speed {speed}')
-                return jsonify({
-                    'success': True,
-                    'message': f'Robot turning {direction} at speed {speed}',
-                    'direction': direction,
-                    'speed': speed,
-                    'status': 'TURNING'
-                })
-            else:
-                self.get_logger().error(f'Failed to turn robot {direction}')
-                return jsonify({
-                    'success': False,
-                    'error': f'Failed to turn robot {direction}',
-                    'gpio_initialized': self.gpio.gpio_initialized,
-                    'simulation_mode': self.gpio.simulation_mode
-                }), 500
+            command = command_map.get(direction)
+            if not command:
+                return jsonify({'success': False, 'error': 'Invalid direction mapping'}), 400
+
+            # Send command to Mega
+            self.send_command_to_mega(command)
+
+            self.get_logger().info(f'Robot turning {direction} at speed {speed} - sent command: {command}')
+            return jsonify({
+                'success': True,
+                'message': f'Robot turning {direction} at speed {speed}',
+                'direction': direction,
+                'speed': speed,
+                'status': 'TURNING',
+                'mega_connected': self.mega_connected
+            })
 
         except Exception as e:
             self.get_logger().error(f'Turn robot error: {str(e)}', exc_info=True)

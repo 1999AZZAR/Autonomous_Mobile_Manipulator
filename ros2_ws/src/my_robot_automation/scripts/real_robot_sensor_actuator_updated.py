@@ -7,24 +7,17 @@ from geometry_msgs.msg import Twist
 from std_msgs.msg import Bool, Float32, Int32, String
 import math
 import time
+import serial
+import threading
 
 class RealRobotSensorActuator(Node):
     def __init__(self):
         super().__init__('real_robot_sensor_actuator')
-        
-        # Publishers for REAL sensor data based on notes.txt hardware configuration
-        
-        # 1. IR Distance sensors (6x Sharp GP2Y0A02YK0F - wall alignment) - 2 per side
-        self.distance_left_front_pub = self.create_publisher(Range, '/distance/left_front', 10)
-        self.distance_left_back_pub = self.create_publisher(Range, '/distance/left_back', 10)
-        self.distance_right_front_pub = self.create_publisher(Range, '/distance/right_front', 10)
-        self.distance_right_back_pub = self.create_publisher(Range, '/distance/right_back', 10)
-        self.distance_back_left_pub = self.create_publisher(Range, '/distance/back_left', 10)
-        self.distance_back_right_pub = self.create_publisher(Range, '/distance/back_right', 10)
 
-        # 2. HC-SR04 Ultrasonic sensors (2x front)
-        self.ultrasonic_front_left_pub = self.create_publisher(Range, '/ultrasonic/front_left', 10)
-        self.ultrasonic_front_right_pub = self.create_publisher(Range, '/ultrasonic/front_right', 10)
+        # Publishers for REAL sensor data based on notes.txt hardware configuration
+
+        # REMOVED: IR Distance sensors (6x Sharp GP2Y0A02YK0F) - now handled by Arduino Mega
+        # REMOVED: HC-SR04 Ultrasonic sensors (2x front) - now handled by Arduino Mega
 
         # 3. Line sensors (3x individual, assembled side by side)
         self.line_sensor_left_pub = self.create_publisher(Int32, '/line_sensor/left', 10)
@@ -39,13 +32,18 @@ class RealRobotSensorActuator(Node):
 
         # 6. Gripper camera (USB based)
         self.gripper_camera_pub = self.create_publisher(Image, '/gripper/camera/image_raw', 10)
-        
+
         # Joint states for all actuators
         self.joint_pub = self.create_publisher(JointState, '/joint_states', 10)
+
+        # Serial connection to Arduino Mega
+        self.mega_serial = None
+        self.mega_connected = False
+        self.connect_to_mega()
         
         # Subscribers for actuator commands based on notes.txt configuration
-        
-        # 1. Omni wheels: Back, Front Left, Front Right
+
+        # 1. Omni wheels: Command sent to Arduino Mega via serial
         self.cmd_vel_sub = self.create_subscription(
             Twist, '/cmd_vel', self.cmd_vel_callback, 10)
         
@@ -87,8 +85,8 @@ class RealRobotSensorActuator(Node):
             String, '/hardware/mode', self.mode_callback, 10)
         
         # Timers for publishing sensor data
-        self.create_timer(0.066, self.publish_laser_distance_sensors)  # 15Hz
-        self.create_timer(0.1, self.publish_ultrasonic_sensors)         # 10Hz
+        # REMOVED: IR distance sensors - now handled by Arduino Mega
+        # REMOVED: HC-SR04 ultrasonic sensors - now handled by Arduino Mega
         self.create_timer(0.02, self.publish_line_sensors)              # 50Hz
         self.create_timer(0.1, self.publish_tf_luna)                    # 10Hz
         self.create_timer(0.1, self.publish_imu)                        # 10Hz
@@ -123,13 +121,45 @@ class RealRobotSensorActuator(Node):
         self.robot_running = False
         self.robot_mode = "run"  # "train" or "run"
         
-        self.get_logger().info('Real Robot Sensor/Actuator Node started - Updated for notes.txt configuration')
-        self.get_logger().info('SENSORS: IR Distance Sharp GP2Y0A02YK0F (6x), HC-SR04 Ultrasonic (2x), Line Sensors (3x), TF-Luna, MPU6050 IMU, Gripper Camera')
-        self.get_logger().info('ACTUATORS: 3x Omni Wheels (lf,rf,b), Gripper System (motor+servos), 4x Containers')
+        self.get_logger().info('Real Robot Sensor/Actuator Node started - Updated for distributed architecture')
+        self.get_logger().info('SENSORS: Line Sensors (3x), TF-Luna LiDAR, MPU6050 IMU, Gripper Camera')
+        self.get_logger().info('ACTUATORS: Commands sent to Arduino Mega via serial')
         self.get_logger().info('CONTROLS: Emergency, Start/Stop, Mode (Train/Run)')
+
+    def connect_to_mega(self):
+        """Connect to Arduino Mega via serial"""
+        try:
+            self.mega_serial = serial.Serial(
+                port='/dev/ttyACM0',
+                baudrate=115200,
+                timeout=1,
+                write_timeout=1
+            )
+            time.sleep(2)  # Wait for connection
+            self.mega_connected = True
+            self.get_logger().info('Connected to Arduino Mega on /dev/ttyACM0')
+        except Exception as e:
+            self.get_logger().error(f'Failed to connect to Mega: {e}')
+            self.mega_connected = False
+
+    def send_command_to_mega(self, command):
+        """Send command to Arduino Mega"""
+        if not self.mega_connected:
+            self.get_logger().warn('Not connected to Mega, attempting reconnect...')
+            self.connect_to_mega()
+            return
+
+        try:
+            self.mega_serial.write(command.encode())
+            self.mega_serial.write(b'\n')
+            self.mega_serial.flush()
+            self.get_logger().debug(f'Sent to Mega: {command}')
+        except Exception as e:
+            self.get_logger().error(f'Failed to send command to Mega: {e}')
+            self.mega_connected = False
     
     def cmd_vel_callback(self, msg):
-        """Handle velocity commands for 3x Omni wheels: Left Front, Right Front, Back"""
+        """Handle velocity commands and send to Arduino Mega"""
         if self.emergency_stop:
             self.get_logger().warn('Emergency stop active - ignoring velocity commands')
             return
@@ -139,51 +169,40 @@ class RealRobotSensorActuator(Node):
         linear_y = msg.linear.y    # Left/right (lateral movement)
         angular_z = msg.angular.z  # Rotation
 
-        # Omni wheel kinematics for 3-wheeled robot (lf, rf, b configuration)
-        # Robot coordinate system: x=forward, y=left, z=up
-        # Wheel positions: lf at (d, w/2), rf at (d, -w/2), b at (-d, 0)
-        # where d = wheel distance from center, w = wheel separation
+        # Determine primary movement and send appropriate command to Mega
+        command = None
 
-        # Wheel velocities calculation for omni wheels
-        # V_wheel = V_robot + ω × r_wheel_to_center
-        # For 3 omni wheels in triangular configuration
+        if abs(linear_x) > 0.1:
+            # Forward/backward movement
+            command = 'f' if linear_x > 0 else 'b'
+        elif abs(linear_y) > 0.1:
+            # Strafe movement
+            command = 'l' if linear_y > 0 else 'r'
+        elif abs(angular_z) > 0.1:
+            # Rotation
+            command = 'w' if angular_z > 0 else 'c'
+        else:
+            # Stop
+            command = 's'
 
-        wheel_base = 0.3  # Distance from center to wheels
-        wheel_separation = 0.25  # Distance between front wheels
-
-        # Calculate individual wheel velocities
-        # Left Front wheel
-        v_lf = linear_x - linear_y + angular_z * wheel_base
-
-        # Right Front wheel
-        v_rf = linear_x + linear_y - angular_z * wheel_base
-
-        # Back wheel (center rear)
-        v_b = linear_x - angular_z * wheel_base
-
-        # Update robot position using odometry
-        dt = 0.1
-        self.robot_x += linear_x * dt * math.cos(self.robot_theta) - linear_y * dt * math.sin(self.robot_theta)
-        self.robot_y += linear_x * dt * math.sin(self.robot_theta) + linear_y * dt * math.cos(self.robot_theta)
-        self.robot_theta += angular_z * dt
-
-        # Normalize theta to [-pi, pi]
-        self.robot_theta = math.atan2(math.sin(self.robot_theta), math.cos(self.robot_theta))
-
-        self.get_logger().info(f'Omni wheels (LF, RF, B): linear_x={linear_x:.2f}, linear_y={linear_y:.2f}, angular_z={angular_z:.2f}')
-        self.get_logger().info(f'Wheel velocities: LF={v_lf:.2f}, RF={v_rf:.2f}, B={v_b:.2f}')
-        self.get_logger().info(f'Robot pose: x={self.robot_x:.2f}, y={self.robot_y:.2f}, theta={self.robot_theta:.2f}')
+        if command:
+            self.send_command_to_mega(command)
+            self.get_logger().debug(f'Sent velocity command: {command} (x={linear_x:.2f}, y={linear_y:.2f}, z={angular_z:.2f})')
     
     def gripper_callback(self, msg):
-        """Handle gripper commands (servo)"""
+        """Handle gripper commands and send to Mega"""
         self.gripper_open = msg.data
+        command = 'no' if self.gripper_open else 'nc'  # no=open, nc=close
+        self.send_command_to_mega(command)
         action = "opened" if self.gripper_open else "closed"
-        self.get_logger().info(f'Gripper {action}')
-    
+        self.get_logger().info(f'Gripper {action} - sent command: {command}')
+
     def gripper_tilt_callback(self, msg):
-        """Handle gripper tilt commands (servo)"""
+        """Handle gripper tilt commands and send to Mega"""
         self.gripper_tilt_angle = msg.data
-        self.get_logger().info(f'Gripper tilt angle: {self.gripper_tilt_angle:.2f} degrees')
+        command = 'mu' if self.gripper_tilt_angle > 0 else 'md'  # mu=tilt up, md=tilt down
+        self.send_command_to_mega(command)
+        self.get_logger().info(f'Gripper tilt: {self.gripper_tilt_angle:.2f} degrees - sent command: {command}')
     
     def gripper_neck_callback(self, msg):
         """Handle gripper neck commands (servo continuous)"""
@@ -220,10 +239,11 @@ class RealRobotSensorActuator(Node):
         self.get_logger().info(f'Right back container: {action}')
     
     def emergency_callback(self, msg):
-        """Handle emergency stop commands"""
+        """Handle emergency stop commands and send to Mega"""
         self.emergency_stop = msg.data
         if self.emergency_stop:
-            self.get_logger().error('EMERGENCY STOP ACTIVATED!')
+            self.send_command_to_mega('v')  # Emergency stop command
+            self.get_logger().error('EMERGENCY STOP ACTIVATED - sent to Mega!')
         else:
             self.get_logger().info('Emergency stop released')
     
@@ -238,97 +258,8 @@ class RealRobotSensorActuator(Node):
         self.robot_mode = msg.data
         self.get_logger().info(f'Robot mode set to: {self.robot_mode}')
     
-    def publish_laser_distance_sensors(self):
-        """Publish IR distance sensor data (6x Sharp GP2Y0A02YK0F - wall alignment)"""
-        # Left front IR sensor (Sharp GP2Y0A02YK0F)
-        left_front_range = Range()
-        left_front_range.header.stamp = self.get_clock().now().to_msg()
-        left_front_range.header.frame_id = 'ir_sensor_left_front_link'
-        left_front_range.radiation_type = Range.INFRARED
-        left_front_range.field_of_view = 0.087  # ~5 degrees
-        left_front_range.min_range = 0.02
-        left_front_range.max_range = 4.0
-        left_front_range.range = 1.8 + 0.3 * math.sin(time.time() * 0.8)
-        self.distance_left_front_pub.publish(left_front_range)
-
-        # Left back IR sensor (Sharp GP2Y0A02YK0F)
-        left_back_range = Range()
-        left_back_range.header.stamp = self.get_clock().now().to_msg()
-        left_back_range.header.frame_id = 'ir_sensor_left_back_link'
-        left_back_range.radiation_type = Range.INFRARED
-        left_back_range.field_of_view = 0.087
-        left_back_range.min_range = 0.02
-        left_back_range.max_range = 4.0
-        left_back_range.range = 1.5  # Closer to wall
-        self.distance_left_back_pub.publish(left_back_range)
-
-        # Right front IR sensor (Sharp GP2Y0A02YK0F)
-        right_front_range = Range()
-        right_front_range.header.stamp = self.get_clock().now().to_msg()
-        right_front_range.header.frame_id = 'ir_sensor_right_front_link'
-        right_front_range.radiation_type = Range.INFRARED
-        right_front_range.field_of_view = 0.087
-        right_front_range.min_range = 0.02
-        right_front_range.max_range = 4.0
-        right_front_range.range = 2.2 + 0.4 * math.sin(time.time() * 0.6)
-        self.distance_right_front_pub.publish(right_front_range)
-
-        # Right back IR sensor (Sharp GP2Y0A02YK0F)
-        right_back_range = Range()
-        right_back_range.header.stamp = self.get_clock().now().to_msg()
-        right_back_range.header.frame_id = 'ir_sensor_right_back_link'
-        right_back_range.radiation_type = Range.INFRARED
-        right_back_range.field_of_view = 0.087
-        right_back_range.min_range = 0.02
-        right_back_range.max_range = 4.0
-        right_back_range.range = 1.9  # Closer to wall
-        self.distance_right_back_pub.publish(right_back_range)
-
-        # Back left IR sensor (Sharp GP2Y0A02YK0F)
-        back_left_range = Range()
-        back_left_range.header.stamp = self.get_clock().now().to_msg()
-        back_left_range.header.frame_id = 'ir_sensor_back_left_link'
-        back_left_range.radiation_type = Range.INFRARED
-        back_left_range.field_of_view = 0.087
-        back_left_range.min_range = 0.02
-        back_left_range.max_range = 4.0
-        back_left_range.range = 3.5  # Back wall
-        self.distance_back_left_pub.publish(back_left_range)
-
-        # Back right IR sensor (Sharp GP2Y0A02YK0F)
-        back_right_range = Range()
-        back_right_range.header.stamp = self.get_clock().now().to_msg()
-        back_right_range.header.frame_id = 'ir_sensor_back_right_link'
-        back_right_range.radiation_type = Range.INFRARED
-        back_right_range.field_of_view = 0.087
-        back_right_range.min_range = 0.02
-        back_right_range.max_range = 4.0
-        back_right_range.range = 3.2  # Back wall
-        self.distance_back_right_pub.publish(back_right_range)
-    
-    def publish_ultrasonic_sensors(self):
-        """Publish HC-SR04 ultrasonic sensor data (2x front)"""
-        # Front left ultrasonic sensor
-        front_left_range = Range()
-        front_left_range.header.stamp = self.get_clock().now().to_msg()
-        front_left_range.header.frame_id = 'hcsr04_front_left_link'
-        front_left_range.radiation_type = Range.ULTRASOUND
-        front_left_range.field_of_view = 0.2618  # ~15 degrees
-        front_left_range.min_range = 0.02
-        front_left_range.max_range = 4.0
-        front_left_range.range = 2.8 + 0.6 * math.sin(time.time() * 0.4)
-        self.ultrasonic_front_left_pub.publish(front_left_range)
-
-        # Front right ultrasonic sensor
-        front_right_range = Range()
-        front_right_range.header.stamp = self.get_clock().now().to_msg()
-        front_right_range.header.frame_id = 'hcsr04_front_right_link'
-        front_right_range.radiation_type = Range.ULTRASOUND
-        front_right_range.field_of_view = 0.2618  # ~15 degrees
-        front_right_range.min_range = 0.02
-        front_right_range.max_range = 4.0
-        front_right_range.range = 3.1 + 0.5 * math.sin(time.time() * 0.5 + 0.5)
-        self.ultrasonic_front_right_pub.publish(front_right_range)
+    # REMOVED: publish_laser_distance_sensors() - IR sensors now handled by Arduino Mega
+    # REMOVED: publish_ultrasonic_sensors() - HC-SR04 sensors now handled by Arduino Mega
 
     def publish_tf_luna(self):
         """Publish TF-Luna single-point LIDAR data"""
