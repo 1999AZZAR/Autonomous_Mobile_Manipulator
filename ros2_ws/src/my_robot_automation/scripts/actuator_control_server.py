@@ -296,109 +296,14 @@ class ActuatorControlServer(Node):
         return response
 
     def execute_movement(self, direction, speed):
-        """Execute robot movement using L298N motor drivers"""
-        if not self.gpio_initialized:
-            self.get_logger().error("GPIO not initialized")
-            return
-            
-        # Clamp speed
-        speed = max(0.0, min(1.0, speed))
-        pwm_value = 1 if speed > 0.5 else 0  # Simple on/off for now (can use PWM later)
-        
-        try:
-            if direction == 'stop':
-                self.stop_robot()
-            elif direction == 'forward':
-                # All motors forward
-                # Front Left: IN1=1, IN2=0, ENA=1
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
-                # Other motors: DIR=1, PWM=1
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
-                self.get_logger().info(f"Moving forward at speed {speed:.2f}")
-            elif direction == 'backward':
-                # All motors reverse
-                # Front Left: IN1=0, IN2=1, ENA=1
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
-                # Other motors: DIR=0, PWM=1
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
-                self.get_logger().info(f"Moving backward at speed {speed:.2f}")
-            elif direction == 'strafe_left':
-                # Front left reverse, front right forward, back stopped
-                # Front Left: IN1=0, IN2=1, ENA=1
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
-                # Other motors
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
-                self.get_logger().info(f"Strafing left at speed {speed:.2f}")
-            elif direction == 'strafe_right':
-                # Front left forward, front right reverse, back stopped
-                # Front Left: IN1=1, IN2=0, ENA=1
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
-                # Other motors
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
-                self.get_logger().info(f"Strafing right at speed {speed:.2f}")
-            elif direction == 'turn_left':
-                # FL backward, FR forward, Back forward
-                # Front Left: IN1=0, IN2=1, ENA=1
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
-                # Other motors
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
-                self.get_logger().info(f"Turning left at speed {speed:.2f}")
-            elif direction == 'turn_right':
-                # FL forward, FR backward, Back reverse
-                # Front Left: IN1=1, IN2=0, ENA=1
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN1'], 1)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_IN2'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], pwm_value)
-                # Other motors
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], pwm_value)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_DIR'], 0)
-                lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], pwm_value)
-                self.get_logger().info(f"Turning right at speed {speed:.2f}")
-        except Exception as e:
-            self.get_logger().error(f"Movement error: {e}")
+        """DEPRECATED: Movement now handled by Mega via serial interface"""
+        self.get_logger().warn("Direct GPIO motor control disabled - using Mega PID control instead")
+        self.get_logger().info(f"Movement command '{direction}' at speed {speed:.2f} delegated to Mega")
 
     def stop_robot(self):
-        """Stop all robot motors using L298N motor drivers"""
-        if not self.gpio_initialized:
-            self.get_logger().warn("GPIO not initialized - cannot stop motors")
-            return
-        
-        try:
-            # Stop Front Left motor: ENA=0
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FL_ENA'], 0)
-            # Stop other motors: PWM=0
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_FR_PWM'], 0)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['MOTOR_BACK_PWM'], 0)
-            lgpio.gpio_write(self.gpio_handle, self.PINS['LIFTER_PWM'], 0)
-            self.get_logger().info("Robot stopped - all motors stopped")
-        except Exception as e:
-            self.get_logger().error(f"Error stopping robot: {e}")
+        """DEPRECATED: Motor stopping now handled by Mega via serial interface"""
+        self.get_logger().warn("Direct GPIO motor control disabled - Mega handles motor stopping")
+        self.get_logger().info("Stop command delegated to Mega")
 
     def control_container_callback(self, request, response):
         """Handle container control service calls"""

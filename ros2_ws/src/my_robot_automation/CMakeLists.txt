@@ -77,6 +77,8 @@ install(PROGRAMS
   scripts/navigation_status_server.py
   scripts/sensor_simulator.py
   scripts/tf_luna_sensor.py
+  scripts/mega_serial_interface.py
+  scripts/actuator_control_server.py
   DESTINATION lib/${PROJECT_NAME}
 )
 

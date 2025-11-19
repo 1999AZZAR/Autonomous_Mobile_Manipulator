@@ -96,6 +96,9 @@ class MegaSerialInterface(Node):
         # Timer for reading sensor data
         self.create_timer(0.1, self.read_sensor_data)  # 10Hz
 
+        # Test timer for integration verification
+        self.create_timer(5.0, self.integration_test)  # Run test every 5 seconds
+
         # Connect to Mega
         self.connect_to_mega()
 
@@ -161,21 +164,104 @@ class MegaSerialInterface(Node):
 
     def process_serial_data(self, line):
         """Process incoming data from Mega"""
-        # This will handle sensor data responses from Mega
-        # Format: "IR_LF:245.5,IR_LB:238.2,US_FL:85.4,US_FR:92.1"
+        # Handle sensor data responses from Mega
         if line.startswith('SENSORS:'):
             self.parse_sensor_data(line[8:])  # Remove 'SENSORS:' prefix
+        elif line.startswith('TILT:'):
+            self.get_logger().info(f'Mega: {line}')
+        elif line.startswith('GRIP:'):
+            self.get_logger().info(f'Mega: {line}')
+        elif line.startswith('TURBO:'):
+            self.get_logger().info(f'Mega: {line}')
+        elif line.startswith('SPD:'):
+            self.get_logger().info(f'Mega: {line}')
+        elif line.startswith('EMERGENCY STOP'):
+            self.get_logger().warn(f'Mega: {line}')
+        elif line.startswith('GRIPPER_'):
+            self.get_logger().info(f'Mega: {line}')
+        elif line.startswith('TILT_'):
+            self.get_logger().info(f'Mega: {line}')
+        elif line.startswith('UNKNOWN_CMD'):
+            self.get_logger().warn(f'Mega: Unknown command received')
+        elif line.startswith('INVALID_'):
+            self.get_logger().warn(f'Mega: {line}')
 
     def parse_sensor_data(self, data):
-        """Parse sensor data from Mega"""
+        """Parse comprehensive sensor data from Mega"""
         try:
             sensors = data.split(',')
+            sensor_dict = {}
+
+            # Parse all sensor values
             for sensor in sensors:
                 if ':' in sensor:
                     sensor_type, value = sensor.split(':', 1)
-                    self.publish_sensor_data(sensor_type, float(value))
+                    if value != 'INV':
+                        try:
+                            sensor_dict[sensor_type] = float(value)
+                        except ValueError:
+                            sensor_dict[sensor_type] = value  # Keep as string for status values
+
+            # Publish IR distance sensors
+            ir_mappings = {
+                'IR_LF': self.distance_left_front_pub,
+                'IR_LB': self.distance_left_back_pub,
+                'IR_RF': self.distance_right_front_pub,
+                'IR_RB': self.distance_right_back_pub,
+                'IR_BL': self.distance_back_left_pub,
+                'IR_BR': self.distance_right_back_pub
+            }
+
+            for sensor_key, publisher in ir_mappings.items():
+                if sensor_key in sensor_dict:
+                    range_msg = Range()
+                    range_msg.header.stamp = self.get_clock().now().to_msg()
+                    range_msg.header.frame_id = f"{sensor_key.lower()}_frame"
+                    range_msg.radiation_type = Range.INFRARED
+                    range_msg.field_of_view = 0.1
+                    range_msg.min_range = 0.02
+                    range_msg.max_range = 1.5
+                    range_msg.range = sensor_dict[sensor_key] / 100.0  # Convert mm to meters
+                    publisher.publish(range_msg)
+
+            # Publish ultrasonic sensors
+            ultrasonic_mappings = {
+                'US_FL': self.ultrasonic_front_left_pub,
+                'US_FR': self.ultrasonic_front_right_pub
+            }
+
+            for sensor_key, publisher in ultrasonic_mappings.items():
+                if sensor_key in sensor_dict:
+                    range_msg = Range()
+                    range_msg.header.stamp = self.get_clock().now().to_msg()
+                    range_msg.header.frame_id = f"{sensor_key.lower()}_frame"
+                    range_msg.radiation_type = Range.ULTRASOUND
+                    range_msg.field_of_view = 0.1
+                    range_msg.min_range = 0.02
+                    range_msg.max_range = 4.0
+                    range_msg.range = sensor_dict[sensor_key] / 100.0  # Convert cm to meters
+                    publisher.publish(range_msg)
+
+            # Log motor RPM data for debugging
+            motor_rpms = []
+            for i in range(1, 5):
+                rpm_key = f'MTR{i}_RPM'
+                if rpm_key in sensor_dict:
+                    motor_rpms.append(f'M{i}:{sensor_dict[rpm_key]:.1f}')
+
+            if motor_rpms:
+                self.get_logger().debug(f'Motor RPMs: {" ".join(motor_rpms)}')
+
+            # Log status information
+            sync_active = sensor_dict.get('SYNC', '0') == '1'
+            vff_active = sensor_dict.get('VFF', '0') == '1'
+            is_moving = sensor_dict.get('MOVING', '0') == '1'
+
+            self.get_logger().debug(f'Status: SYNC={sync_active}, VFF={vff_active}, MOVING={is_moving}')
+
         except Exception as e:
             self.get_logger().error(f'Failed to parse sensor data: {e}')
+            self.get_logger().error(f'Raw data: {data}')
 
     def publish_sensor_data(self, sensor_type, value):
         """Publish sensor data to ROS topics"""
@@ -218,20 +304,23 @@ class MegaSerialInterface(Node):
         linear_y = msg.linear.y
         angular_z = msg.angular.z
 
-        # Determine primary movement direction
-        if abs(linear_x) > abs(linear_y) and abs(linear_x) > abs(angular_z):
-            # Forward/backward movement
-            if linear_x > 0.1:
+        # Threshold for considering movement significant
+        threshold = 0.05
+
+        # Determine primary movement direction with priority
+        if abs(linear_x) > threshold and abs(linear_x) >= abs(linear_y) and abs(linear_x) >= abs(angular_z):
+            # Forward/backward movement has priority
+            if linear_x > 0:
                 self.send_command(self.cmd_mapping['forward'])
-            elif linear_x < -0.1:
+            else:
                 self.send_command(self.cmd_mapping['backward'])
-        elif abs(linear_y) > abs(angular_z):
+        elif abs(linear_y) > threshold and abs(linear_y) >= abs(angular_z):
             # Strafe movement
-            if linear_y > 0.1:
+            if linear_y > 0:
                 self.send_command(self.cmd_mapping['strafe_right'])
-            elif linear_y < -0.1:
+            else:
                 self.send_command(self.cmd_mapping['strafe_left'])
-        elif abs(angular_z) > 0.1:
+        elif abs(angular_z) > threshold:
             # Rotation
             if angular_z > 0:
                 self.send_command(self.cmd_mapping['rotate_counter_clockwise'])
@@ -265,6 +354,26 @@ class MegaSerialInterface(Node):
         """Request sensor data from Mega"""
         if self.connected:
             self.send_command(self.cmd_mapping['sensor_readings'])
+
+    def integration_test(self):
+        """Periodic integration test to verify Pi-Mega communication"""
+        if not self.connected:
+            self.get_logger().warn('Mega not connected - skipping integration test')
+            return
+
+        self.get_logger().info('Running Pi-Mega integration test...')
+
+        # Test basic commands
+        test_commands = ['p', 'sr']  # Status and sensor readings
+
+        for cmd in test_commands:
+            try:
+                self.send_command(cmd)
+                time.sleep(0.5)  # Wait for response
+            except Exception as e:
+                self.get_logger().error(f'Failed to send test command {cmd}: {e}')
+
+        self.get_logger().info('Integration test completed')
 
     def set_speed(self, speed_multiplier):
         """Set speed multiplier (0.5 to 1.0)"""
