@@ -73,18 +73,11 @@ REST API and service documentation
 
 ### 🔄 Workflow Documentation
 
-#### [workflow/](./workflow/)
-N8N workflow system documentation
-
-- **Connection Fix Report**: IPv4/IPv6 issues resolved
-- **Workflow Cleanup Report**: Organization and standardization
-- **Workflow Fix Report**: Parameter fixes and improvements
-
 #### [workflows/](./workflows/)
 Workflow management and usage
 
-- **Workflow Management**: Import/export/manage workflows
-- **38 Pre-built Workflows**: Ready-to-use automation patterns
+- **[Workflow Management Guide](./workflows/WORKFLOW_MANAGEMENT_README.md)**: Complete N8N workflow management tools
+- **38 Pre-built Workflows**: Ready-to-use automation patterns for robot control
 
 ---
 
@@ -305,6 +298,12 @@ All documentation follows these standards:
 ---
 
 ## 🔄 Recent Updates
+
+**2025-11-20:**
+- ✅ **Documentation Cleanup**: Removed 14 outdated SUMMARY development artifacts
+- ✅ **Workflow Reports Cleanup**: Consolidated and removed redundant workflow reports
+- ✅ **Structure Optimization**: Streamlined documentation index and organization
+- ✅ **Pi-Mega Integration**: Added comprehensive robot control system documentation
 
 **2025-11-11:**
 - ✅ All documentation moved to `docs/` folder
