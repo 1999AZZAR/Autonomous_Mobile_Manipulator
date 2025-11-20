@@ -3048,6 +3048,10 @@ class WebRobotInterface(Node):
         self.adc_vref = 3.3  # Default 3.3V reference
         self.adc_resolution = 4096  # Default 12-bit resolution
 
+        # Initialize IMU attributes early to prevent attribute errors
+        self.imu = None
+        self.imu_initialized = False
+
         # Initialize sensor health tracking
         self.sensor_health = {
             'left_front': {'status': 'unknown', 'last_read': None, 'error_count': 0},
@@ -4108,7 +4112,33 @@ class WebRobotInterface(Node):
         Read MPU6050 IMU sensor data
         Returns dict with orientation, angular_velocity, and linear_acceleration
         """
-        if hasattr(self, 'imu_initialized') and self.imu and self.imu_initialized:
+        # Ensure IMU is initialized before accessing
+        if not hasattr(self, 'imu_initialized'):
+            self.get_logger().warn('IMU not yet initialized, returning simulated data')
+            # Initialize simulation counter if not exists
+            if not hasattr(self, 'sim_counter'):
+                self.sim_counter = 0
+            self.sim_counter += 0.1
+            return {
+                'orientation': {
+                    'x': math.sin(self.sim_counter * 0.05) * 5.0,  # Roll ±5°
+                    'y': math.cos(self.sim_counter * 0.05) * 3.0,  # Pitch ±3°
+                    'z': 0.0  # Yaw
+                },
+                'angular_velocity': {
+                    'x': math.sin(self.sim_counter * 0.1) * 2.0,
+                    'y': math.cos(self.sim_counter * 0.1) * 2.0,
+                    'z': math.sin(self.sim_counter * 0.05) * 1.0
+                },
+                'linear_acceleration': {
+                    'x': math.sin(self.sim_counter * 0.08) * 0.5,
+                    'y': math.cos(self.sim_counter * 0.08) * 0.5,
+                    'z': 9.81 + math.sin(self.sim_counter * 0.1) * 0.2  # ~9.8 m/s² with variation
+                },
+                'temperature': 25.0 + math.sin(self.sim_counter * 0.02) * 5.0
+            }
+
+        if self.imu and self.imu_initialized:
             try:
                 # Read all sensor data
                 imu_reading = self.imu.read_all()
