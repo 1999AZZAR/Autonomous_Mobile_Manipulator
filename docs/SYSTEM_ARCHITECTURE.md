@@ -1,7 +1,7 @@
 # System Architecture - Control & Monitoring
 
-**Last Updated:** 2025-11-10  
-**Status:** Production Ready
+**Last Updated:** 2025-11-20
+**Status:** Production Ready with Pi-Mega Integration
 
 ## Overview
 
@@ -9,6 +9,39 @@ The system provides two complementary control interfaces:
 
 1. **Web UI** - Primary control and monitoring interface (Required)
 2. **N8N** - Automation and workflow engine (Optional but Recommended)
+
+## Hardware Architecture
+
+### Pi-Mega Control System
+
+The robot uses a distributed control architecture with clear role separation:
+
+#### Raspberry Pi 5 (High-Level Control)
+- **Operating System**: Ubuntu Server 22.04 LTS
+- **Framework**: ROS2 Iron with Docker containerization
+- **Responsibilities**:
+  - High-level task coordination and planning
+  - ROS2 service management and topic publishing
+  - Web interface and API server hosting
+  - N8N workflow automation engine
+  - Sensor data processing and fusion
+  - Path planning and navigation logic
+
+#### Arduino Mega 2560 (Low-Level Control)
+- **Shield**: YFROBOT motor control shield with PID
+- **Responsibilities**:
+  - Real-time motor control (3x omni wheels + 1x lifter)
+  - PID speed control and synchronization
+  - Sensor data acquisition (IR, ultrasonic, IMU, line sensors)
+  - Emergency stop and safety interlocks
+  - Servo motor control (gripper, tilt, neck, base)
+  - Container mechanism actuation
+
+#### Communication Protocol
+- **Interface**: Serial (UART) at 115200 baud
+- **Direction**: Bidirectional command/data exchange
+- **Commands**: Single-character movement commands, structured servo commands
+- **Data Flow**: Real-time sensor data transmission from Mega to Pi
 
 ## Architecture Diagram
 
@@ -32,8 +65,23 @@ The system provides two complementary control interfaces:
                  └───────┬────────┘
                          │
                  ┌───────▼────────┐
-                 │  ROS2 System   │
-                 │  (Robot Core)  │
+                 │   ROS2 System  │
+                 │   (Raspberry Pi)│
+                 │   High-Level    │
+                 │   Control       │
+                 └───────┬────────┘
+                         │
+                ┌────────▼────────┐
+                │ SERIAL INTERFACE│
+                │   UART 115200   │
+                │   Bidirectional  │
+                └────────┬────────┘
+                         │
+                 ┌───────▼────────┐
+                 │ Arduino Mega   │
+                 │ Low-Level Motor│
+                 │ Control &      │
+                 │ Sensors        │
                  └────────────────┘
 ```
 
@@ -59,20 +107,25 @@ The system provides two complementary control interfaces:
 - **Path Storage:** Save/load frequently used routes
 
 #### 3. Real-time Monitoring
-- **Sensor Data:**
-  - 6x Laser distance sensors
-  - 2x Ultrasonic sensors
-  - TF-Luna LIDAR
-  - 3x Line sensors
-  - IMU (orientation, velocity, acceleration)
+- **Sensor Data (Arduino Mega):**
+  - 6x IR distance sensors (wall alignment)
+  - 2x Ultrasonic sensors (front obstacle detection)
+  - IMU (MPU6050/BNO055 - orientation, velocity, acceleration)
+  - 3x Line sensors (line following navigation)
+  - 4x Motor encoders (RPM feedback)
+
+- **Sensor Data (Raspberry Pi):**
+  - RPLIDAR A1 (380° scanning for mapping)
+  - Microsoft USB Camera (computer vision)
+  - TF-Luna LIDAR (optional single-point ranging)
   - 4x Container load sensors
-  
+
 - **System Status:**
-  - Robot mode and position
-  - Velocity and heading
-  - Safety status
-  - Battery level
-  - System health
+  - Robot mode and position (from Mega)
+  - Velocity and heading (calculated from encoders)
+  - Safety status (emergency stop, motor faults)
+  - Battery level and power monitoring
+  - System health and communication status
 
 - **Logs & History:**
   - Last 3 commands executed

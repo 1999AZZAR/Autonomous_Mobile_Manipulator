@@ -84,16 +84,15 @@ Workflow management and usage
 ### 🔧 Hardware Documentation
 
 #### [hardware/](./hardware/)
-Physical hardware specifications and assembly
+Physical hardware specifications and assembly (Pi-Mega distributed architecture)
 
-- **[GPIO_CONTROL_SETUP.md](./hardware/GPIO_CONTROL_SETUP.md)**: Direct GPIO control setup and usage
-- **[SENSOR_WIRING.md](./hardware/SENSOR_WIRING.md)**: Complete sensor wiring guide
-- **[MPU6050_SETUP.md](./hardware/MPU6050_SETUP.md)**: IMU sensor setup and configuration
-- **[MODE_SELECTION.md](./hardware/MODE_SELECTION.md)**: Hardware vs simulation mode selection
-- **[HARDWARE_MODE_UPDATE.md](./hardware/HARDWARE_MODE_UPDATE.md)**: Hardware mode feature updates
+- **[README.md](./hardware/README.md)**: Hardware overview with Pi-Mega integration
 - **[HARDWARE_ASSEMBLY_GUIDE.md](./hardware/HARDWARE_ASSEMBLY_GUIDE.md)**: Complete assembly instructions
-- **[RASPBERRY_PI_PINOUTS.md](./hardware/RASPBERRY_PI_PINOUTS.md)**: GPIO mapping and connections
-- **GPIO Test Script**: Hardware testing utilities
+- **[SENSOR_WIRING.md](./hardware/SENSOR_WIRING.md)**: Distributed sensor wiring (Mega + Pi sensors)
+- **[RASPBERRY_PI_PINOUTS.md](./hardware/RASPBERRY_PI_PINOUTS.md)**: GPIO mapping and Pi-Mega communication
+- **[PG23_MOTOR_CONNECTION_GUIDE.md](./hardware/PG23_MOTOR_CONNECTION_GUIDE.md)**: Motor specifications and Mega control
+- **Arduino Mega Integration**: Real-time motor control with YFROBOT shield
+- **Pi-Mega Serial Communication**: Bidirectional UART protocol (115200 baud)
 
 ---
 
@@ -302,8 +301,11 @@ All documentation follows these standards:
 **2025-11-20:**
 - ✅ **Documentation Cleanup**: Removed 14 outdated SUMMARY development artifacts
 - ✅ **Workflow Reports Cleanup**: Consolidated and removed redundant workflow reports
-- ✅ **Structure Optimization**: Streamlined documentation index and organization
-- ✅ **Pi-Mega Integration**: Added comprehensive robot control system documentation
+- ✅ **Pi-Mega Hardware Documentation**: Updated all hardware docs to reflect distributed architecture
+- ✅ **System Architecture Update**: Added Pi-Mega control system with role separation
+- ✅ **Hardware Integration**: Comprehensive Arduino Mega integration with sensor distribution
+- ✅ **Communication Protocol**: Documented bidirectional UART communication (115200 baud)
+- ✅ **Testing Procedures**: Updated testing guides for Pi-Mega coordinated operation
 
 **2025-11-11:**
 - ✅ All documentation moved to `docs/` folder

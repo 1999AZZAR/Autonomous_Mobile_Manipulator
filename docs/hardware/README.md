@@ -38,13 +38,21 @@ This guide provides comprehensive instructions for assembling and configuring th
 
 ## Robot Overview
 
-The LKS Autonomous Mobile Manipulator consists of:
-- **Mobile Base**: 3-wheeled omnidirectional platform (hexagonal shape)
-- **Manipulator System**: Servo-based picker with 4 components (gripper, tilt, neck, base) plus lifter
-- **Sensors**: RPLIDAR A1 (380°), Microsoft USB camera, distance sensors (3x), line sensor, IMU
-- **Computing**: Raspberry Pi 5 with Ubuntu Server and Docker
-- **Container System**: 4-container material transport system
-- **Power System**: Battery management and distribution
+The LKS Autonomous Mobile Manipulator uses a distributed control architecture:
+
+### Computing Systems
+- **Raspberry Pi 5**: High-level control, ROS2 framework, web interfaces, sensor fusion
+- **Arduino Mega 2560**: Real-time motor control, PID algorithms, sensor acquisition
+
+### Mechanical Systems
+- **Mobile Base**: 3-wheeled omnidirectional platform (hexagonal shape) with PG23 motors
+- **Manipulator System**: 5-servo picker (gripper, tilt, neck, base, lifter)
+- **Container System**: 4-compartment material transport with individual actuators
+
+### Sensor Suite (Distributed)
+- **Arduino Mega Sensors**: IR distance (6x), ultrasonic (2x), IMU, line sensors (3x), motor encoders (4x)
+- **Raspberry Pi Sensors**: RPLIDAR A1 (380°), Microsoft USB camera, TF-Luna LIDAR (optional)
+- **Communication**: Serial UART (115200 baud) for Pi-Mega coordination
 
 ## Bill of Materials
 
@@ -52,20 +60,28 @@ The LKS Autonomous Mobile Manipulator consists of:
 
 | Component | Model/Specification | Quantity | Purpose |
 |-----------|-------------------|----------|---------|
-| Raspberry Pi 5 | 8GB RAM, Ubuntu Server | 1 | Main computer and ROS2 processing |
-| Motors | PG23 built-in encoder, 12V, 15.5k RPM, 7 PPR | 4 | 3x omni wheels + 1x lifter (built-in encoders only, require L298N drivers) |
-| L298N Motor Drivers | Dual H-Bridge motor driver modules | 4 | Motor control for PG23 motors |
-| Omni Wheels | 75mm diameter | 3 | Omnidirectional movement (Back, Front Left, Front Right) |
+| **Computing** | | | |
+| Raspberry Pi 5 | 8GB RAM, Ubuntu Server | 1 | High-level control, ROS2, web interfaces |
+| Arduino Mega 2560 | With YFROBOT shield | 1 | Real-time motor control, PID, sensor acquisition |
+| **Motors & Drive** | | | |
+| PG23 Motors | Built-in encoder, 12V, 15.5k RPM, 7 PPR | 4 | 3x omni wheels + 1x lifter (Mega-controlled) |
+| Omni Wheels | 75mm diameter | 3 | Omnidirectional movement |
+| **Sensors (Mega-controlled)** | | | |
+| IR Distance Sensors | Laser-based | 6 | Wall alignment and obstacle detection |
+| Ultrasonic Sensors | HC-SR04 | 2 | Front obstacle detection |
+| IMU Sensor | MPU6050/BNO055 | 1 | Orientation and motion sensing |
+| Line Sensors | IR-based | 3 | Line following navigation |
+| Motor Encoders | Built-in PG23 | 4 | Speed feedback and odometry |
+| **Sensors (Pi-controlled)** | | | |
 | RPLIDAR A1 | 380° scanning | 1 | Laser-based obstacle detection and mapping |
 | Microsoft USB Camera | Standard webcam | 1 | Object recognition and computer vision |
-| Distance Sensors | Laser-based (3x) | 3 | Front, Back Left, Back Right obstacle detection |
-| Line Sensor | IR-based line following | 1 | Line-based navigation |
-| IMU Sensor | MPU6050/BNO055 | 1 | Orientation and motion sensing |
-| Servo Motors | MG996R or similar | 5 | Picker system actuation |
-| Gripper Servo | Standard servo | 1 | Object grasping |
-| Lifter Motor | PG23 built-in encoder motor, 12V, 15.5k RPM, 7 PPR | 1 | Vertical lifting mechanism |
-| Battery | 12V LiPo 5000mAh | 1 | Power supply |
-| Voltage Regulator | 5V/12V buck converter | 2 | Power management |
+| TF-Luna LIDAR | Single-point ranging | 1 | Optional distance measurement |
+| **Actuators** | | | |
+| Servo Motors | MG996R | 5 | Picker system (gripper, tilt, neck, base, lifter) |
+| Container Actuators | Solenoid/servos | 4 | Individual container control |
+| **Power System** | | | |
+| Battery | 12V LiPo 5000mAh | 1 | Power supply for all systems |
+| Voltage Regulators | 5V/12V buck converters | 2 | Power management and distribution |
 
 | Container System | 4-compartment | 1 | Material transport and storage |
 
@@ -141,20 +157,32 @@ The LKS Autonomous Mobile Manipulator consists of:
 1. **Power Distribution Board Installation**:
    ```bash
    # Mount power distribution board centrally on base plate
-   # Connect battery input with main fuse protection
-   # Wire 12V outputs to PG23 motors (M+ terminals - 4 motors)
-   # Wire 5V outputs to Raspberry Pi and servo power
+   # Connect battery input with main fuse protection (15A)
+   # Wire 12V outputs to Arduino Mega (motor power)
+   # Wire 5V outputs to Raspberry Pi, Arduino Mega, and servo power
+   # Include power monitoring for battery level sensing
    ```
 
-2. **Motor Configuration**:
+2. **Arduino Mega Motor Control Setup**:
    ```bash
-   # Connect 4 PG23 motors (3x omni wheels + 1x lifter)
-   # Motors have built-in encoders only - require L298N motor drivers
-   # Connect motor M+ to L298N OUT1, M- to L298N OUT2
-   # Connect L298N VS to 12V power supply, VCC to 5V (logic)
-   # Connect L298N DIR and PWM pins to Raspberry Pi GPIO
-   # Connect encoder DATA(A) and DATA(B) pins to Raspberry Pi GPIO (read-only inputs)
-   # Connect VIN to 5V for encoder power only
+   # Connect Arduino Mega with YFROBOT motor shield
+   # Shield provides integrated motor drivers and PID control
+   # Connect 4 PG23 motors to shield motor terminals:
+   # - M1: Back omni wheel
+   # - M2: Front left omni wheel
+   # - M3: Front right omni wheel
+   # - M4: Lifter motor
+   # Connect 12V power to shield VIN terminal
+   # Connect 5V logic power to shield VCC
+   ```
+
+3. **Pi-Mega Communication Setup**:
+   ```bash
+   # Connect Raspberry Pi UART to Arduino Mega UART
+   # Pi GPIO 14 (TX) → Mega RX (pin 0)
+   # Pi GPIO 15 (RX) ← Mega TX (pin 1)
+   # Common ground connection
+   # Set baud rate to 115200 on both devices
    ```
 
 3. **Servo Power Distribution**:
@@ -164,7 +192,34 @@ The LKS Autonomous Mobile Manipulator consists of:
    # Ensure proper grounding and decoupling capacitors
    ```
 
-#### Sensor Integration:
+#### Sensor Integration (Arduino Mega):
+
+1. **IR Distance Sensors (6x)**:
+   ```bash
+   # Mount sensors for wall alignment:
+   # - 2 on left side (left front, left back)
+   # - 2 on right side (right front, right back)
+   # - 2 on back (back left, back right)
+   # Connect analog outputs to Arduino Mega analog pins A0-A5
+   # Provide 5V power and common ground
+   ```
+
+2. **Ultrasonic Sensors (2x)**:
+   ```bash
+   # Mount front left and front right ultrasonic sensors
+   # Connect trigger/echo pins to Arduino Mega digital pins
+   # Use HC-SR04 sensors with 5V power supply
+   ```
+
+3. **IMU and Line Sensors**:
+   ```bash
+   # Mount MPU6050 IMU at robot center of gravity
+   # Connect I2C bus to Arduino Mega (SDA/SCL pins)
+   # Mount 3 IR line sensors at bottom center (left, center, right)
+   # Connect line sensor outputs to Arduino Mega digital pins
+   ```
+
+#### Sensor Integration (Raspberry Pi):
 
 1. **RPLIDAR A1 Installation**:
    ```bash
@@ -180,19 +235,10 @@ The LKS Autonomous Mobile Manipulator consists of:
    # Position for optimal object recognition field of view
    ```
 
-3. **Distance Sensors (3x Laser)**:
+3. **Optional TF-Luna LIDAR**:
    ```bash
-   # Mount front sensor at 0° (forward)
-   # Mount back-left sensor at 120° from front
-   # Mount back-right sensor at 240° from front
-   # Connect analog/digital interfaces to Raspberry Pi GPIO
-   ```
-
-4. **Line Sensor and IMU Installation**:
-   ```bash
-   # Mount line sensor at bottom center of base
-   # Mount IMU at robot center of gravity
-   # Connect I2C interfaces to Raspberry Pi
+   # Mount single-point LIDAR for specific applications
+   # Connect UART interface to Raspberry Pi GPIO serial
    ```
 
 ### Step 3: Picker System Assembly
@@ -270,32 +316,69 @@ Power Distribution Board → Sensors (5V)
 All Grounds → Common Ground Bus
 ```
 
-#### Motor Control Wiring:
+#### Arduino Mega Motor Control:
 
 ```
-Raspberry Pi GPIO → L298N Motor Drivers:
-- Front Left: DIR=GPIO17, PWM=GPIO27
-- Front Right: DIR=GPIO24, PWM=GPIO25
-- Back: DIR=GPIO5, PWM=GPIO6
-- Lifter: DIR=GPIO13, PWM=GPIO12
-
-Raspberry Pi GPIO → Motor Encoders (read-only):
-- Front Left: Encoder A=GPIO22, Encoder B=GPIO23
-- Front Right: Encoder A=GPIO16, Encoder B=GPIO26
-- Back: Encoder A=GPIO7, Encoder B=GPIO9
-- Lifter: Encoder A=GPIO20, Encoder B=GPIO21
+YFROBOT Shield Connections:
+- Motor 1 (Back): Shield motor terminals M1
+- Motor 2 (Front Left): Shield motor terminals M2
+- Motor 3 (Front Right): Shield motor terminals M3
+- Motor 4 (Lifter): Shield motor terminals M4
+- Power: 12V to VIN, 5V to VCC
+- Encoders: Connected internally to shield encoder inputs
 ```
 
-#### Sensor Wiring:
+#### Pi-Mega Communication:
 
 ```
-Raspberry Pi Interfaces:
+Serial UART Connection:
+- Raspberry Pi GPIO 14 (TX) → Arduino Mega pin 0 (RX)
+- Raspberry Pi GPIO 15 (RX) ← Arduino Mega pin 1 (TX)
+- Common ground connection between Pi and Mega
+- Baud rate: 115200 (configured in both devices)
+```
+
+#### Arduino Mega Sensor Wiring:
+
+```
+IR Distance Sensors (Analog):
+- Left Front: Arduino A0
+- Left Back: Arduino A1
+- Right Front: Arduino A2
+- Right Back: Arduino A3
+- Back Left: Arduino A4
+- Back Right: Arduino A5
+
+Ultrasonic Sensors (Digital):
+- Front Left: Trigger=22, Echo=23
+- Front Right: Trigger=24, Echo=25
+
+Line Sensors (Digital):
+- Left: Arduino pin 26
+- Center: Arduino pin 27
+- Right: Arduino pin 28
+
+IMU (I2C):
+- SDA: Arduino pin 20
+- SCL: Arduino pin 21
+```
+
+#### Raspberry Pi Sensor Wiring:
+
+```
+USB Interfaces:
 - USB Port 1 → RPLIDAR A1
 - USB Port 2 → Microsoft USB Camera
-- GPIO 12, 13, 16 → Distance Sensors (Front, Back Left, Back Right)
-- GPIO 20 → Line Sensor
-- I2C Bus (GPIO 3, 5) → IMU (MPU6050/BNO055)
-- GPIO 4, 5, 6, 7 → Container Load Sensors
+
+Optional TF-Luna (UART):
+- TX: Pi GPIO 14 (software UART)
+- RX: Pi GPIO 15 (software UART)
+
+Container Load Sensors:
+- Sensor 1: Pi GPIO 4
+- Sensor 2: Pi GPIO 5
+- Sensor 3: Pi GPIO 6
+- Sensor 4: Pi GPIO 7
 ```
 
 #### Servo Control Wiring:
@@ -311,25 +394,56 @@ Raspberry Pi PWM Pins → Servo Motors:
 
 ## Testing and Verification
 
-### Motor Testing
+### Arduino Mega Testing
 
+#### Motor Control Verification
 ```bash
-# Test individual omni wheel motors
-ros2 run my_robot_automation motor_test --wheel 1
-ros2 run my_robot_automation motor_test --wheel 2
-ros2 run my_robot_automation motor_test --wheel 3
-
-# Test lifter motor
-ros2 run my_robot_automation motor_test --lifter
+# Test Mega motor control via serial commands
+# Connect to Mega serial port and send commands:
+f    # Forward
+b    # Backward
+l    # Strafe left
+r    # Strafe right
+s    # Stop
 
 # Expected behavior:
-# - Omni wheels rotate smoothly in both directions
-# - Lifter moves up/down with encoder feedback
-# - No unusual vibrations or resistance
+# - Motors respond to commands with smooth PID control
+# - Encoder feedback provides accurate speed control
+# - Emergency stop (v) immediately halts all motors
 ```
 
-### Sensor Verification
+#### Mega Sensor Testing
+```bash
+# Request sensor data from Mega
+sr   # Request sensor readings
 
+# Expected response format:
+# SENSORS:IR_LF:245.5,IR_LB:238.2,US_FL:85.4,US_FR:92.1,...
+
+# Test individual sensors:
+# - IR sensors should show distance readings (0-4000mm)
+# - Ultrasonic sensors should detect obstacles (0-400cm)
+# - IMU should provide orientation data
+# - Line sensors should detect line boundaries
+```
+
+### Raspberry Pi Testing
+
+#### ROS2 Serial Interface Testing
+```bash
+# Start Mega serial interface
+ros2 run my_robot_automation mega_serial_interface
+
+# Test command transmission
+ros2 topic pub /cmd_vel geometry_msgs/Twist "linear: {x: 0.5}"
+
+# Monitor sensor data topics
+ros2 topic echo /distance/left_front
+ros2 topic echo /ultrasonic/front_left
+ros2 topic echo /imu/data
+```
+
+#### Pi Sensor Verification
 ```bash
 # Test RPLIDAR A1 scanning
 ros2 topic echo /scan
@@ -337,48 +451,44 @@ ros2 topic echo /scan
 # Test Microsoft USB camera
 ros2 topic echo /camera/image_raw
 
-# Test distance sensors
-ros2 topic echo /distance/front
-ros2 topic echo /distance/back_left
-ros2 topic echo /distance/back_right
-
-# Test IMU data
-ros2 topic echo /imu/data
-
-# Test line sensor
-ros2 topic echo /line_sensor/raw
+# Test optional TF-Luna LIDAR
+ros2 topic echo /tf_luna/range
 ```
 
-### Picker System Testing
+### Servo and Picker System Testing
 
 ```bash
-# Test individual servo motors
-ros2 run my_robot_automation servo_test --gripper
-ros2 run my_robot_automation servo_test --tilt
-ros2 run my_robot_automation servo_test --neck
-ros2 run my_robot_automation servo_test --base
+# Test servo control via Mega commands
+ta90  # Tilt to 90 degrees
+ga45  # Gripper to 45 degrees
+no    # Gripper open
+nc    # Gripper close
 
-# Test complete picker sequence
-ros2 run my_robot_automation picker_test
+# Test lifter control
+u     # Lifter up
+d     # Lifter down
 
 # Expected behavior:
-# - All servos move smoothly within ranges
-# - Gripper opens/closes properly
-# - Lifter raises/lowers picker assembly
+# - All servos move smoothly to commanded positions
+# - Gripper opens/closes reliably
+# - Lifter moves with controlled speed
 ```
 
-### Integration Testing
+### Pi-Mega Integration Testing
 
 ```bash
 # Test complete system integration
 ros2 launch my_robot_bringup robot.launch.py
 
+# Run integration test script
+python3 /home/azzar/project/robotic/test_pi_mega_integration.py
+
 # Verify:
-# - All sensors publishing data at correct rates
-# - Omni wheel movement in all directions
-# - Picker system responds to commands
-# - Container system functions properly
-# - Emergency stop halts all operations
+# - Serial communication established (115200 baud)
+# - Commands flow from Pi to Mega successfully
+# - Sensor data flows from Mega to Pi ROS topics
+# - Emergency stop works across both systems
+# - All safety interlocks function properly
 ```
 
 ## Safety Considerations
@@ -405,23 +515,31 @@ ros2 launch my_robot_bringup robot.launch.py
 
 ### Motor Control Problems
 
-**Issue**: Omni wheels not responding
+**Issue**: Motors not responding to commands
 ```bash
-# Check motor power (12V supply to L298N VS pin)
-# Verify L298N connections: VS=12V, VCC=5V, GND=common ground
-# Verify L298N DIR and PWM pin connections to GPIO
-# Check that PWM pins are set correctly (0=stop, 1=run)
-# Verify encoder DATA(A) and DATA(B) pin connections (read-only inputs)
-# Test L298N with simple GPIO write commands
-# Verify encoder readings from built-in encoders
+# Check Arduino Mega power (12V to VIN, 5V to VCC)
+# Verify YFROBOT shield is properly seated
+# Test Mega serial connection: screen /dev/ttyACM0 115200
+# Send direct commands: f (forward), s (stop)
+# Check Mega LED indicators for power and activity
 ```
 
-**Issue**: Wheels running in wrong direction
+**Issue**: Motors running erratically or with poor PID control
 ```bash
-# Reverse DIR signal polarity in software configuration
-# Check motor wiring phase (A+/A-/B+/B-)
-# Verify omni wheel orientation on motor shafts
-# Update kinematic calculations if needed
+# Check encoder connections on YFROBOT shield
+# Verify motor wiring polarity (swap if running backward)
+# Test individual motor control via Mega serial
+# Check for mechanical binding or wheel interference
+# Verify PID tuning parameters in Mega code
+```
+
+**Issue**: Pi-Mega communication failure
+```bash
+# Check serial connection: Pi GPIO 14→Mega RX, Pi GPIO 15←Mega TX
+# Verify baud rate (115200) matches in both devices
+# Test serial loopback: short TX to RX on one device
+# Check for serial port permissions: ls -la /dev/ttyACM0
+# Monitor serial traffic: cat /dev/ttyACM0
 ```
 
 **Issue**: Lifter motor not moving
@@ -434,28 +552,41 @@ ros2 launch my_robot_bringup robot.launch.py
 
 ### Sensor Issues
 
-**Issue**: RPLIDAR A1 not detected
+**Issue**: Arduino Mega sensors not responding
 ```bash
-# Check USB connection and power supply
-# Verify /dev/ttyUSB* device creation
-# Test with lsusb and usb-devices commands
-# Check USB port functionality with other devices
+# Check Mega power and sensor connections
+# Test Mega serial: screen /dev/ttyACM0 115200
+# Send sensor request: sr
+# Check analog pin connections (A0-A5 for IR sensors)
+# Verify digital pin connections for ultrasonic/line sensors
+# Test I2C: i2cdetect -y 1 (should show IMU at 0x68 or 0x28)
 ```
 
-**Issue**: Distance sensors inaccurate
+**Issue**: IR/Ultrasonic sensors showing incorrect readings
 ```bash
-# Verify sensor power supply (5V)
-# Check analog/digital signal connections to GPIO
-# Calibrate sensor thresholds and ranges
-# Test sensors individually away from robot
+# Check sensor power supply (5V from Mega)
+# Verify sensor mounting (clear line of sight)
+# Test sensors individually with Mega serial commands
+# Calibrate distance thresholds in Mega code
+# Check for electrical interference or crosstalk
 ```
 
-**Issue**: IMU data incorrect
+**Issue**: IMU data incorrect or noisy
 ```bash
-# Check I2C bus connectivity (i2cdetect command)
-# Verify sensor mounting orientation and calibration
-# Test I2C communication with i2c-tools
-# Recalibrate IMU offsets and scaling
+# Check I2C bus connectivity: i2cdetect -y 1
+# Verify IMU mounting (secure, level, away from motors)
+# Test I2C communication speed and pull-up resistors
+# Recalibrate IMU offsets via Mega serial commands
+# Check for magnetic interference near motors
+```
+
+**Issue**: RPLIDAR A1 not detected (Pi sensor)
+```bash
+# Check USB connection and permissions: ls -la /dev/ttyUSB*
+# Verify RPLIDAR power supply (sufficient current)
+# Test USB port with other devices
+# Check ROS2 RPLIDAR driver configuration
+# Monitor USB traffic: lsusb -v | grep RPLIDAR
 ```
 
 **Issue**: Camera not working
