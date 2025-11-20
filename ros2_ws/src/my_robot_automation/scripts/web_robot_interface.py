@@ -3040,6 +3040,30 @@ class WebRobotInterface(Node):
             self.get_logger().warn('Arduino Mega not connected! Sensor data will be simulated.')
             self.get_logger().warn('Connect Mega via USB and restart, or use --simulation flag')
 
+        # Initialize SPI (not used in Pi-Mega architecture)
+        self.spi = None
+        self.spi_initialized = False
+
+        # Initialize ADC configuration (not used in Pi-Mega architecture)
+        self.adc_vref = 3.3  # Default 3.3V reference
+        self.adc_resolution = 4096  # Default 12-bit resolution
+
+        # Initialize sensor health tracking
+        self.sensor_health = {
+            'left_front': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'left_back': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'right_front': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'right_back': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'back_left': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'back_right': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'ultrasonic_front_left': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'ultrasonic_front_right': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'imu': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'line_left': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'line_center': {'status': 'unknown', 'last_read': None, 'error_count': 0},
+            'line_right': {'status': 'unknown', 'last_read': None, 'error_count': 0}
+        }
+
         # Initialize ROS2 subscribers for sensor data (from Mega or simulated)
         self.setup_sensor_subscribers()
 
@@ -3499,8 +3523,8 @@ class WebRobotInterface(Node):
                     'battery_voltage': 24.0,
                     'system_status': 'operational',
                     'simulation_mode': self.simulation_mode,
-                    'spi_initialized': self.spi_initialized,
-                    'imu_initialized': self.imu_initialized,
+                    'spi_initialized': getattr(self, 'spi_initialized', False),
+                    'imu_initialized': getattr(self, 'imu_initialized', False),
                     'actuators_available': True
                 },
                 'timestamp': time.time()
@@ -3513,7 +3537,7 @@ class WebRobotInterface(Node):
                     'success': True,
                     'data': {
                         'simulation_mode': self.simulation_mode,
-                        'spi_initialized': self.spi_initialized,
+                        'spi_initialized': getattr(self, 'spi_initialized', False),
                         'sensor_health': self.sensor_health,
                         'adc_config': {
                             'vref': self.adc_vref,
@@ -4084,7 +4108,7 @@ class WebRobotInterface(Node):
         Read MPU6050 IMU sensor data
         Returns dict with orientation, angular_velocity, and linear_acceleration
         """
-        if self.imu and self.imu_initialized:
+        if hasattr(self, 'imu_initialized') and self.imu and self.imu_initialized:
             try:
                 # Read all sensor data
                 imu_reading = self.imu.read_all()
