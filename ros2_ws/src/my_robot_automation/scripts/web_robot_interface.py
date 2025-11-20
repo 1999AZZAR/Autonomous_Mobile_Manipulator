@@ -47,7 +47,11 @@ except ImportError:
         MPU6050_MODULE = None
         print("WARNING: MPU6050Reader not available. IMU data will be simulated.")
 
-# ROS2 service imports for actuator control
+# ROS2 message and service imports
+from sensor_msgs.msg import Range, Imu, BatteryState
+from geometry_msgs.msg import Twist
+from std_msgs.msg import Float32, Int32, Bool
+
 from my_robot_automation.srv import (
     ControlGripper, SetGripperTilt, MoveRobot,
     ControlContainer
@@ -3031,7 +3035,12 @@ class WebRobotInterface(Node):
         if not self.simulation_mode and SERIAL_AVAILABLE:
             self.connect_to_mega()
 
-        # Initialize ROS2 subscribers for sensor data from Mega
+        # Warn if Mega not connected but hardware mode requested
+        if not self.simulation_mode and not self.mega_connected:
+            self.get_logger().warn('Arduino Mega not connected! Sensor data will be simulated.')
+            self.get_logger().warn('Connect Mega via USB and restart, or use --simulation flag')
+
+        # Initialize ROS2 subscribers for sensor data (from Mega or simulated)
         self.setup_sensor_subscribers()
 
         # Initialize sensors and peripherals (IMU, LiDAR, Camera on RPi)
@@ -3048,19 +3057,46 @@ class WebRobotInterface(Node):
 
     def connect_to_mega(self):
         """Connect to Arduino Mega via serial"""
-        try:
-            self.mega_serial = serial.Serial(
-                port='/dev/ttyACM0',
-                baudrate=115200,
-                timeout=1,
-                write_timeout=1
-            )
-            time.sleep(2)  # Wait for connection
-            self.mega_connected = True
-            self.get_logger().info('Connected to Arduino Mega on /dev/ttyACM0')
-        except Exception as e:
-            self.get_logger().error(f'Failed to connect to Mega: {e}')
-            self.mega_connected = False
+        # Try different possible serial ports for Arduino Mega
+        possible_ports = ['/dev/ttyACM0', '/dev/ttyACM1', '/dev/ttyUSB0', '/dev/ttyUSB1']
+
+        for port in possible_ports:
+            try:
+                self.get_logger().info(f'Attempting to connect to Mega on {port}')
+                self.mega_serial = serial.Serial(
+                    port=port,
+                    baudrate=115200,
+                    timeout=1,
+                    write_timeout=1
+                )
+                time.sleep(2)  # Wait for connection
+
+                # Test the connection by sending a status request
+                self.mega_serial.write(b'p\n')  # Status command
+                self.mega_serial.flush()
+
+                # Try to read response
+                response = self.mega_serial.readline().decode().strip()
+                if response:
+                    self.mega_connected = True
+                    self.get_logger().info(f'Successfully connected to Arduino Mega on {port}')
+                    return
+
+            except Exception as e:
+                self.get_logger().warn(f'Failed to connect on {port}: {e}')
+                if self.mega_serial:
+                    try:
+                        self.mega_serial.close()
+                    except:
+                        pass
+                self.mega_serial = None
+                continue
+
+        # If we get here, no connection was successful
+        self.mega_connected = False
+        self.mega_serial = None
+        self.get_logger().error('Failed to connect to Arduino Mega on any available port. Check USB connection.')
+        self.get_logger().info('Available serial ports: ' + ', '.join(possible_ports))
 
     def send_command_to_mega(self, command):
         """Send command to Arduino Mega"""
@@ -4120,20 +4156,21 @@ class WebRobotInterface(Node):
 
     def cleanup(self):
         """Cleanup resources"""
-        # Cleanup SPI
-        if self.spi and self.spi_initialized:
+        # Cleanup serial connection to Mega
+        if hasattr(self, 'mega_serial') and self.mega_serial:
             try:
-                self.spi.close()
-                self.get_logger().info('SPI interface closed')
+                self.mega_serial.close()
+                self.get_logger().info('Mega serial connection closed')
             except Exception as e:
-                self.get_logger().error(f'Error closing SPI: {str(e)}')
-        
-        # Cleanup GPIO
-        try:
-            self.gpio.cleanup()
-            self.get_logger().info('GPIO cleaned up')
-        except Exception as e:
-            self.get_logger().error(f'Error cleaning up GPIO: {str(e)}')
+                self.get_logger().error(f'Error closing Mega serial: {str(e)}')
+
+        # Cleanup GPIO (if any)
+        if hasattr(self, 'gpio') and self.gpio:
+            try:
+                self.gpio.cleanup()
+                self.get_logger().info('GPIO cleaned up')
+            except Exception as e:
+                self.get_logger().error(f'Error cleaning up GPIO: {str(e)}')
     
     def __del__(self):
         """Destructor to ensure cleanup"""
