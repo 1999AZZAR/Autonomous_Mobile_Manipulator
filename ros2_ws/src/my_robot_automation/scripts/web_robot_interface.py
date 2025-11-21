@@ -3023,11 +3023,9 @@ class WebRobotInterface(Node):
     def __init__(self, simulation_mode=None, auto_init_ros=True):
         # Initialize ROS 2 if not already initialized and auto_init is enabled
         self._ros_initialized_by_us = False
-        if auto_init_ros:
-            if not rclpy.ok():
-                rclpy.init(args=[])
-                self._ros_initialized_by_us = True
-            else:
+        if auto_init_ros and not rclpy.ok():
+            rclpy.init(args=[])
+            self._ros_initialized_by_us = True
 
         super().__init__('web_robot_interface')
 
