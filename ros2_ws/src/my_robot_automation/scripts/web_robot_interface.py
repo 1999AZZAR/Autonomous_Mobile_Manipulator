@@ -1594,6 +1594,8 @@ USB3 - Reserved
                                     <button class="btn btn-outline" onclick="sendQuickCommand('p')" title="Status Display">Status (p)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('v')" title="Emergency Stop">Emergency Stop (v)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('o')" title="Turbo Toggle">Turbo Toggle (o)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('se')" title="Enable Perimeter Safety">Safety Enable (se)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('sd')" title="Disable Perimeter Safety">Safety Disable (sd)</button>
                                 </div>
 
                                 <h5>Testing & Diagnostics</h5>
@@ -1984,6 +1986,8 @@ function updateCommandDescription(command) {
         'nh': 'Gripper Servo Half-Open',
         'sr': 'Sensor Readings',
         'ls': 'Limit Switch Test',
+        'se': 'Enable Perimeter Safety',
+        'sd': 'Disable Perimeter Safety',
 
         // Two-character Servo Commands
         'mu': 'Tilt Servo Up',
@@ -1993,7 +1997,9 @@ function updateCommandDescription(command) {
         'nc': 'Gripper Servo Close',
         'nh': 'Gripper Servo Half-Open',
         'sr': 'Sensor Readings',
-        'ls': 'Limit Switch Test'
+        'ls': 'Limit Switch Test',
+        'se': 'Enable Perimeter Safety',
+        'sd': 'Disable Perimeter Safety'
     };
 
     const description = descriptions[command] || '';
@@ -3815,7 +3821,7 @@ class WebRobotInterface(Node):
                     'f', 'b', 'l', 'r', 'q', 'e', 'z', 'x', 'c', 'w', 't', 'y', 'a', 'j', 's', 'p', 'v', 'o',
                     '5', '6', '7', '8', '9', '0', 'u', 'd', '1', '2', '3', '4', 'g', 'h',
                     # Two character commands
-                    'mu', 'md', 'mc', 'no', 'nc', 'nh', 'sr', 'ls'
+                    'mu', 'md', 'mc', 'no', 'nc', 'nh', 'sr', 'ls', 'se', 'sd'
                 ]
 
                 # Check for two-character commands
@@ -3897,7 +3903,9 @@ class WebRobotInterface(Node):
                     'nc': 'Gripper Servo Close',
                     'nh': 'Gripper Servo Half-Open',
                     'sr': 'Sensor Readings',
-                    'ls': 'Limit Switch Test'
+                    'ls': 'Limit Switch Test',
+                    'se': 'Enable Perimeter Safety',
+                    'sd': 'Disable Perimeter Safety'
                 }
 
                 # Handle angle commands dynamically
