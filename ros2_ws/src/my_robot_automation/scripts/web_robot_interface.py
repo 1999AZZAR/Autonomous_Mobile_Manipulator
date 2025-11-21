@@ -1483,18 +1483,35 @@ USB3 - Reserved
 
                             <div class="control-group">
                                 <h4>Quick Commands</h4>
+
+                                <h5>Basic Movement</h5>
                                 <div class="button-grid">
                                     <button class="btn btn-outline" onclick="sendQuickCommand('f')" title="Forward">Forward (f)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('b')" title="Backward">Backward (b)</button>
-                                    <button class="btn btn-outline" onclick="sendQuickCommand('l')" title="Left">Left (l)</button>
-                                    <button class="btn btn-outline" onclick="sendQuickCommand('r')" title="Right">Right (r)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('l')" title="Strafe Left">Left (l)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('r')" title="Strafe Right">Right (r)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('s')" title="Stop">Stop (s)</button>
-                                    <button class="btn btn-outline" onclick="sendQuickCommand('c')" title="Gripper Close">Gripper Close (c)</button>
-                                    <button class="btn btn-outline" onclick="sendQuickCommand('w')" title="Gripper Open">Gripper Open (w)</button>
-                                    <button class="btn btn-outline" onclick="sendQuickCommand('o')" title="Turbo Toggle">Turbo Toggle (o)</button>
                                 </div>
 
-                                <h4>Speed Commands</h4>
+                                <h5>Diagonal Movement</h5>
+                                <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('q')" title="Forward-Left">F-Left (q)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('e')" title="Forward-Right">F-Right (e)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('z')" title="Backward-Left">B-Left (z)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('x')" title="Backward-Right">B-Right (x)</button>
+                                </div>
+
+                                <h5>Rotation & Turning</h5>
+                                <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('c')" title="Rotate Clockwise">Clockwise (c)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('w')" title="Rotate Counter-clockwise">Counter-CW (w)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('t')" title="Turn Left">Turn Left (t)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('y')" title="Turn Right">Turn Right (y)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('a')" title="Arc Left">Arc Left (a)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('j')" title="Arc Right">Arc Right (j)</button>
+                                </div>
+
+                                <h5>Speed Control</h5>
                                 <div class="button-grid">
                                     <button class="btn btn-outline" onclick="sendQuickCommand('5')" title="50% Speed">50% (5)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('6')" title="60% Speed">60% (6)</button>
@@ -1502,6 +1519,29 @@ USB3 - Reserved
                                     <button class="btn btn-outline" onclick="sendQuickCommand('8')" title="80% Speed">80% (8)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('9')" title="90% Speed">90% (9)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('0')" title="100% Speed">100% (0)</button>
+                                </div>
+
+                                <h5>Lifter Control</h5>
+                                <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('u')" title="Lift Up">Lift Up (u)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('d')" title="Lift Down">Lift Down (d)</button>
+                                </div>
+
+                                <h5>System Control</h5>
+                                <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('p')" title="Status Display">Status (p)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('v')" title="Emergency Stop">Emergency Stop (v)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('o')" title="Turbo Toggle">Turbo Toggle (o)</button>
+                                </div>
+
+                                <h5>Testing & Diagnostics</h5>
+                                <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('1')" title="Test Motor 1">Test M1 (1)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('2')" title="Test Motor 2">Test M2 (2)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('3')" title="Test Motor 3">Test M3 (3)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('4')" title="Test Motor 4">Test M4 (4)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('g')" title="Figure-8 Pattern">Figure-8 (g)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('h')" title="Continuous Rotation">Rotation (h)</button>
                                 </div>
                             </div>
 
@@ -1798,20 +1838,49 @@ async function sendQuickCommand(command) {
 
 function updateCommandDescription(command) {
     const descriptions = {
-        'f': 'Move Forward',
-        'b': 'Move Backward',
-        'l': 'Turn Left',
-        'r': 'Turn Right',
+        // Movement Commands
+        'f': 'Move Forward (FL+FR wheels)',
+        'b': 'Move Backward (FL+FR wheels)',
+        'l': 'Strafe Left (FL+Back wheels)',
+        'r': 'Strafe Right (FR+Back wheels)',
+        'q': 'Forward-Left (FL wheel)',
+        'e': 'Forward-Right (FR wheel)',
+        'z': 'Backward-Left (Back wheel)',
+        'x': 'Backward-Right (FR+Back wheels)',
+
+        // Rotation Commands
+        'c': 'Rotate Clockwise (All 3 wheels)',
+        'w': 'Rotate Counter-clockwise (All 3 wheels)',
+        't': 'Turn Left (Point turn)',
+        'y': 'Turn Right (Point turn)',
+        'a': 'Arc Left (Curved turn)',
+        'j': 'Arc Right (Curved turn)',
+
+        // Control Commands
         's': 'Stop All Movement',
-        'c': 'Close Gripper',
-        'w': 'Open Gripper',
+        'p': 'Status Display',
+        'v': 'Emergency Stop',
         'o': 'Toggle Turbo Mode',
+
+        // Speed Commands
         '5': 'Set Speed to 50%',
         '6': 'Set Speed to 60%',
         '7': 'Set Speed to 70%',
         '8': 'Set Speed to 80%',
         '9': 'Set Speed to 90%',
-        '0': 'Set Speed to 100%'
+        '0': 'Set Speed to 100%',
+
+        // Lifter Commands
+        'u': 'Lift Up',
+        'd': 'Lift Down',
+
+        // Testing Commands
+        '1': 'Test Motor 1 (Lifter)',
+        '2': 'Test Motor 2 (FR Wheel)',
+        '3': 'Test Motor 3 (FL Wheel)',
+        '4': 'Test Motor 4 (Back Wheel)',
+        'g': 'Figure-8 Pattern Test',
+        'h': 'Continuous Rotation Test'
     };
 
     const description = descriptions[command] || '';
@@ -3621,30 +3690,59 @@ class WebRobotInterface(Node):
                 if len(command) != 1:
                     return jsonify({'success': False, 'error': 'Command must be a single character', 'timestamp': time.time()}), 400
 
-                # Validate command
-                valid_commands = ['f', 'b', 'l', 'r', 's', 'c', 'w', 'o', '5', '6', '7', '8', '9', '0']
-                if command not in valid_commands:
-                    return jsonify({'success': False, 'error': f'Invalid command. Valid: {", ".join(valid_commands)}', 'timestamp': time.time()}), 400
+                # Validate command (single character commands only for direct serial)
+                valid_single_commands = ['f', 'b', 'l', 'r', 'q', 'e', 'z', 'x', 'c', 'w', 't', 'y', 'a', 'j', 's', 'p', 'v', 'o', '5', '6', '7', '8', '9', '0', 'u', 'd', '1', '2', '3', '4', 'g', 'h']
+                if command not in valid_single_commands:
+                    return jsonify({'success': False, 'error': f'Invalid single command. Valid: {", ".join(valid_single_commands)}', 'timestamp': time.time()}), 400
 
                 # Send command to Mega
                 self.send_command_to_mega(command)
 
                 # Get command description
                 descriptions = {
-                    'f': 'Move Forward',
-                    'b': 'Move Backward',
-                    'l': 'Turn Left',
-                    'r': 'Turn Right',
+                    # Movement Commands
+                    'f': 'Move Forward (FL+FR wheels)',
+                    'b': 'Move Backward (FL+FR wheels)',
+                    'l': 'Strafe Left (FL+Back wheels)',
+                    'r': 'Strafe Right (FR+Back wheels)',
+                    'q': 'Forward-Left (FL wheel)',
+                    'e': 'Forward-Right (FR wheel)',
+                    'z': 'Backward-Left (Back wheel)',
+                    'x': 'Backward-Right (FR+Back wheels)',
+
+                    # Rotation Commands
+                    'c': 'Rotate Clockwise (All 3 wheels)',
+                    'w': 'Rotate Counter-clockwise (All 3 wheels)',
+                    't': 'Turn Left (Point turn)',
+                    'y': 'Turn Right (Point turn)',
+                    'a': 'Arc Left (Curved turn)',
+                    'j': 'Arc Right (Curved turn)',
+
+                    # Control Commands
                     's': 'Stop All Movement',
-                    'c': 'Close Gripper',
-                    'w': 'Open Gripper',
+                    'p': 'Status Display',
+                    'v': 'Emergency Stop',
                     'o': 'Toggle Turbo Mode',
+
+                    # Speed Commands
                     '5': 'Set Speed to 50%',
                     '6': 'Set Speed to 60%',
                     '7': 'Set Speed to 70%',
                     '8': 'Set Speed to 80%',
                     '9': 'Set Speed to 90%',
-                    '0': 'Set Speed to 100%'
+                    '0': 'Set Speed to 100%',
+
+                    # Lifter Commands
+                    'u': 'Lift Up',
+                    'd': 'Lift Down',
+
+                    # Testing Commands
+                    '1': 'Test Motor 1 (Lifter)',
+                    '2': 'Test Motor 2 (FR Wheel)',
+                    '3': 'Test Motor 3 (FL Wheel)',
+                    '4': 'Test Motor 4 (Back Wheel)',
+                    'g': 'Figure-8 Pattern Test',
+                    'h': 'Continuous Rotation Test'
                 }
 
                 description = descriptions.get(command, 'Unknown command')
