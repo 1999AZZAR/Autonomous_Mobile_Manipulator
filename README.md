@@ -223,6 +223,30 @@ The system consists of two main components:
 - **ROS 2 services**: Modular automation services (patrol, pick-place, obstacle avoidance)
 
 ### Professional Web Interface
+#### WebRobotInterface Auto-Initialization
+
+The `WebRobotInterface` class now supports automatic ROS 2 initialization:
+
+```python
+# Before (manual ROS 2 setup required)
+import rclpy
+rclpy.init()
+from web_robot_interface import WebRobotInterface
+interface = WebRobotInterface()
+
+# After (automatic ROS 2 setup)
+from web_robot_interface import WebRobotInterface
+interface = WebRobotInterface()  # ROS 2 initialized automatically
+interface.cleanup()  # ROS 2 shutdown automatically
+```
+
+**Features:**
+- ✅ Automatic ROS 2 initialization and shutdown
+- ✅ No manual `rclpy.init()` required
+- ✅ Backward compatible with existing code
+- ✅ Proper resource cleanup
+
+**Test:** `python3 test_auto_ros_init.py`
 
 - **User-friendly control center**: Modern web-based robot control interface
 - **Real-time status monitoring**: Live system status and diagnostics
