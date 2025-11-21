@@ -232,6 +232,12 @@ HTML_TEMPLATE = """
             gap: 12px;
         }
 
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            gap: 8px;
+        }
+
         .btn {
             display: flex;
             flex-direction: column;
@@ -263,6 +269,15 @@ HTML_TEMPLATE = """
         .btn-warning { background: var(--warning); color: white; }
         .btn-danger { background: var(--danger); color: white; }
         .btn-secondary { background: var(--secondary); color: white; }
+        .btn-outline {
+            background: transparent;
+            color: var(--primary);
+            border: 2px solid var(--primary);
+        }
+        .btn-outline:hover {
+            background: var(--primary);
+            color: white;
+        }
 
         .slider-group {
             display: flex;
@@ -496,6 +511,51 @@ HTML_TEMPLATE = """
             grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 12px;
             margin-bottom: 12px;
+        }
+
+        .description {
+            color: var(--secondary);
+            font-size: 0.875rem;
+            margin-bottom: 16px;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .input-group label {
+            font-weight: 500;
+            color: var(--dark);
+            font-size: 0.875rem;
+        }
+
+        .input-group input {
+            padding: 8px 12px;
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            font-size: 0.875rem;
+            transition: border-color 0.2s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .input-group input[readonly] {
+            background: var(--light);
+            cursor: not-allowed;
+        }
+
+        .log-container {
+            background: var(--light);
+            border: 2px solid var(--border);
+            border-radius: 8px;
+            padding: 12px;
+            max-height: 300px;
+            overflow-y: auto;
         }
 
         .input-group {
@@ -1461,7 +1521,7 @@ USB3 - Reserved
                                 <div class="input-grid">
                                     <div class="input-group">
                                         <label for="serial-command">Command:</label>
-                                        <input type="text" id="serial-command" placeholder="e.g., f, b, l, r, s, 5, 6, 7, 8, 9, 0, o" maxlength="1">
+                                        <input type="text" id="serial-command" placeholder="e.g., f, s, 5, mu, ta90, sr" maxlength="10">
                                     </div>
                                     <div class="input-group">
                                         <label for="serial-description">Description:</label>
@@ -1525,10 +1585,12 @@ USB3 - Reserved
                                 <div class="button-grid">
                                     <button class="btn btn-outline" onclick="sendQuickCommand('u')" title="Lift Up">Lift Up (u)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('d')" title="Lift Down">Lift Down (d)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('ls')" title="Limit Switch Test">Limit Switch (ls)</button>
                                 </div>
 
                                 <h5>System Control</h5>
                                 <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('s')" title="Stop All Movement">Stop All (s)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('p')" title="Status Display">Status (p)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('v')" title="Emergency Stop">Emergency Stop (v)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('o')" title="Turbo Toggle">Turbo Toggle (o)</button>
@@ -1542,6 +1604,21 @@ USB3 - Reserved
                                     <button class="btn btn-outline" onclick="sendQuickCommand('4')" title="Test Motor 4">Test M4 (4)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('g')" title="Figure-8 Pattern">Figure-8 (g)</button>
                                     <button class="btn btn-outline" onclick="sendQuickCommand('h')" title="Continuous Rotation">Rotation (h)</button>
+                                </div>
+
+                                <h5>Servo Control</h5>
+                                <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('mu')" title="Tilt Up">Tilt Up (mu)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('md')" title="Tilt Down">Tilt Down (md)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('mc')" title="Tilt Center">Tilt Center (mc)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('no')" title="Gripper Open">Gripper Open (no)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('nc')" title="Gripper Close">Gripper Close (nc)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('nh')" title="Gripper Half">Gripper Half (nh)</button>
+                                </div>
+
+                                <h5>Sensors</h5>
+                                <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('sr')" title="Sensor Readings">Sensor Readings (sr)</button>
                                 </div>
                             </div>
 
@@ -1816,6 +1893,22 @@ async function sendSerialCommand() {
         return;
     }
 
+    // Basic validation for angle commands
+    if (command.startsWith('ta') && command.length > 2) {
+        const angle = command.substring(2);
+        if (isNaN(angle) || angle < 0 || angle > 180) {
+            addSerialLog('ERROR: Tilt angle must be 0-180 (e.g., ta90)');
+            return;
+        }
+    }
+    if (command.startsWith('ga') && command.length > 2) {
+        const angle = command.substring(2);
+        if (isNaN(angle) || angle < 0 || angle > 180) {
+            addSerialLog('ERROR: Gripper angle must be 0-180 (e.g., ga90)');
+            return;
+        }
+    }
+
     try {
         const response = await apiCall('/api/serial/send', 'POST', { command: command });
         if (response.success) {
@@ -1880,7 +1973,27 @@ function updateCommandDescription(command) {
         '3': 'Test Motor 3 (FL Wheel)',
         '4': 'Test Motor 4 (Back Wheel)',
         'g': 'Figure-8 Pattern Test',
-        'h': 'Continuous Rotation Test'
+        'h': 'Continuous Rotation Test',
+
+        // Two-character Servo Commands
+        'mu': 'Tilt Servo Up',
+        'md': 'Tilt Servo Down',
+        'mc': 'Tilt Servo Center',
+        'no': 'Gripper Servo Open',
+        'nc': 'Gripper Servo Close',
+        'nh': 'Gripper Servo Half-Open',
+        'sr': 'Sensor Readings',
+        'ls': 'Limit Switch Test',
+
+        // Two-character Servo Commands
+        'mu': 'Tilt Servo Up',
+        'md': 'Tilt Servo Down',
+        'mc': 'Tilt Servo Center',
+        'no': 'Gripper Servo Open',
+        'nc': 'Gripper Servo Close',
+        'nh': 'Gripper Servo Half-Open',
+        'sr': 'Sensor Readings',
+        'ls': 'Limit Switch Test'
     };
 
     const description = descriptions[command] || '';
@@ -2982,60 +3095,6 @@ class GPIOController:
             self.simulation_mode = True
             self.gpio_initialized = False
 
-    def control_gripper(self, command):
-        """Control gripper open/close"""
-        if self.simulation_mode:
-            print(f"[SIM] Gripper {command}")
-            return True
-
-        try:
-            pin = self.PINS['GRIPPER_OPEN_CLOSE']
-            if command == 'open':
-                lgpio.gpio_write(self.gpio_handle, pin, 1)  # High = open
-                print(f"✓ Gripper opened (GPIO{pin} = 1)")
-            elif command == 'close':
-                lgpio.gpio_write(self.gpio_handle, pin, 0)  # Low = closed
-                print(f"✓ Gripper closed (GPIO{pin} = 0)")
-            return True
-        except Exception as e:
-            print(f"ERROR controlling gripper: {str(e)}")
-            return False
-    
-    def set_gripper_tilt(self, angle):
-        """Set gripper tilt angle (0-180 degrees)"""
-        if self.simulation_mode:
-            print(f"[SIM] Gripper tilt: {angle}°")
-            return True
-
-        try:
-            angle = max(0, min(180, angle))  # Clamp to 0-180
-            # For now, map angle to simple high/low (can be extended for PWM)
-            pin = self.PINS['GRIPPER_TILT']
-            value = 1 if angle > 90 else 0  # High for >90°, Low for ≤90°
-            lgpio.gpio_write(self.gpio_handle, pin, value)
-            print(f"✓ Gripper tilt set to {angle}° (GPIO{pin} = {value})")
-            return True
-        except Exception as e:
-            print(f"ERROR setting gripper tilt: {str(e)}")
-            return False
-    
-    def set_gripper_neck(self, position):
-        """Set gripper neck position (-1 to 1, continuous servo)"""
-        if self.simulation_mode:
-            print(f"[SIM] Gripper neck: {position}")
-            return True
-
-        try:
-            position = max(-1, min(1, position))  # Clamp to -1 to 1
-            # Map position to GPIO value (0 or 1 for now)
-            pin = self.PINS['GRIPPER_NECK']
-            value = 1 if position > 0 else 0
-            lgpio.gpio_write(self.gpio_handle, pin, value)
-            print(f"✓ Gripper neck set to {position} (GPIO{pin} = {value})")
-            return True
-        except Exception as e:
-            print(f"ERROR setting gripper neck: {str(e)}")
-            return False
     
     def set_gripper_base(self, height):
         """Set gripper base height (0-1, normalized) - DISABLED: GPIO12 needed for motor control"""
@@ -3261,10 +3320,7 @@ class GPIOController:
 class WebRobotInterface(Node):
     def __init__(self, simulation_mode=None, auto_init_ros=True):
         # Initialize ROS 2 if not already initialized and auto_init is enabled
-        self._ros_initialized_by_us = False
-        if auto_init_ros and not rclpy.ok():
-            rclpy.init(args=[])
-            self._ros_initialized_by_us = True
+        # ROS2 initialization is handled in main() function
 
         super().__init__('web_robot_interface')
 
@@ -3377,16 +3433,79 @@ class WebRobotInterface(Node):
         if not self.mega_connected:
             self.get_logger().warn('Not connected to Mega, attempting reconnect...')
             self.connect_to_mega()
-            return
+            return False
 
         try:
             self.mega_serial.write(command.encode())
             self.mega_serial.write(b'\n')
             self.mega_serial.flush()
             self.get_logger().debug(f'Sent to Mega: {command}')
+            return True
         except Exception as e:
             self.get_logger().error(f'Failed to send command to Mega: {e}')
             self.mega_connected = False
+            return False
+
+    def control_gripper(self, command):
+        """Control gripper open/close via Mega serial commands"""
+        if self.simulation_mode:
+            print(f"[SIM] Gripper {command}")
+            return True
+
+        # Map command to Mega serial command
+        mega_commands = {
+            'open': 'no',      # Gripper Open
+            'close': 'nc',     # Gripper Close
+            'half': 'nh'       # Gripper Half-Open
+        }
+
+        mega_cmd = mega_commands.get(command.lower())
+        if not mega_cmd:
+            print(f"[ERROR] Unknown gripper command: {command}")
+            return False
+
+        # Send command to Mega
+        success = self.send_command_to_mega(mega_cmd)
+        if success:
+            print(f"[MEGA] Gripper {command} → sent '{mega_cmd}' to Mega")
+        else:
+            print(f"[ERROR] Failed to send gripper command '{mega_cmd}' to Mega")
+
+        return success
+
+    def set_gripper_tilt(self, angle):
+        """Set gripper tilt angle (0-180 degrees) via Mega serial commands"""
+        if self.simulation_mode:
+            print(f"[SIM] Gripper tilt: {angle}°")
+            return True
+
+        try:
+            angle = max(0, min(180, int(angle)))  # Clamp to 0-180 and convert to int
+
+            # Use Mega's tilt angle command: ta<angle>
+            mega_cmd = f"ta{angle}"
+            success = self.send_command_to_mega(mega_cmd)
+
+            if success:
+                print(f"[MEGA] Gripper tilt set to {angle}° → sent '{mega_cmd}' to Mega")
+            else:
+                print(f"[ERROR] Failed to send tilt command '{mega_cmd}' to Mega")
+
+            return success
+        except Exception as e:
+            print(f"ERROR setting gripper tilt: {str(e)}")
+            return False
+
+    def set_gripper_neck(self, position):
+        """Set gripper neck position (-1 to 1, continuous servo)"""
+        if self.simulation_mode:
+            print(f"[SIM] Gripper neck: {position}")
+            return True
+
+        # Note: Mega may not support gripper neck control yet
+        # This functionality might need to be added to the Mega firmware
+        print(f"[NOT IMPLEMENTED] Gripper neck control not available on Mega: {position}")
+        return False
 
     def setup_sensor_subscribers(self):
         """Setup ROS2 subscribers for sensor data from Arduino Mega"""
@@ -3687,13 +3806,39 @@ class WebRobotInterface(Node):
                     return jsonify({'success': False, 'error': 'Command required', 'timestamp': time.time()}), 400
 
                 command = data['command'].strip().lower()
-                if len(command) != 1:
-                    return jsonify({'success': False, 'error': 'Command must be a single character', 'timestamp': time.time()}), 400
+                if len(command) < 1:
+                    return jsonify({'success': False, 'error': 'Command cannot be empty', 'timestamp': time.time()}), 400
 
-                # Validate command (single character commands only for direct serial)
-                valid_single_commands = ['f', 'b', 'l', 'r', 'q', 'e', 'z', 'x', 'c', 'w', 't', 'y', 'a', 'j', 's', 'p', 'v', 'o', '5', '6', '7', '8', '9', '0', 'u', 'd', '1', '2', '3', '4', 'g', 'h']
-                if command not in valid_single_commands:
-                    return jsonify({'success': False, 'error': f'Invalid single command. Valid: {", ".join(valid_single_commands)}', 'timestamp': time.time()}), 400
+                # Validate command (single character and some two-character commands)
+                valid_commands = [
+                    # Single character commands
+                    'f', 'b', 'l', 'r', 'q', 'e', 'z', 'x', 'c', 'w', 't', 'y', 'a', 'j', 's', 'p', 'v', 'o',
+                    '5', '6', '7', '8', '9', '0', 'u', 'd', '1', '2', '3', '4', 'g', 'h',
+                    # Two character commands
+                    'mu', 'md', 'mc', 'no', 'nc', 'nh', 'sr', 'ls'
+                ]
+
+                # Check for two-character commands
+                if command in valid_commands:
+                    pass  # Valid command
+                elif command.startswith('ta') and len(command) >= 3:
+                    # Tilt angle command: ta<angle>
+                    try:
+                        angle = int(command[2:])
+                        if not (0 <= angle <= 180):
+                            return jsonify({'success': False, 'error': 'Tilt angle must be 0-180', 'timestamp': time.time()}), 400
+                    except ValueError:
+                        return jsonify({'success': False, 'error': 'Invalid tilt angle format. Use ta<angle>', 'timestamp': time.time()}), 400
+                elif command.startswith('ga') and len(command) >= 3:
+                    # Gripper angle command: ga<angle>
+                    try:
+                        angle = int(command[2:])
+                        if not (0 <= angle <= 180):
+                            return jsonify({'success': False, 'error': 'Gripper angle must be 0-180', 'timestamp': time.time()}), 400
+                    except ValueError:
+                        return jsonify({'success': False, 'error': 'Invalid gripper angle format. Use ga<angle>', 'timestamp': time.time()}), 400
+                else:
+                    return jsonify({'success': False, 'error': f'Invalid command. Valid: {", ".join(valid_commands)}, ta<angle>, ga<angle>', 'timestamp': time.time()}), 400
 
                 # Send command to Mega
                 self.send_command_to_mega(command)
@@ -3742,8 +3887,26 @@ class WebRobotInterface(Node):
                     '3': 'Test Motor 3 (FL Wheel)',
                     '4': 'Test Motor 4 (Back Wheel)',
                     'g': 'Figure-8 Pattern Test',
-                    'h': 'Continuous Rotation Test'
+                    'h': 'Continuous Rotation Test',
+
+                    # Two-character Servo Commands
+                    'mu': 'Tilt Servo Up',
+                    'md': 'Tilt Servo Down',
+                    'mc': 'Tilt Servo Center',
+                    'no': 'Gripper Servo Open',
+                    'nc': 'Gripper Servo Close',
+                    'nh': 'Gripper Servo Half-Open',
+                    'sr': 'Sensor Readings',
+                    'ls': 'Limit Switch Test'
                 }
+
+                # Handle angle commands dynamically
+                if command.startswith('ta'):
+                    angle = command[2:]
+                    descriptions[command] = f'Tilt Angle {angle}°'
+                elif command.startswith('ga'):
+                    angle = command[2:]
+                    descriptions[command] = f'Gripper Angle {angle}°'
 
                 description = descriptions.get(command, 'Unknown command')
 
@@ -3766,11 +3929,71 @@ class WebRobotInterface(Node):
 
         @self.app.route('/api/robot/picker/gripper', methods=['POST'])
         def control_gripper_endpoint():
-            return self._control_gripper_endpoint()
+            try:
+                data = request.get_json()
+                command = data.get('command')
+
+                if not command:
+                    return jsonify({'success': False, 'error': 'Command required', 'timestamp': time.time()}), 400
+
+                # Call control_gripper method directly (bypasses ROS2 for now)
+                success = self.control_gripper(command)
+
+                if success:
+                    return jsonify({
+                        'success': True,
+                        'message': f'Gripper {command} command sent to Mega',
+                        'command': command,
+                        'timestamp': time.time()
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Failed to send gripper {command} command to Mega',
+                        'timestamp': time.time()
+                    }), 500
+
+            except Exception as e:
+                self.get_logger().error(f'Gripper control error: {str(e)}')
+                return jsonify({
+                    'success': False,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }), 500
 
         @self.app.route('/api/robot/picker/gripper_tilt', methods=['POST'])
         def set_gripper_tilt_endpoint():
-            return self._set_gripper_tilt_endpoint()
+            try:
+                data = request.get_json()
+                angle = data.get('angle')
+
+                if angle is None:
+                    return jsonify({'success': False, 'error': 'Angle required', 'timestamp': time.time()}), 400
+
+                # Call set_gripper_tilt method directly (bypasses ROS2 for now)
+                success = self.set_gripper_tilt(angle)
+
+                if success:
+                    return jsonify({
+                        'success': True,
+                        'message': f'Gripper tilt set to {angle}°',
+                        'angle': angle,
+                        'timestamp': time.time()
+                    })
+                else:
+                    return jsonify({
+                        'success': False,
+                        'error': f'Failed to set gripper tilt to {angle}°',
+                        'timestamp': time.time()
+                    }), 500
+
+            except Exception as e:
+                self.get_logger().error(f'Gripper tilt error: {str(e)}')
+                return jsonify({
+                    'success': False,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }), 500
 
         @self.app.route('/api/robot/picker/gripper_neck', methods=['POST'])
         def set_gripper_neck_endpoint():
@@ -4633,14 +4856,7 @@ class WebRobotInterface(Node):
             except Exception as e:
                 self.get_logger().error(f'Error cleaning up GPIO: {str(e)}')
 
-        # Shutdown ROS 2 if we initialized it
-        if hasattr(self, '_ros_initialized_by_us') and self._ros_initialized_by_us:
-            try:
-                rclpy.shutdown()
-                self._ros_initialized_by_us = False
-                print('ROS 2 shutdown completed')
-            except Exception as e:
-                print(f'Error shutting down ROS 2: {str(e)}')
+        # ROS2 shutdown is handled in main() function
     
     def __del__(self):
         """Destructor to ensure cleanup"""
