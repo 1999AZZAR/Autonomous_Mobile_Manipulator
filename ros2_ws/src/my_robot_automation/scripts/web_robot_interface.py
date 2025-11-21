@@ -631,6 +631,7 @@ HTML_TEMPLATE = """
                                 <div class="slider-group">
                                     <input type="range" class="slider" id="speed-slider" min="0.1" max="1.0" step="0.1" value="0.5">
                                     <div class="value-display">Speed: <span id="speed-value">0.5</span></div>
+</div>                                <div class="control-group">                                    <button class="btn btn-warning" id="turbo-toggle" onclick="toggleTurbo()">TURBO OFF</button>                                </div>
                                 </div>
                             </div>
 
@@ -1672,6 +1673,7 @@ USB3 - Reserved
             await apiCall('/api/robot/turn', 'POST', { direction, speed: currentSpeed });
         }
 
+// Send speed command to Megaasync function sendSpeedToMega(speedPercent) {    try {        await apiCall('/api/robot/speed', 'POST', { speed: speedPercent });    } catch (error) {        console.error('Failed to send speed to Mega:', error);    }}//// Toggle turbo modeasync function toggleTurbo() {    try {        const response = await apiCall('/api/robot/turbo', 'POST', {});        const turboButton = document.getElementById('turbo-toggle');        if (response.success) {            turboButton.classList.toggle('active');            turboButton.textContent = turboButton.classList.contains('active') ? 'TURBO ON': 'TURBO OFF';            addLog('Turbo mode ' + (turboButton.classList.contains('active') ? 'enabled': 'disabled'));        }    } catch (error) {        addLog('Failed to toggle turbo mode');    }}
         async function stopRobot() {
             await apiCall('/api/robot/stop', 'POST');
         }
@@ -2030,6 +2032,7 @@ USB3 - Reserved
 
         // Slider value updates
         document.getElementById('speed-slider').addEventListener('input', function() {
+// Send speed command to Mega            const speedPercent = Math.round(this.value * 100);            sendSpeedToMega(speedPercent);
             currentSpeed = parseFloat(this.value);
             document.getElementById('speed-value').textContent = currentSpeed.toFixed(1);
         });
@@ -3079,7 +3082,7 @@ class WebRobotInterface(Node):
 
         # Initialize sensors and peripherals (IMU, LiDAR, Camera on RPi)
         self.initialize_sensors()
-# Initialize MPU6050 IMU sensor        self.imu = None        self.imu_initialized = False                if not self.simulation_mode:            try:                from mpu6050_reader import MPU6050Reader                self.imu = MPU6050Reader(address=0x68)                self.imu_initialized = self.imu.initialized                if self.imu_initialized:                    self.get_logger().info('MPU6050 IMU initialized successfully')                else:                    self.get_logger().warn('MPU6050 initialization failed')            except Exception as e:                self.get_logger().error(f'Failed to initialize MPU6050: {str(e)}')
+# Initialize MPU6050 IMU sensor        self.imu = None        self.imu_initialized = False        if not self.simulation_mode and MPU6050_AVAILABLE:            try:                if MPU6050_MODULE == 'MPU6050Reader':                    from mpu6050_reader import MPU6050Reader                    self.imu = MPU6050Reader(address=0x68)                    self.imu_initialized = self.imu.initialized                    if self.imu_initialized:                        # Test if we can actually read data                        try:                            test_data = self.imu.read_all()                            if test_data:                                self.get_logger().info('MPU6050 IMU initialized successfully (MPU6050Reader)')                            else:                                self.get_logger().warn('MPU6050 initialized but read_all() returned None')                                self.imu_initialized = False                        except Exception as e:                            self.get_logger().error(f'MPU6050 test read failed: {str(e)}')                            self.imu_initialized = False                    else:                        self.get_logger().warn('MPU6050 initialization failed')            except Exception as e:                print(f"DEBUG: IMU initialization failed with error: {e}")                self.get_logger().error(f'Failed to initialize MPU6050: {str(e)}')                self.imu_initialized = False        else:            if not MPU6050_AVAILABLE:                self.get_logger().info('MPU6050Reader module not available')            else:                self.get_logger().info('IMU data will be simulated')
 
         # Initialize Flask web interface
         self.initialize_flask_app()
@@ -3273,6 +3276,8 @@ class WebRobotInterface(Node):
         }
 
         # Initialize MPU6050 IMU sensor
+# Delay IMU initialization to avoid I2C bus conflicts        time.sleep(2)        print("DEBUG: Starting IMU init block")
+# Delay IMU initialization to avoid I2C bus conflicts        time.sleep(2)
         self.imu = None
         self.imu_initialized = False
 
@@ -3313,6 +3318,7 @@ class WebRobotInterface(Node):
                     else:
                         self.get_logger().warn('MPU6050 found but initialization failed')
             except Exception as e:
+                print(f"DEBUG: IMU initialization failed with error: {e}")
                 self.get_logger().error(f'Failed to initialize MPU6050: {str(e)}')
                 self.imu_initialized = False
         else:
@@ -3361,6 +3367,7 @@ class WebRobotInterface(Node):
             return self._stop_robot_endpoint()
 
         @self.app.route('/api/robot/turn', methods=['POST'])
+@self.app.route('/api/robot/speed', methods=['POST'])        def set_speed():            try:                data = request.get_json()                if not data or 'speed' not in data:                    return jsonify({'success': False, 'error': 'Speed value required', 'timestamp': time.time()}), 400                                speed_percent = int(data['speed'])                if not (10 <= speed_percent <= 100):                    return jsonify({'success': False, 'error': 'Speed must be 10-100', 'timestamp': time.time()}), 400                                # Convert percentage to Mega speed command                if speed_percent >= 95:                    speed_cmd = '0'  # 100%                elif speed_percent >= 85:                    speed_cmd = '9'  # 90%                elif speed_percent >= 75:                    speed_cmd = '8'  # 80%                elif speed_percent >= 65:                    speed_cmd = '7'  # 70%                elif speed_percent >= 55:                    speed_cmd = '6'  # 60%                else:                    speed_cmd = '5'  # 50%                                self.send_command_to_mega(speed_cmd)                                self.get_logger().info(f'Speed set to {speed_percent}% - sent command: {speed_cmd} to Mega')                return jsonify({                    'success': True,                    'message': f'Speed set to {speed_percent}%',                    'speed_percent': speed_percent,                    'mega_command': speed_cmd,                    'mega_connected': self.mega_connected,                    'timestamp': time.time()                })            except Exception as e:                self.get_logger().error(f'Speed control error: {str(e)}')                return jsonify({                    'success': False,                    'error': str(e),                    'timestamp': time.time()                }), 500        @self.app.route('/api/robot/turbo', methods=['POST'])        def toggle_turbo():            try:                # Send turbo toggle command to Mega                self.send_command_to_mega('o')                                self.get_logger().info('Turbo mode toggled - sent command: o to Mega')                return jsonify({                    'success': True,                    'message': 'Turbo mode toggled',                    'mega_connected': self.mega_connected,                    'timestamp': time.time()                })            except Exception as e:                self.get_logger().error(f'Turbo control error: {str(e)}')                return jsonify({                    'success': False,                    'error': str(e),                    'timestamp': time.time()                }), 500
         def turn_robot_endpoint():
             return self._turn_robot_endpoint()
 
@@ -4574,6 +4581,7 @@ class WebRobotInterface(Node):
 
             # Send command to Mega
             self.send_command_to_mega(command)
+# Send current speed setting to Mega                speed_percent = int(speed * 100)                if speed_percent >= 95:                    speed_cmd = '0'                elif speed_percent >= 85:                    speed_cmd = '9'                elif speed_percent >= 75:                    speed_cmd = '8'                elif speed_percent >= 65:                    speed_cmd = '7'                elif speed_percent >= 55:                    speed_cmd = '6'                else:                    speed_cmd = '5'                self.send_command_to_mega(speed_cmd)
 
             self.get_logger().info(f'Robot moving {direction} at speed {speed} - sent command: {command}')
 
@@ -4649,6 +4657,7 @@ class WebRobotInterface(Node):
 
             # Send command to Mega
             self.send_command_to_mega(command)
+# Send current speed setting to Mega                speed_percent = int(speed * 100)                if speed_percent >= 95:                    speed_cmd = '0'                elif speed_percent >= 85:                    speed_cmd = '9'                elif speed_percent >= 75:                    speed_cmd = '8'                elif speed_percent >= 65:                    speed_cmd = '7'                elif speed_percent >= 55:                    speed_cmd = '6'                else:                    speed_cmd = '5'                self.send_command_to_mega(speed_cmd)
 
             self.get_logger().info(f'Robot turning {direction} at speed {speed} - sent command: {command}')
             return jsonify({
