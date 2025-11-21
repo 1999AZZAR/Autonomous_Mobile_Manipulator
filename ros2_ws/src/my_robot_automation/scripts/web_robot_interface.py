@@ -3367,8 +3367,73 @@ class WebRobotInterface(Node):
             return self._stop_robot_endpoint()
 
         @self.app.route('/api/robot/turn', methods=['POST'])
-@self.app.route('/api/robot/speed', methods=['POST'])        def set_speed():            try:                data = request.get_json()                if not data or 'speed' not in data:                    return jsonify({'success': False, 'error': 'Speed value required', 'timestamp': time.time()}), 400                                speed_percent = int(data['speed'])                if not (10 <= speed_percent <= 100):                    return jsonify({'success': False, 'error': 'Speed must be 10-100', 'timestamp': time.time()}), 400                                # Convert percentage to Mega speed command                if speed_percent >= 95:                    speed_cmd = '0'  # 100%                elif speed_percent >= 85:                    speed_cmd = '9'  # 90%                elif speed_percent >= 75:                    speed_cmd = '8'  # 80%                elif speed_percent >= 65:                    speed_cmd = '7'  # 70%                elif speed_percent >= 55:                    speed_cmd = '6'  # 60%                else:                    speed_cmd = '5'  # 50%                                self.send_command_to_mega(speed_cmd)                                self.get_logger().info(f'Speed set to {speed_percent}% - sent command: {speed_cmd} to Mega')                return jsonify({                    'success': True,                    'message': f'Speed set to {speed_percent}%',                    'speed_percent': speed_percent,                    'mega_command': speed_cmd,                    'mega_connected': self.mega_connected,                    'timestamp': time.time()                })            except Exception as e:                self.get_logger().error(f'Speed control error: {str(e)}')                return jsonify({                    'success': False,                    'error': str(e),                    'timestamp': time.time()                }), 500        @self.app.route('/api/robot/turbo', methods=['POST'])        def toggle_turbo():            try:                # Send turbo toggle command to Mega                self.send_command_to_mega('o')                                self.get_logger().info('Turbo mode toggled - sent command: o to Mega')                return jsonify({                    'success': True,                    'message': 'Turbo mode toggled',                    'mega_connected': self.mega_connected,                    'timestamp': time.time()                })            except Exception as e:                self.get_logger().error(f'Turbo control error: {str(e)}')                return jsonify({                    'success': False,                    'error': str(e),                    'timestamp': time.time()                }), 500
         def turn_robot_endpoint():
+            return self._turn_robot_endpoint()
+
+        @self.app.route('/api/robot/speed', methods=['POST'])
+        def set_speed():
+            try:
+                data = request.get_json()
+                if not data or 'speed' not in data:
+                    return jsonify({'success': False, 'error': 'Speed value required', 'timestamp': time.time()}), 400
+
+                speed_percent = int(data['speed'])
+                if not (10 <= speed_percent <= 100):
+                    return jsonify({'success': False, 'error': 'Speed must be 10-100', 'timestamp': time.time()}), 400
+
+                # Convert percentage to Mega speed command
+                if speed_percent >= 95:
+                    speed_cmd = '0'  # 100%
+                elif speed_percent >= 85:
+                    speed_cmd = '9'  # 90%
+                elif speed_percent >= 75:
+                    speed_cmd = '8'  # 80%
+                elif speed_percent >= 65:
+                    speed_cmd = '7'  # 70%
+                elif speed_percent >= 55:
+                    speed_cmd = '6'  # 60%
+                else:
+                    speed_cmd = '5'  # 50%
+
+                self.send_command_to_mega(speed_cmd)
+
+                self.get_logger().info(f'Speed set to {speed_percent}% - sent command: {speed_cmd} to Mega')
+                return jsonify({
+                    'success': True,
+                    'message': f'Speed set to {speed_percent}%',
+                    'speed_percent': speed_percent,
+                    'mega_command': speed_cmd,
+                    'mega_connected': self.mega_connected,
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                self.get_logger().error(f'Speed control error: {str(e)}')
+                return jsonify({
+                    'success': False,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }), 500
+
+        @self.app.route('/api/robot/turbo', methods=['POST'])
+        def toggle_turbo():
+            try:
+                # Send turbo toggle command to Mega
+                self.send_command_to_mega('o')
+
+                self.get_logger().info('Turbo mode toggled - sent command: o to Mega')
+                return jsonify({
+                    'success': True,
+                    'message': 'Turbo mode toggled',
+                    'mega_connected': self.mega_connected,
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                self.get_logger().error(f'Turbo control error: {str(e)}')
+                return jsonify({
+                    'success': False,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }), 500
             return self._turn_robot_endpoint()
 
         @self.app.route('/api/robot/picker/gripper', methods=['POST'])
