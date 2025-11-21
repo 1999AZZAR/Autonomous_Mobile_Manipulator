@@ -492,6 +492,29 @@ HTML_TEMPLATE = """
             letter-spacing: 0.5px;
         }
 
+        .sequence-controls {
+            margin-top: 20px;
+            padding: 15px;
+            background: var(--dark);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+
+        .btn-purple {
+            background-color: #6f42c1;
+            border-color: #6f42c1;
+            color: white;
+        }
+
+        .btn-purple:hover {
+            background-color: #5a359a;
+            border-color: #5a359a;
+        }
+
+        .preset-group:nth-child(3) {
+            grid-column: span 2;
+        }
+
         .waypoint-item {
             background: var(--light);
             border-radius: 6px;
@@ -761,92 +784,142 @@ HTML_TEMPLATE = """
                             </div>
 
                             <div class="control-group">
-                                <h4>Movement Presets</h4>
+                                <h4>Movement Sequence Presets</h4>
                                 <div class="preset-grid">
                                     <div class="preset-group">
-                                        <h5>Basic Patterns</h5>
+                                        <h5>Geometric Patterns</h5>
                                         <div class="control-grid">
-                                            <button class="btn btn-info" onclick="executePreset('forward')">
-                                                <i class="fas fa-arrow-up"></i>
-                                                <span>Forward (f)</span>
+                                            <button class="btn btn-primary" onclick="executeSequence('square')">
+                                                <i class="fas fa-square-full"></i>
+                                                <span>Square Path</span>
                                             </button>
-                                            <button class="btn btn-info" onclick="executePreset('backward')">
-                                                <i class="fas fa-arrow-down"></i>
-                                                <span>Backward (b)</span>
+                                            <button class="btn btn-primary" onclick="executeSequence('triangle')">
+                                                <i class="fas fa-play"></i>
+                                                <span>Triangle</span>
                                             </button>
-                                            <button class="btn btn-info" onclick="executePreset('strafe_left')">
-                                                <i class="fas fa-arrow-left"></i>
-                                                <span>Strafe Left (l)</span>
+                                            <button class="btn btn-success" onclick="executeSequence('figure8')">
+                                                <i class="fas fa-infinity"></i>
+                                                <span>Figure-8</span>
                                             </button>
-                                            <button class="btn btn-info" onclick="executePreset('strafe_right')">
-                                                <i class="fas fa-arrow-right"></i>
-                                                <span>Strafe Right (r)</span>
+                                            <button class="btn btn-success" onclick="executeSequence('circle')">
+                                                <i class="fas fa-circle"></i>
+                                                <span>Circle</span>
                                             </button>
                                         </div>
                                     </div>
 
                                     <div class="preset-group">
-                                        <h5>Diagonal Movement</h5>
+                                        <h5>Search Patterns</h5>
                                         <div class="control-grid">
-                                            <button class="btn btn-success" onclick="executePreset('forward_left')">
-                                                <i class="fas fa-arrow-up"></i>
-                                                <span>F-Left (q)</span>
+                                            <button class="btn btn-info" onclick="executeSequence('lawnmower')">
+                                                <i class="fas fa-route"></i>
+                                                <span>Lawnmower</span>
                                             </button>
-                                            <button class="btn btn-success" onclick="executePreset('forward_right')">
-                                                <i class="fas fa-arrow-up"></i>
-                                                <span>F-Right (e)</span>
+                                            <button class="btn btn-info" onclick="executeSequence('spiral')">
+                                                <i class="fas fa-dharmachakra"></i>
+                                                <span>Spiral</span>
                                             </button>
-                                            <button class="btn btn-success" onclick="executePreset('backward_left')">
-                                                <i class="fas fa-arrow-down"></i>
-                                                <span>B-Left (z)</span>
+                                            <button class="btn btn-warning" onclick="executeSequence('zigzag')">
+                                                <i class="fas fa-wave-square"></i>
+                                                <span>Zigzag</span>
                                             </button>
-                                            <button class="btn btn-success" onclick="executePreset('backward_right')">
-                                                <i class="fas fa-arrow-down"></i>
-                                                <span>B-Right (x)</span>
+                                            <button class="btn btn-warning" onclick="executeSequence('random')">
+                                                <i class="fas fa-random"></i>
+                                                <span>Random</span>
                                             </button>
                                         </div>
                                     </div>
 
                                     <div class="preset-group">
-                                        <h5>Rotation & Turns</h5>
+                                        <h5>Inspection Routes</h5>
                                         <div class="control-grid">
-                                            <button class="btn btn-warning" onclick="executePreset('rotate_cw')">
-                                                <i class="fas fa-redo"></i>
-                                                <span>Rotate CW (c)</span>
+                                            <button class="btn btn-secondary" onclick="executeSequence('perimeter')">
+                                                <i class="fas fa-border-all"></i>
+                                                <span>Perimeter</span>
                                             </button>
-                                            <button class="btn btn-warning" onclick="executePreset('rotate_ccw')">
-                                                <i class="fas fa-undo"></i>
-                                                <span>Rotate CCW (w)</span>
+                                            <button class="btn btn-secondary" onclick="executeSequence('corners')">
+                                                <i class="fas fa-th-large"></i>
+                                                <span>Corners</span>
                                             </button>
-                                            <button class="btn btn-warning" onclick="executePreset('turn_left')">
-                                                <i class="fas fa-undo-alt"></i>
-                                                <span>Turn Left (t)</span>
+                                            <button class="btn btn-purple" onclick="executeSequence('approach')">
+                                                <i class="fas fa-crosshairs"></i>
+                                                <span>Approach</span>
                                             </button>
-                                            <button class="btn btn-warning" onclick="executePreset('turn_right')">
-                                                <i class="fas fa-redo-alt"></i>
-                                                <span>Turn Right (y)</span>
+                                            <button class="btn btn-purple" onclick="executeSequence('scan')">
+                                                <i class="fas fa-search"></i>
+                                                <span>Scan Area</span>
                                             </button>
                                         </div>
                                     </div>
 
                                     <div class="preset-group">
-                                        <h5>Arc Movement</h5>
+                                        <h5>Manipulation Tasks</h5>
                                         <div class="control-grid">
-                                            <button class="btn btn-primary" onclick="executePreset('arc_left')">
-                                                <i class="fas fa-chevron-left"></i>
-                                                <span>Arc Left (a)</span>
+                                            <button class="btn btn-info" onclick="executeSequence('pick_and_place')">
+                                                <i class="fas fa-hand-holding"></i>
+                                                <span>Pick & Place</span>
                                             </button>
-                                            <button class="btn btn-primary" onclick="executePreset('arc_right')">
-                                                <i class="fas fa-chevron-right"></i>
-                                                <span>Arc Right (j)</span>
+                                            <button class="btn btn-success" onclick="executeSequence('pickup_delivery')">
+                                                <i class="fas fa-truck"></i>
+                                                <span>Pickup Delivery</span>
                                             </button>
-                                            <button class="btn btn-secondary" onclick="executePreset('stop')">
+                                            <button class="btn btn-warning" onclick="executeSequence('assembly_line')">
+                                                <i class="fas fa-cogs"></i>
+                                                <span>Assembly Line</span>
+                                            </button>
+                                            <button class="btn btn-primary" onclick="executeSequence('search_retrieve')">
+                                                <i class="fas fa-search-plus"></i>
+                                                <span>Search & Retrieve</span>
+                                            </button>
+                                            <button class="btn btn-secondary" onclick="executeSequence('warehouse_sort')">
+                                                <i class="fas fa-warehouse"></i>
+                                                <span>Warehouse Sort</span>
+                                            </button>
+                                            <button class="btn btn-purple" onclick="executeSequence('quality_inspect')">
+                                                <i class="fas fa-eye"></i>
+                                                <span>Quality Inspect</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="preset-group">
+                                        <h5>Quick Actions</h5>
+                                        <div class="control-grid">
+                                            <button class="btn btn-success" onclick="executeSequence('dance')">
+                                                <i class="fas fa-music"></i>
+                                                <span>Dance</span>
+                                            </button>
+                                            <button class="btn btn-danger" onclick="executeSequence('evade')">
+                                                <i class="fas fa-running"></i>
+                                                <span>Evade</span>
+                                            </button>
+                                            <button class="btn btn-dark" onclick="executeSequence('return_home')">
+                                                <i class="fas fa-home"></i>
+                                                <span>Return Home</span>
+                                            </button>
+                                            <button class="btn btn-light" onclick="executeSequence('stop_all')">
+                                                <i class="fas fa-stop-circle"></i>
+                                                <span>STOP ALL</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="sequence-controls">
+                                    <div class="control-group">
+                                        <h5>Sequence Control</h5>
+                                        <div class="control-grid">
+                                            <button class="btn btn-outline-secondary" onclick="pauseSequence()">
+                                                <i class="fas fa-pause"></i>
+                                                <span>Pause</span>
+                                            </button>
+                                            <button class="btn btn-outline-success" onclick="resumeSequence()">
+                                                <i class="fas fa-play"></i>
+                                                <span>Resume</span>
+                                            </button>
+                                            <button class="btn btn-outline-danger" onclick="stopSequence()">
                                                 <i class="fas fa-stop"></i>
-                                                <span>Stop (s)</span>
-                                            </button>
-                                            <button class="btn btn-danger" onclick="executePreset('emergency_stop')">
-                                                <i class="fas fa-exclamation-triangle"></i>
-                                                <span>Emergency (v)</span>
+                                                <span>Stop Sequence</span>
                                             </button>
                                         </div>
                                     </div>
@@ -1988,34 +2061,338 @@ USB3 - Reserved
             await apiCall('/api/robot/turn', 'POST', { direction, speed: currentSpeed });
         }
 
-        async function executePreset(preset) {
-            // Map preset names to Mega commands
-            const presetMap = {
-                'forward': 'f',
-                'backward': 'b',
-                'strafe_left': 'l',
-                'strafe_right': 'r',
-                'forward_left': 'q',
-                'forward_right': 'e',
-                'backward_left': 'z',
-                'backward_right': 'x',
-                'rotate_cw': 'c',
-                'rotate_ccw': 'w',
-                'turn_left': 't',
-                'turn_right': 'y',
-                'arc_left': 'a',
-                'arc_right': 'j',
-                'stop': 's',
-                'emergency_stop': 'v'
+        // Sequence execution variables
+        let currentSequence = null;
+        let sequenceRunning = false;
+        let sequencePaused = false;
+        let sequenceStep = 0;
+
+        async function executeSequence(sequenceName) {
+            if (sequenceRunning) {
+                addLog('Sequence already running. Stop current sequence first.', 'warning');
+                return;
+            }
+
+            // Define movement sequences
+            const sequences = {
+                'square': [
+                    { command: 'f', delay: 2000, description: 'Forward' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn Right' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 2000, description: 'Forward' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn Right' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 2000, description: 'Forward' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn Right' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 2000, description: 'Forward' },
+                    { command: 's', delay: 1000, description: 'Stop - Square Complete' }
+                ],
+                'triangle': [
+                    { command: 'f', delay: 2000, description: 'Forward' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'c', delay: 1500, description: 'Rotate CW' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 2000, description: 'Forward' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'c', delay: 1500, description: 'Rotate CW' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 2000, description: 'Forward' },
+                    { command: 's', delay: 1000, description: 'Stop - Triangle Complete' }
+                ],
+                'figure8': [
+                    { command: 'g', delay: 8000, description: 'Figure-8 Pattern' },
+                    { command: 's', delay: 1000, description: 'Stop - Figure-8 Complete' }
+                ],
+                'circle': [
+                    { command: 'c', delay: 8000, description: 'Full Circle' },
+                    { command: 's', delay: 1000, description: 'Stop - Circle Complete' }
+                ],
+                'lawnmower': [
+                    { command: 'f', delay: 3000, description: 'Row 1 Forward' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn Around' },
+                    { command: 'y', delay: 1000, description: 'Turn Around' },
+                    { command: 'r', delay: 1000, description: 'Strafe Right' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 3000, description: 'Row 2 Forward' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn Around' },
+                    { command: 'y', delay: 1000, description: 'Turn Around' },
+                    { command: 'r', delay: 1000, description: 'Strafe Right' },
+                    { command: 's', delay: 1000, description: 'Stop - Lawnmower Complete' }
+                ],
+                'spiral': [
+                    { command: 'f', delay: 1000, description: 'Spiral Out' },
+                    { command: 'a', delay: 1500, description: 'Arc Right' },
+                    { command: 'f', delay: 1200, description: 'Continue Spiral' },
+                    { command: 'a', delay: 1500, description: 'Arc Right' },
+                    { command: 'f', delay: 1400, description: 'Continue Spiral' },
+                    { command: 'a', delay: 1500, description: 'Arc Right' },
+                    { command: 'f', delay: 1600, description: 'Continue Spiral' },
+                    { command: 'a', delay: 1500, description: 'Arc Right' },
+                    { command: 's', delay: 1000, description: 'Stop - Spiral Complete' }
+                ],
+                'zigzag': [
+                    { command: 'q', delay: 1500, description: 'Diagonal Left' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'e', delay: 1500, description: 'Diagonal Right' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'q', delay: 1500, description: 'Diagonal Left' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'e', delay: 1500, description: 'Diagonal Right' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'q', delay: 1500, description: 'Diagonal Left' },
+                    { command: 's', delay: 1000, description: 'Stop - Zigzag Complete' }
+                ],
+                'random': [
+                    { command: 'f', delay: Math.random() * 2000 + 1000, description: 'Random Forward' },
+                    { command: 's', delay: 300, description: 'Stop' },
+                    { command: Math.random() > 0.5 ? 'y' : 't', delay: 800, description: 'Random Turn' },
+                    { command: 's', delay: 300, description: 'Stop' },
+                    { command: Math.random() > 0.5 ? 'l' : 'r', delay: 1000, description: 'Random Strafe' },
+                    { command: 's', delay: 300, description: 'Stop' },
+                    { command: 'c', delay: Math.random() * 2000 + 1000, description: 'Random Rotate' },
+                    { command: 's', delay: 1000, description: 'Stop - Random Pattern Complete' }
+                ],
+                'perimeter': [
+                    { command: 'f', delay: 2500, description: 'Forward to Corner 1' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn Right' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 2500, description: 'Forward to Corner 2' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn Right' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 2500, description: 'Forward to Corner 3' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn Right' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 2500, description: 'Forward to Corner 4' },
+                    { command: 's', delay: 1000, description: 'Stop - Perimeter Complete' }
+                ],
+                'corners': [
+                    { command: 'f', delay: 1500, description: 'To Corner 1' },
+                    { command: 's', delay: 1000, description: 'Inspect Corner 1' },
+                    { command: 'b', delay: 1500, description: 'Back from Corner 1' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn to Corner 2' },
+                    { command: 'f', delay: 1500, description: 'To Corner 2' },
+                    { command: 's', delay: 1000, description: 'Inspect Corner 2' },
+                    { command: 'b', delay: 1500, description: 'Back from Corner 2' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'y', delay: 1000, description: 'Turn to Corner 3' },
+                    { command: 'f', delay: 1500, description: 'To Corner 3' },
+                    { command: 's', delay: 1000, description: 'Inspect Corner 3' },
+                    { command: 'b', delay: 1500, description: 'Back from Corner 3' },
+                    { command: 's', delay: 1000, description: 'Stop - Corner Inspection Complete' }
+                ],
+                'approach': [
+                    { command: 'f', delay: 800, description: 'Approach Slowly' },
+                    { command: 's', delay: 500, description: 'Stop & Assess' },
+                    { command: 'f', delay: 600, description: 'Approach Closer' },
+                    { command: 's', delay: 1000, description: 'Final Stop - Ready for Action' }
+                ],
+                'scan': [
+                    { command: 'c', delay: 2000, description: 'Scan 180° CW' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'w', delay: 4000, description: 'Scan 360° CCW' },
+                    { command: 's', delay: 1000, description: 'Stop - Scan Complete' }
+                ],
+                'dance': [
+                    { command: 'c', delay: 500, description: 'Spin Left' },
+                    { command: 'w', delay: 500, description: 'Spin Right' },
+                    { command: 'c', delay: 500, description: 'Spin Left' },
+                    { command: 'w', delay: 500, description: 'Spin Right' },
+                    { command: 'f', delay: 300, description: 'Forward' },
+                    { command: 'b', delay: 300, description: 'Back' },
+                    { command: 'l', delay: 400, description: 'Strafe Left' },
+                    { command: 'r', delay: 400, description: 'Strafe Right' },
+                    { command: 's', delay: 1000, description: 'Stop - Dance Complete!' }
+                ],
+                'evade': [
+                    { command: 'b', delay: 800, description: 'Reverse Quickly' },
+                    { command: 's', delay: 200, description: 'Stop' },
+                    { command: Math.random() > 0.5 ? 'y' : 't', delay: 600, description: 'Turn Away' },
+                    { command: 's', delay: 200, description: 'Stop' },
+                    { command: 'f', delay: 1000, description: 'Escape Forward' },
+                    { command: 's', delay: 1000, description: 'Stop - Evaded!' }
+                ],
+                'return_home': [
+                    { command: 'b', delay: 2000, description: 'Reverse to Start' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'w', delay: 1000, description: 'Face Home Direction' },
+                    { command: 's', delay: 500, description: 'Stop' },
+                    { command: 'f', delay: 1500, description: 'Return Home' },
+                    { command: 's', delay: 1000, description: 'Stop - Home!' }
+                ],
+                'pick_and_place': [
+                    { command: 'f', delay: 1500, description: 'Approach object' },
+                    { command: 's', delay: 500, description: 'Stop at object' },
+                    { command: 'no', delay: 1000, description: 'Open gripper (full)' },
+                    { command: 'md', delay: 800, description: 'Tilt down to object' },
+                    { command: 'nc', delay: 1000, description: 'Close gripper' },
+                    { command: 'mu', delay: 800, description: 'Tilt up with object' },
+                    { command: 'b', delay: 1500, description: 'Move back' },
+                    { command: 's', delay: 500, description: 'Stop at destination' },
+                    { command: 'md', delay: 800, description: 'Tilt down to place' },
+                    { command: 'no', delay: 1000, description: 'Open gripper (release)' },
+                    { command: 'mu', delay: 800, description: 'Tilt up' },
+                    { command: 'nc', delay: 1000, description: 'Close gripper' },
+                    { command: 's', delay: 1000, description: 'Task Complete - Pick & Place' }
+                ],
+                'pickup_delivery': [
+                    { command: 'f', delay: 2000, description: 'Navigate to pickup location' },
+                    { command: 's', delay: 500, description: 'Arrive at pickup' },
+                    { command: 'no', delay: 1000, description: 'Open gripper' },
+                    { command: 'md', delay: 800, description: 'Lower to pickup height' },
+                    { command: 'nc', delay: 1000, description: 'Grip object' },
+                    { command: 'mu', delay: 800, description: 'Lift object' },
+                    { command: 'y', delay: 1000, description: 'Turn toward delivery' },
+                    { command: 'f', delay: 3000, description: 'Transport to delivery' },
+                    { command: 's', delay: 500, description: 'Arrive at delivery' },
+                    { command: 'md', delay: 800, description: 'Lower to delivery height' },
+                    { command: 'no', delay: 1000, description: 'Release object' },
+                    { command: 'mu', delay: 800, description: 'Raise manipulator' },
+                    { command: 'nc', delay: 1000, description: 'Close gripper' },
+                    { command: 's', delay: 1000, description: 'Delivery Complete' }
+                ],
+                'assembly_line': [
+                    { command: 'f', delay: 1000, description: 'Move to station 1' },
+                    { command: 's', delay: 300, description: 'At station 1' },
+                    { command: 'no', delay: 800, description: 'Pick part 1' },
+                    { command: 'nc', delay: 800, description: 'Secure part 1' },
+                    { command: 'r', delay: 800, description: 'Strafe to station 2' },
+                    { command: 's', delay: 300, description: 'At station 2' },
+                    { command: 'no', delay: 800, description: 'Place part 1, pick part 2' },
+                    { command: 'nc', delay: 800, description: 'Secure assembly' },
+                    { command: 'r', delay: 800, description: 'Strafe to station 3' },
+                    { command: 's', delay: 300, description: 'At station 3' },
+                    { command: 'no', delay: 800, description: 'Complete assembly' },
+                    { command: 'nc', delay: 800, description: 'Final grip' },
+                    { command: 'l', delay: 800, description: 'Return to start' },
+                    { command: 's', delay: 1000, description: 'Assembly Line Complete' }
+                ],
+                'search_retrieve': [
+                    { command: 'f', delay: 800, description: 'Initial search forward' },
+                    { command: 'c', delay: 1500, description: 'Scan for target' },
+                    { command: 's', delay: 500, description: 'Target located' },
+                    { command: 'f', delay: 600, description: 'Approach target' },
+                    { command: 's', delay: 300, description: 'At target' },
+                    { command: 'no', delay: 1000, description: 'Open gripper' },
+                    { command: 'md', delay: 800, description: 'Lower to retrieve' },
+                    { command: 'nc', delay: 1000, description: 'Retrieve object' },
+                    { command: 'mu', delay: 800, description: 'Lift retrieved object' },
+                    { command: 'b', delay: 1000, description: 'Return with object' },
+                    { command: 's', delay: 1000, description: 'Search & Retrieve Complete' }
+                ],
+                'warehouse_sort': [
+                    { command: 'f', delay: 1200, description: 'Approach shelf' },
+                    { command: 's', delay: 300, description: 'At shelf position' },
+                    { command: 'no', delay: 1000, description: 'Open gripper' },
+                    { command: 'mu', delay: 600, description: 'Raise to shelf height' },
+                    { command: 'nc', delay: 1000, description: 'Pick item from shelf' },
+                    { command: 'md', delay: 600, description: 'Lower with item' },
+                    { command: 'b', delay: 800, description: 'Back away from shelf' },
+                    { command: 'y', delay: 800, description: 'Turn to sorting area' },
+                    { command: 'f', delay: 1000, description: 'Move to sort location' },
+                    { command: 's', delay: 300, description: 'At sort position' },
+                    { command: 'mu', delay: 600, description: 'Raise to sort height' },
+                    { command: 'no', delay: 1000, description: 'Place in sort bin' },
+                    { command: 'md', delay: 600, description: 'Lower manipulator' },
+                    { command: 'nc', delay: 1000, description: 'Close gripper' },
+                    { command: 's', delay: 1000, description: 'Warehouse Sort Complete' }
+                ],
+                'quality_inspect': [
+                    { command: 'f', delay: 800, description: 'Approach inspection station' },
+                    { command: 's', delay: 500, description: 'At inspection position' },
+                    { command: 'mu', delay: 800, description: 'Raise to inspection height' },
+                    { command: 'c', delay: 2000, description: 'Rotate for 360° inspection' },
+                    { command: 's', delay: 300, description: 'Complete rotation' },
+                    { command: 'md', delay: 600, description: 'Lower for detailed inspection' },
+                    { command: 'no', delay: 1000, description: 'Open gripper to inspect' },
+                    { command: 'w', delay: 1000, description: 'Counter-rotate for detail view' },
+                    { command: 's', delay: 300, description: 'Inspection complete' },
+                    { command: 'nc', delay: 1000, description: 'Close gripper' },
+                    { command: 'mu', delay: 600, description: 'Raise manipulator' },
+                    { command: 'b', delay: 800, description: 'Back away' },
+                    { command: 's', delay: 1000, description: 'Quality Inspection Complete' }
+                ],
+                'stop_all': [
+                    { command: 's', delay: 100, description: 'Emergency Stop' }
+                ]
             };
 
-            const megaCommand = presetMap[preset];
-            if (megaCommand) {
-                await apiCall('/api/serial/send', 'POST', { command: megaCommand });
-                addLog(`Executed preset: ${preset} (${megaCommand})`, 'success');
-            } else {
-                addLog(`Unknown preset: ${preset}`, 'error');
+            const sequence = sequences[sequenceName];
+            if (!sequence) {
+                addLog(`Unknown sequence: ${sequenceName}`, 'error');
+                return;
             }
+
+            // Start sequence execution
+            currentSequence = sequence;
+            sequenceRunning = true;
+            sequencePaused = false;
+            sequenceStep = 0;
+
+            addLog(`Starting sequence: ${sequenceName} (${sequence.length} steps)`, 'info');
+
+            await executeSequenceStep();
+        }
+
+        async function executeSequenceStep() {
+            if (!sequenceRunning || sequencePaused || sequenceStep >= currentSequence.length) {
+                if (sequenceStep >= currentSequence.length) {
+                    sequenceRunning = false;
+                    addLog('Sequence completed successfully!', 'success');
+                }
+                return;
+            }
+
+            const step = currentSequence[sequenceStep];
+            const stepNumber = sequenceStep + 1;
+
+            try {
+                addLog(`Step ${stepNumber}/${currentSequence.length}: ${step.description}`, 'info');
+                await apiCall('/api/serial/send', 'POST', { command: step.command });
+
+                sequenceStep++;
+
+                // Schedule next step after delay
+                setTimeout(() => {
+                    executeSequenceStep();
+                }, step.delay);
+
+            } catch (error) {
+                addLog(`Sequence failed at step ${stepNumber}: ${error.message}`, 'error');
+                sequenceRunning = false;
+            }
+        }
+
+        function pauseSequence() {
+            if (sequenceRunning && !sequencePaused) {
+                sequencePaused = true;
+                addLog('Sequence paused', 'warning');
+            }
+        }
+
+        function resumeSequence() {
+            if (sequenceRunning && sequencePaused) {
+                sequencePaused = false;
+                addLog('Sequence resumed', 'success');
+                executeSequenceStep();
+            }
+        }
+
+        function stopSequence() {
+            sequenceRunning = false;
+            sequencePaused = false;
+            currentSequence = null;
+            sequenceStep = 0;
+            addLog('Sequence stopped', 'error');
         }
 
 // Send speed command to Megaasync function sendSpeedToMega(speedPercent) {    try {        await apiCall('/api/robot/speed', 'POST', { speed: speedPercent });    } catch (error) {        console.error('Failed to send speed to Mega:', error);    }}// Toggle turbo mode
