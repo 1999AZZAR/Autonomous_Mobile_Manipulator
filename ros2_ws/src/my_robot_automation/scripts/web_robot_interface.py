@@ -3073,6 +3073,7 @@ class WebRobotInterface(Node):
 
         # Initialize sensors and peripherals (IMU, LiDAR, Camera on RPi)
         self.initialize_sensors()
+# Initialize MPU6050 IMU sensor        self.imu = None        self.imu_initialized = False                if not self.simulation_mode:            try:                from mpu6050_reader import MPU6050Reader                self.imu = MPU6050Reader(address=0x68)                self.imu_initialized = self.imu.initialized                if self.imu_initialized:                    self.get_logger().info('MPU6050 IMU initialized successfully')                else:                    self.get_logger().warn('MPU6050 initialization failed')            except Exception as e:                self.get_logger().error(f'Failed to initialize MPU6050: {str(e)}')
 
         # Initialize Flask web interface
         self.initialize_flask_app()
