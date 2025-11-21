@@ -3378,30 +3378,38 @@ class WebRobotInterface(Node):
                     return jsonify({'success': False, 'error': 'Speed value required', 'timestamp': time.time()}), 400
 
                 speed_percent = int(data['speed'])
-                if not (10 <= speed_percent <= 100):
-                    return jsonify({'success': False, 'error': 'Speed must be 10-100', 'timestamp': time.time()}), 400
+                if not (0 <= speed_percent <= 100):
+                    return jsonify({'success': False, 'error': 'Speed must be 0-100', 'timestamp': time.time()}), 400
 
-                # Convert percentage to Mega speed command
-                if speed_percent >= 95:
-                    speed_cmd = '0'  # 100%
-                elif speed_percent >= 85:
-                    speed_cmd = '9'  # 90%
-                elif speed_percent >= 75:
-                    speed_cmd = '8'  # 80%
-                elif speed_percent >= 65:
-                    speed_cmd = '7'  # 70%
-                elif speed_percent >= 55:
-                    speed_cmd = '6'  # 60%
-                else:
-                    speed_cmd = '5'  # 50%
+                # Convert UI percentage (0-100%) to Mega speed command (50-100%)
+                # Mega supports: '5'(50%) '6'(60%) '7'(70%) '8'(80%) '9'(90%) '0'(100%)
+                if speed_percent >= 83:      # 83-100% UI → 100% Mega
+                    speed_cmd = '0'
+                    mega_percent = 100
+                elif speed_percent >= 67:    # 67-82% UI → 90% Mega
+                    speed_cmd = '9'
+                    mega_percent = 90
+                elif speed_percent >= 50:    # 50-66% UI → 80% Mega
+                    speed_cmd = '8'
+                    mega_percent = 80
+                elif speed_percent >= 33:    # 33-49% UI → 70% Mega
+                    speed_cmd = '7'
+                    mega_percent = 70
+                elif speed_percent >= 17:    # 17-32% UI → 60% Mega
+                    speed_cmd = '6'
+                    mega_percent = 60
+                else:                       # 0-16% UI → 50% Mega
+                    speed_cmd = '5'
+                    mega_percent = 50
 
                 self.send_command_to_mega(speed_cmd)
 
-                self.get_logger().info(f'Speed set to {speed_percent}% - sent command: {speed_cmd} to Mega')
+                self.get_logger().info(f'UI Speed: {speed_percent}% → Mega Speed: {mega_percent}% (cmd: {speed_cmd})')
                 return jsonify({
                     'success': True,
-                    'message': f'Speed set to {speed_percent}%',
-                    'speed_percent': speed_percent,
+                    'message': f'UI Speed: {speed_percent}% → Mega Speed: {mega_percent}%',
+                    'ui_speed_percent': speed_percent,
+                    'mega_speed_percent': mega_percent,
                     'mega_command': speed_cmd,
                     'mega_connected': self.mega_connected,
                     'timestamp': time.time()
