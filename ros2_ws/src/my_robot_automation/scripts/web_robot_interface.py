@@ -613,6 +613,10 @@ HTML_TEMPLATE = """
                         <i class="fas fa-microchip"></i>
                         <span>Hardware</span>
                     </a>
+                    <a href="#serial" class="nav-tab" onclick="showTab('serial')">
+                        <i class="fas fa-terminal"></i>
+                        <span>Direct Serial</span>
+                    </a>
                 </nav>
             </aside>
 
@@ -1441,6 +1445,80 @@ USB3 - Reserved
                     </div>
                 </div>
 
+                <!-- Direct Serial Tab -->
+                <div id="serial" class="tab-content">
+                    <div class="control-panels">
+                        <div class="panel">
+                            <div class="panel-header">
+                                <i class="fas fa-terminal"></i>
+                                <h3>Direct Serial Commands</h3>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Mega Command Testing</h4>
+                                <p class="description">Send direct commands to Arduino Mega for testing and debugging</p>
+
+                                <div class="input-grid">
+                                    <div class="input-group">
+                                        <label for="serial-command">Command:</label>
+                                        <input type="text" id="serial-command" placeholder="e.g., f, b, l, r, s, 5, 6, 7, 8, 9, 0, o" maxlength="1">
+                                    </div>
+                                    <div class="input-group">
+                                        <label for="serial-description">Description:</label>
+                                        <input type="text" id="serial-description" placeholder="Command description" readonly>
+                                    </div>
+                                </div>
+
+                                <div class="control-group">
+                                    <button class="btn btn-primary" onclick="sendSerialCommand()">
+                                        <i class="fas fa-paper-plane"></i>
+                                        Send Command
+                                    </button>
+                                    <button class="btn btn-secondary" onclick="clearSerialLog()">
+                                        <i class="fas fa-trash"></i>
+                                        Clear Log
+                                    </button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Quick Commands</h4>
+                                <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('f')" title="Forward">Forward (f)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('b')" title="Backward">Backward (b)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('l')" title="Left">Left (l)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('r')" title="Right">Right (r)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('s')" title="Stop">Stop (s)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('c')" title="Gripper Close">Gripper Close (c)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('w')" title="Gripper Open">Gripper Open (w)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('o')" title="Turbo Toggle">Turbo Toggle (o)</button>
+                                </div>
+
+                                <h4>Speed Commands</h4>
+                                <div class="button-grid">
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('5')" title="50% Speed">50% (5)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('6')" title="60% Speed">60% (6)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('7')" title="70% Speed">70% (7)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('8')" title="80% Speed">80% (8)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('9')" title="90% Speed">90% (9)</button>
+                                    <button class="btn btn-outline" onclick="sendQuickCommand('0')" title="100% Speed">100% (0)</button>
+                                </div>
+                            </div>
+
+                            <div class="control-group">
+                                <h4>Command Log</h4>
+                                <div class="log-container">
+                                    <div class="activity-log-content" id="serial-log">
+                                        <div class="log-entry">
+                                            <span class="timestamp">Ready to send commands...</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Path Planning Tab -->
                 <div id="path-planning" class="tab-content">
                     <div class="control-panels">
@@ -1673,7 +1751,96 @@ USB3 - Reserved
             await apiCall('/api/robot/turn', 'POST', { direction, speed: currentSpeed });
         }
 
-// Send speed command to Megaasync function sendSpeedToMega(speedPercent) {    try {        await apiCall('/api/robot/speed', 'POST', { speed: speedPercent });    } catch (error) {        console.error('Failed to send speed to Mega:', error);    }}//// Toggle turbo modeasync function toggleTurbo() {    try {        const response = await apiCall('/api/robot/turbo', 'POST', {});        const turboButton = document.getElementById('turbo-toggle');        if (response.success) {            turboButton.classList.toggle('active');            turboButton.textContent = turboButton.classList.contains('active') ? 'TURBO ON': 'TURBO OFF';            addLog('Turbo mode ' + (turboButton.classList.contains('active') ? 'enabled': 'disabled'));        }    } catch (error) {        addLog('Failed to toggle turbo mode');    }}
+// Send speed command to Megaasync function sendSpeedToMega(speedPercent) {    try {        await apiCall('/api/robot/speed', 'POST', { speed: speedPercent });    } catch (error) {        console.error('Failed to send speed to Mega:', error);    }}// Toggle turbo mode
+async function toggleTurbo() {
+    try {
+        const response = await apiCall('/api/robot/turbo', 'POST', {});
+        const turboButton = document.getElementById('turbo-toggle');
+        if (response.success) {
+            turboButton.classList.toggle('active');
+            turboButton.textContent = turboButton.classList.contains('active') ? 'TURBO ON': 'TURBO OFF';
+            addLog('Turbo mode ' + (turboButton.classList.contains('active') ? 'enabled': 'disabled'));
+        }
+    } catch (error) {
+        addLog('Failed to toggle turbo mode');
+    }
+}
+
+// Direct serial command functions
+async function sendSerialCommand() {
+    const commandInput = document.getElementById('serial-command');
+    const command = commandInput.value.trim().toLowerCase();
+
+    if (!command) {
+        addSerialLog('ERROR: No command entered');
+        return;
+    }
+
+    try {
+        const response = await apiCall('/api/serial/send', 'POST', { command: command });
+        if (response.success) {
+            addSerialLog(`✓ Sent: '${command}' → ${response.description || 'Command sent'}`);
+            commandInput.value = '';
+            updateCommandDescription('');
+        } else {
+            addSerialLog(`✗ Failed: '${command}' → ${response.error || 'Unknown error'}`);
+        }
+    } catch (error) {
+        addSerialLog(`✗ Error: '${command}' → ${error.message || 'Network error'}`);
+    }
+}
+
+async function sendQuickCommand(command) {
+    document.getElementById('serial-command').value = command;
+    updateCommandDescription(command);
+    await sendSerialCommand();
+}
+
+function updateCommandDescription(command) {
+    const descriptions = {
+        'f': 'Move Forward',
+        'b': 'Move Backward',
+        'l': 'Turn Left',
+        'r': 'Turn Right',
+        's': 'Stop All Movement',
+        'c': 'Close Gripper',
+        'w': 'Open Gripper',
+        'o': 'Toggle Turbo Mode',
+        '5': 'Set Speed to 50%',
+        '6': 'Set Speed to 60%',
+        '7': 'Set Speed to 70%',
+        '8': 'Set Speed to 80%',
+        '9': 'Set Speed to 90%',
+        '0': 'Set Speed to 100%'
+    };
+
+    const description = descriptions[command] || '';
+    document.getElementById('serial-description').value = description;
+}
+
+function clearSerialLog() {
+    document.getElementById('serial-log').innerHTML = '<div class="log-entry"><span class="timestamp">Log cleared...</span></div>';
+}
+
+function addSerialLog(message) {
+    const logContainer = document.getElementById('serial-log');
+    const timestamp = new Date().toLocaleTimeString();
+    const logEntry = document.createElement('div');
+    logEntry.className = 'log-entry';
+    logEntry.innerHTML = `<span class="timestamp">[${timestamp}]</span> ${message}`;
+    logContainer.appendChild(logEntry);
+    logContainer.scrollTop = logContainer.scrollHeight;
+}
+
+// Update command description when input changes
+document.addEventListener('DOMContentLoaded', function() {
+    const commandInput = document.getElementById('serial-command');
+    if (commandInput) {
+        commandInput.addEventListener('input', function() {
+            updateCommandDescription(this.value.trim().toLowerCase());
+        });
+    }
+});
         async function stopRobot() {
             await apiCall('/api/robot/stop', 'POST');
         }
@@ -3442,7 +3609,62 @@ class WebRobotInterface(Node):
                     'error': str(e),
                     'timestamp': time.time()
                 }), 500
-            return self._turn_robot_endpoint()
+
+        @self.app.route('/api/serial/send', methods=['POST'])
+        def send_serial_command():
+            try:
+                data = request.get_json()
+                if not data or 'command' not in data:
+                    return jsonify({'success': False, 'error': 'Command required', 'timestamp': time.time()}), 400
+
+                command = data['command'].strip().lower()
+                if len(command) != 1:
+                    return jsonify({'success': False, 'error': 'Command must be a single character', 'timestamp': time.time()}), 400
+
+                # Validate command
+                valid_commands = ['f', 'b', 'l', 'r', 's', 'c', 'w', 'o', '5', '6', '7', '8', '9', '0']
+                if command not in valid_commands:
+                    return jsonify({'success': False, 'error': f'Invalid command. Valid: {", ".join(valid_commands)}', 'timestamp': time.time()}), 400
+
+                # Send command to Mega
+                self.send_command_to_mega(command)
+
+                # Get command description
+                descriptions = {
+                    'f': 'Move Forward',
+                    'b': 'Move Backward',
+                    'l': 'Turn Left',
+                    'r': 'Turn Right',
+                    's': 'Stop All Movement',
+                    'c': 'Close Gripper',
+                    'w': 'Open Gripper',
+                    'o': 'Toggle Turbo Mode',
+                    '5': 'Set Speed to 50%',
+                    '6': 'Set Speed to 60%',
+                    '7': 'Set Speed to 70%',
+                    '8': 'Set Speed to 80%',
+                    '9': 'Set Speed to 90%',
+                    '0': 'Set Speed to 100%'
+                }
+
+                description = descriptions.get(command, 'Unknown command')
+
+                self.get_logger().info(f'Direct serial command: {command} ({description})')
+                return jsonify({
+                    'success': True,
+                    'message': f'Command sent: {command}',
+                    'command': command,
+                    'description': description,
+                    'mega_connected': self.mega_connected,
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                self.get_logger().error(f'Direct serial command error: {str(e)}')
+                return jsonify({
+                    'success': False,
+                    'error': str(e),
+                    'timestamp': time.time()
+                }), 500
 
         @self.app.route('/api/robot/picker/gripper', methods=['POST'])
         def control_gripper_endpoint():
