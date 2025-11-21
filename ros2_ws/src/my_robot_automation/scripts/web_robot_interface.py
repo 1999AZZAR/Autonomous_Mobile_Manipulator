@@ -3020,7 +3020,15 @@ class GPIOController:
                 print(f"ERROR during GPIO cleanup: {str(e)}")
 
 class WebRobotInterface(Node):
-    def __init__(self, simulation_mode=None):
+    def __init__(self, simulation_mode=None, auto_init_ros=True):
+        # Initialize ROS 2 if not already initialized and auto_init is enabled
+        self._ros_initialized_by_us = False
+        if auto_init_ros:
+            if not rclpy.ok():
+                rclpy.init(args=[])
+                self._ros_initialized_by_us = True
+            else:
+
         super().__init__('web_robot_interface')
 
         # Determine operation mode
@@ -4226,6 +4234,15 @@ class WebRobotInterface(Node):
                 self.get_logger().info('GPIO cleaned up')
             except Exception as e:
                 self.get_logger().error(f'Error cleaning up GPIO: {str(e)}')
+
+        # Shutdown ROS 2 if we initialized it
+        if hasattr(self, '_ros_initialized_by_us') and self._ros_initialized_by_us:
+            try:
+                rclpy.shutdown()
+                self._ros_initialized_by_us = False
+                print('ROS 2 shutdown completed')
+            except Exception as e:
+                print(f'Error shutting down ROS 2: {str(e)}')
     
     def __del__(self):
         """Destructor to ensure cleanup"""
@@ -4885,7 +4902,7 @@ def main(args=None):
     rclpy.init(args=remaining)
 
     try:
-        web_interface = WebRobotInterface(simulation_mode=simulation_mode)
+        web_interface = WebRobotInterface(simulation_mode=simulation_mode, auto_init_ros=False)
 
         # Start web interface after initialization is complete
         web_interface.run_web_interface()
