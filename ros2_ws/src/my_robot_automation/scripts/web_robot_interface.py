@@ -471,6 +471,27 @@ HTML_TEMPLATE = """
             overflow-y: auto;
         }
 
+        .preset-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 15px;
+        }
+
+        .preset-group {
+            background: var(--dark);
+            border-radius: 8px;
+            padding: 15px;
+            border: 1px solid var(--border);
+        }
+
+        .preset-group h5 {
+            margin: 0 0 12px 0;
+            color: var(--primary);
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
         .waypoint-item {
             background: var(--light);
             border-radius: 6px;
@@ -738,6 +759,99 @@ HTML_TEMPLATE = """
                                     </button>
                                 </div>
                             </div>
+
+                            <div class="control-group">
+                                <h4>Movement Presets</h4>
+                                <div class="preset-grid">
+                                    <div class="preset-group">
+                                        <h5>Basic Patterns</h5>
+                                        <div class="control-grid">
+                                            <button class="btn btn-info" onclick="executePreset('forward')">
+                                                <i class="fas fa-arrow-up"></i>
+                                                <span>Forward (f)</span>
+                                            </button>
+                                            <button class="btn btn-info" onclick="executePreset('backward')">
+                                                <i class="fas fa-arrow-down"></i>
+                                                <span>Backward (b)</span>
+                                            </button>
+                                            <button class="btn btn-info" onclick="executePreset('strafe_left')">
+                                                <i class="fas fa-arrow-left"></i>
+                                                <span>Strafe Left (l)</span>
+                                            </button>
+                                            <button class="btn btn-info" onclick="executePreset('strafe_right')">
+                                                <i class="fas fa-arrow-right"></i>
+                                                <span>Strafe Right (r)</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="preset-group">
+                                        <h5>Diagonal Movement</h5>
+                                        <div class="control-grid">
+                                            <button class="btn btn-success" onclick="executePreset('forward_left')">
+                                                <i class="fas fa-arrow-up"></i>
+                                                <span>F-Left (q)</span>
+                                            </button>
+                                            <button class="btn btn-success" onclick="executePreset('forward_right')">
+                                                <i class="fas fa-arrow-up"></i>
+                                                <span>F-Right (e)</span>
+                                            </button>
+                                            <button class="btn btn-success" onclick="executePreset('backward_left')">
+                                                <i class="fas fa-arrow-down"></i>
+                                                <span>B-Left (z)</span>
+                                            </button>
+                                            <button class="btn btn-success" onclick="executePreset('backward_right')">
+                                                <i class="fas fa-arrow-down"></i>
+                                                <span>B-Right (x)</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="preset-group">
+                                        <h5>Rotation & Turns</h5>
+                                        <div class="control-grid">
+                                            <button class="btn btn-warning" onclick="executePreset('rotate_cw')">
+                                                <i class="fas fa-redo"></i>
+                                                <span>Rotate CW (c)</span>
+                                            </button>
+                                            <button class="btn btn-warning" onclick="executePreset('rotate_ccw')">
+                                                <i class="fas fa-undo"></i>
+                                                <span>Rotate CCW (w)</span>
+                                            </button>
+                                            <button class="btn btn-warning" onclick="executePreset('turn_left')">
+                                                <i class="fas fa-undo-alt"></i>
+                                                <span>Turn Left (t)</span>
+                                            </button>
+                                            <button class="btn btn-warning" onclick="executePreset('turn_right')">
+                                                <i class="fas fa-redo-alt"></i>
+                                                <span>Turn Right (y)</span>
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div class="preset-group">
+                                        <h5>Arc Movement</h5>
+                                        <div class="control-grid">
+                                            <button class="btn btn-primary" onclick="executePreset('arc_left')">
+                                                <i class="fas fa-chevron-left"></i>
+                                                <span>Arc Left (a)</span>
+                                            </button>
+                                            <button class="btn btn-primary" onclick="executePreset('arc_right')">
+                                                <i class="fas fa-chevron-right"></i>
+                                                <span>Arc Right (j)</span>
+                                            </button>
+                                            <button class="btn btn-secondary" onclick="executePreset('stop')">
+                                                <i class="fas fa-stop"></i>
+                                                <span>Stop (s)</span>
+                                            </button>
+                                            <button class="btn btn-danger" onclick="executePreset('emergency_stop')">
+                                                <i class="fas fa-exclamation-triangle"></i>
+                                                <span>Emergency (v)</span>
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
 
                         <div class="panel">
@@ -794,7 +908,11 @@ HTML_TEMPLATE = """
                                 <div class="control-grid">
                                     <button class="btn btn-success" onclick="controlGripper('open')">
                                         <i class="fas fa-hand-peace"></i>
-                                        <span>Open</span>
+                                        <span>Open (Full)</span>
+                                    </button>
+                                    <button class="btn btn-info" onclick="controlGripper('half')">
+                                        <i class="fas fa-hand-paper"></i>
+                                        <span>Open (Half)</span>
                                     </button>
                                     <button class="btn btn-warning" onclick="controlGripper('close')">
                                         <i class="fas fa-hand-rock"></i>
@@ -1870,6 +1988,36 @@ USB3 - Reserved
             await apiCall('/api/robot/turn', 'POST', { direction, speed: currentSpeed });
         }
 
+        async function executePreset(preset) {
+            // Map preset names to Mega commands
+            const presetMap = {
+                'forward': 'f',
+                'backward': 'b',
+                'strafe_left': 'l',
+                'strafe_right': 'r',
+                'forward_left': 'q',
+                'forward_right': 'e',
+                'backward_left': 'z',
+                'backward_right': 'x',
+                'rotate_cw': 'c',
+                'rotate_ccw': 'w',
+                'turn_left': 't',
+                'turn_right': 'y',
+                'arc_left': 'a',
+                'arc_right': 'j',
+                'stop': 's',
+                'emergency_stop': 'v'
+            };
+
+            const megaCommand = presetMap[preset];
+            if (megaCommand) {
+                await apiCall('/api/serial/send', 'POST', { command: megaCommand });
+                addLog(`Executed preset: ${preset} (${megaCommand})`, 'success');
+            } else {
+                addLog(`Unknown preset: ${preset}`, 'error');
+            }
+        }
+
 // Send speed command to Megaasync function sendSpeedToMega(speedPercent) {    try {        await apiCall('/api/robot/speed', 'POST', { speed: speedPercent });    } catch (error) {        console.error('Failed to send speed to Mega:', error);    }}// Toggle turbo mode
 async function toggleTurbo() {
     try {
@@ -2043,7 +2191,15 @@ document.addEventListener('DOMContentLoaded', function() {
 
         // Picker system controls
         async function controlGripper(command) {
-            await apiCall('/api/robot/picker/gripper', 'POST', { command });
+            // Map UI commands to Mega commands
+            const commandMap = {
+                'open': 'no',   // Gripper open (full)
+                'half': 'nh',  // Gripper half-open
+                'close': 'nc'  // Gripper close
+            };
+
+            const megaCommand = commandMap[command] || command;
+            await apiCall('/api/serial/send', 'POST', { command: megaCommand });
         }
 
         async function setGripperTilt() {
