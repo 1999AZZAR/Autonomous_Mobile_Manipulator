@@ -119,7 +119,7 @@ The robot uses a distributed control architecture with clear role separation:
   - Microsoft USB Camera (computer vision)
   - TF-Luna LIDAR (optional single-point ranging)
   - 4x Container load sensors
-
+  
 - **System Status:**
   - Robot mode and position (from Mega)
   - Velocity and heading (calculated from encoders)

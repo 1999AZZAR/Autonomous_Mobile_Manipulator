@@ -515,6 +515,78 @@ HTML_TEMPLATE = """
             grid-column: span 2;
         }
 
+        /* Individual Wheel Control Styles */
+        .wheel-controls {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .wheel-control-group {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .wheel-control-group label {
+            font-weight: 600;
+            color: #374151;
+            font-size: 0.9rem;
+        }
+
+        .wheel-control-group input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #d1d5db;
+            outline: none;
+            appearance: none;
+        }
+
+        .wheel-control-group input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .wheel-control-group input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: #3b82f6;
+            cursor: pointer;
+            border: 2px solid #ffffff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .wheel-display {
+            text-align: center;
+            font-weight: 700;
+            color: #1f2937;
+            font-size: 1.1rem;
+        }
+
+        .wheel-control-buttons {
+            display: flex;
+            gap: 12px;
+            margin-top: 16px;
+        }
+
+        .wheel-control-buttons .btn {
+            flex: 1;
+            padding: 12px 16px;
+        }
+
         .waypoint-item {
             background: var(--light);
             border-radius: 6px;
@@ -784,6 +856,52 @@ HTML_TEMPLATE = """
                             </div>
 
                             <div class="control-group">
+                                <h4>Individual Wheel Control</h4>
+                                <div class="wheel-controls">
+                                    <div class="wheel-control-group">
+                                        <label>Lifter Motor (Wheel 0)</label>
+                                        <input type="range" id="wheel-0-speed" min="-100" max="100" value="0" step="5"
+                                               oninput="updateWheelDisplay(0)" onchange="setWheelSpeed(0)">
+                                        <div class="wheel-display">
+                                            <span id="wheel-0-value">0</span><span>%</span>
+                                        </div>
+                                    </div>
+                                    <div class="wheel-control-group">
+                                        <label>Front Right (Wheel 1)</label>
+                                        <input type="range" id="wheel-1-speed" min="-100" max="100" value="0" step="5"
+                                               oninput="updateWheelDisplay(1)" onchange="setWheelSpeed(1)">
+                                        <div class="wheel-display">
+                                            <span id="wheel-1-value">0</span><span>%</span>
+                                        </div>
+                                    </div>
+                                    <div class="wheel-control-group">
+                                        <label>Front Left (Wheel 2)</label>
+                                        <input type="range" id="wheel-2-speed" min="-100" max="100" value="0" step="5"
+                                               oninput="updateWheelDisplay(2)" onchange="setWheelSpeed(2)">
+                                        <div class="wheel-display">
+                                            <span id="wheel-2-value">0</span><span>%</span>
+                                        </div>
+                                    </div>
+                                    <div class="wheel-control-group">
+                                        <label>Back (Wheel 3)</label>
+                                        <input type="range" id="wheel-3-speed" min="-100" max="100" value="0" step="5"
+                                               oninput="updateWheelDisplay(3)" onchange="setWheelSpeed(3)">
+                                        <div class="wheel-display">
+                                            <span id="wheel-3-value">0</span><span>%</span>
+                                        </div>
+                                    </div>
+                                    <div class="wheel-control-buttons">
+                                        <button class="btn btn-danger" onclick="stopAllWheels()">
+                                            <i class="fas fa-stop"></i>
+                                            <span>Stop All Wheels</span>
+                                        </button>
+                                        <button class="btn btn-warning" onclick="resetAllWheelSliders()">
+                                            <i class="fas fa-undo"></i>
+                                            <span>Reset Sliders</span>
+                                        </button>
+                                    </div>
+                                </div>
+
                                 <h4>Movement Sequence Presets</h4>
                                 <div class="preset-grid">
                                     <div class="preset-group">
@@ -2055,6 +2173,55 @@ USB3 - Reserved
         // Movement controls
         async function moveRobot(direction) {
             await apiCall('/api/robot/move', 'POST', { direction, speed: currentSpeed });
+        }
+
+        // Individual wheel controls
+        async function setWheelSpeed(wheelId) {
+            const slider = document.getElementById(`wheel-${wheelId}-speed`);
+            const speed = parseInt(slider.value) / 100.0; // Convert to -1.0 to 1.0
+
+            try {
+                const response = await apiCall(`/api/robot/wheels/${wheelId}`, 'POST', { speed });
+                if (response.success) {
+                    addToLog(`Wheel ${wheelId} set to ${speed.toFixed(2)}`, 'success');
+                } else {
+                    addToLog(`Failed to set wheel ${wheelId}: ${response.error}`, 'error');
+                }
+            } catch (error) {
+                addToLog(`Error setting wheel ${wheelId}: ${error.message}`, 'error');
+            }
+        }
+
+        function updateWheelDisplay(wheelId) {
+            const slider = document.getElementById(`wheel-${wheelId}-speed`);
+            const display = document.getElementById(`wheel-${wheelId}-value`);
+            display.textContent = slider.value;
+        }
+
+        async function stopAllWheels() {
+            try {
+                const response = await apiCall('/api/robot/wheels/stop', 'POST', {});
+                if (response.success) {
+                    // Reset all sliders to 0
+                    for (let i = 0; i < 4; i++) {
+                        document.getElementById(`wheel-${i}-speed`).value = 0;
+                        document.getElementById(`wheel-${i}-value`).textContent = '0';
+                    }
+                    addToLog('All wheels stopped', 'success');
+                } else {
+                    addToLog(`Failed to stop wheels: ${response.error}`, 'error');
+                }
+            } catch (error) {
+                addToLog(`Error stopping wheels: ${error.message}`, 'error');
+            }
+        }
+
+        function resetAllWheelSliders() {
+            for (let i = 0; i < 4; i++) {
+                document.getElementById(`wheel-${i}-speed`).value = 0;
+                document.getElementById(`wheel-${i}-value`).textContent = '0';
+            }
+            addToLog('Wheel sliders reset to 0', 'info');
         }
 
         async function turnRobot(direction) {
@@ -3878,7 +4045,9 @@ class WebRobotInterface(Node):
         # Warn if Mega not connected but hardware mode requested
         if not self.simulation_mode and not self.mega_connected:
             self.get_logger().warn('Arduino Mega not connected! Sensor data will be simulated.')
-            self.get_logger().warn('Connect Mega via USB and restart, or use --simulation flag')
+
+        # Individual wheel control state
+        self.wheel_speeds = [0, 0, 0, 0]  # [lifter, fr, fl, back]
 
         # Initialize SPI (not used in Pi-Mega architecture)
         self.spi = None
@@ -3962,7 +4131,7 @@ class WebRobotInterface(Node):
                 continue
 
         # If we get here, no connection was successful
-        self.mega_connected = False
+            self.mega_connected = False
         self.mega_serial = None
         self.get_logger().error('Failed to connect to Arduino Mega on any available port. Check USB connection.')
         self.get_logger().info('Available serial ports: ' + ', '.join(possible_ports))
@@ -4048,25 +4217,25 @@ class WebRobotInterface(Node):
 
     def setup_sensor_subscribers(self):
         """Setup ROS2 subscribers for sensor data from Arduino Mega"""
-        # IR Distance sensors (from Mega)
+        # IR Distance sensors (from Mega) - now Float32 from mega_sensor_publisher
         self.distance_left_front_sub = self.create_subscription(
-            Range, '/distance/left_front', self.distance_left_front_callback, 10)
+            Float32, '/distance/left_front', self.distance_left_front_callback, 10)
         self.distance_left_back_sub = self.create_subscription(
-            Range, '/distance/left_back', self.distance_left_back_callback, 10)
+            Float32, '/distance/left_back', self.distance_left_back_callback, 10)
         self.distance_right_front_sub = self.create_subscription(
-            Range, '/distance/right_front', self.distance_right_front_callback, 10)
+            Float32, '/distance/right_front', self.distance_right_front_callback, 10)
         self.distance_right_back_sub = self.create_subscription(
-            Range, '/distance/right_back', self.distance_right_back_callback, 10)
+            Float32, '/distance/right_back', self.distance_right_back_callback, 10)
         self.distance_back_left_sub = self.create_subscription(
-            Range, '/distance/back_left', self.distance_back_left_callback, 10)
+            Float32, '/distance/back_left', self.distance_back_left_callback, 10)
         self.distance_back_right_sub = self.create_subscription(
-            Range, '/distance/back_right', self.distance_back_right_callback, 10)
+            Float32, '/distance/back_right', self.distance_back_right_callback, 10)
 
-        # Ultrasonic sensors (from Mega)
+        # Ultrasonic sensors (from Mega) - now Float32 from mega_sensor_publisher
         self.ultrasonic_front_left_sub = self.create_subscription(
-            Range, '/ultrasonic/front_left', self.ultrasonic_front_left_callback, 10)
+            Float32, '/ultrasonic/front_left', self.ultrasonic_front_left_callback, 10)
         self.ultrasonic_front_right_sub = self.create_subscription(
-            Range, '/ultrasonic/front_right', self.ultrasonic_front_right_callback, 10)
+            Float32, '/ultrasonic/front_right', self.ultrasonic_front_right_callback, 10)
 
         # Line sensors (RPi)
         self.line_sensor_left_sub = self.create_subscription(
@@ -4115,28 +4284,28 @@ class WebRobotInterface(Node):
 
     # Sensor callback methods
     def distance_left_front_callback(self, msg):
-        self.sensor_data['laser_sensors']['left_front'] = msg.range * 1000  # Convert to mm
+        self.sensor_data['laser_sensors']['left_front'] = msg.data  # Already in mm from Mega
 
     def distance_left_back_callback(self, msg):
-        self.sensor_data['laser_sensors']['left_back'] = msg.range * 1000
+        self.sensor_data['laser_sensors']['left_back'] = msg.data
 
     def distance_right_front_callback(self, msg):
-        self.sensor_data['laser_sensors']['right_front'] = msg.range * 1000
+        self.sensor_data['laser_sensors']['right_front'] = msg.data
 
     def distance_right_back_callback(self, msg):
-        self.sensor_data['laser_sensors']['right_back'] = msg.range * 1000
+        self.sensor_data['laser_sensors']['right_back'] = msg.data
 
     def distance_back_left_callback(self, msg):
-        self.sensor_data['laser_sensors']['back_left'] = msg.range * 1000
+        self.sensor_data['laser_sensors']['back_left'] = msg.data
 
     def distance_back_right_callback(self, msg):
-        self.sensor_data['laser_sensors']['back_right'] = msg.range * 1000
+        self.sensor_data['laser_sensors']['back_right'] = msg.data
 
     def ultrasonic_front_left_callback(self, msg):
-        self.sensor_data['ultrasonic_sensors']['front_left'] = msg.range * 100  # Convert to cm
+        self.sensor_data['ultrasonic_sensors']['front_left'] = msg.data  # Already in mm from Mega
 
     def ultrasonic_front_right_callback(self, msg):
-        self.sensor_data['ultrasonic_sensors']['front_right'] = msg.range * 100
+        self.sensor_data['ultrasonic_sensors']['front_right'] = msg.data
 
     def line_sensor_left_callback(self, msg):
         self.sensor_data['line_sensors']['left'] = msg.data > 500  # Assuming threshold
@@ -4321,6 +4490,66 @@ class WebRobotInterface(Node):
             try:
                 # Send turbo toggle command to Mega
                 self.send_command_to_mega('o')
+                return jsonify({
+                    'success': True,
+                    'message': 'Turbo mode toggled',
+                    'timestamp': time.time()
+                })
+            except Exception as e:
+                self.get_logger().error(f'Turbo toggle error: {str(e)}')
+                return jsonify({'success': False, 'error': str(e), 'timestamp': time.time()}), 500
+
+        @self.app.route('/api/robot/wheels/<int:wheel_id>', methods=['POST'])
+        def control_wheel(wheel_id):
+            try:
+                if wheel_id < 0 or wheel_id > 3:
+                    return jsonify({'success': False, 'error': 'Invalid wheel ID (0-3)', 'timestamp': time.time()}), 400
+
+                data = request.get_json()
+                speed = data.get('speed', 0.0)
+
+                # Constrain speed to -1.0 to 1.0
+                speed = max(-1.0, min(1.0, speed))
+
+                # Store wheel speed state
+                self.wheel_speeds[wheel_id] = speed
+
+                # Convert to Mega command format: w[wheel][speed*100]
+                speed_int = int(speed * 100)
+                command = f"w{wheel_id}{speed_int}"
+
+                self.send_command_to_mega(command)
+
+                return jsonify({
+                    'success': True,
+                    'wheel': wheel_id,
+                    'speed': speed,
+                    'command': command,
+                    'timestamp': time.time()
+                })
+
+            except Exception as e:
+                self.get_logger().error(f'Wheel control error: {e}')
+                return jsonify({'success': False, 'error': str(e), 'timestamp': time.time()}), 500
+
+        @self.app.route('/api/robot/wheels/stop', methods=['POST'])
+        def stop_all_wheels():
+            try:
+                # Reset all wheel speeds
+                self.wheel_speeds = [0, 0, 0, 0]
+
+                # Send stop command to Mega
+                self.send_command_to_mega('wstop')
+
+                return jsonify({
+                    'success': True,
+                    'action': 'stop_all_wheels',
+                    'timestamp': time.time()
+                })
+
+            except Exception as e:
+                self.get_logger().error(f'Wheel stop error: {e}')
+                return jsonify({'success': False, 'error': str(e), 'timestamp': time.time()}), 500
 
                 self.get_logger().info('Turbo mode toggled - sent command: o to Mega')
                 return jsonify({
@@ -5388,7 +5617,7 @@ class WebRobotInterface(Node):
                 self.get_logger().info('Mega serial connection closed')
             except Exception as e:
                 self.get_logger().error(f'Error closing Mega serial: {str(e)}')
-
+        
         # Cleanup GPIO (if any)
         if hasattr(self, 'gpio') and self.gpio:
             try:
