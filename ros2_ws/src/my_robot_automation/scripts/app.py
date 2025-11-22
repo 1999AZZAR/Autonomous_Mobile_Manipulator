@@ -504,6 +504,52 @@ HTML_TEMPLATE = """
         ::-webkit-scrollbar-thumb:hover {
             background: var(--accent-blue);
         }
+
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+        }
+
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: var(--border-color);
+            transition: 0.3s;
+            border-radius: 24px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 18px;
+            width: 18px;
+            left: 3px;
+            bottom: 3px;
+            background-color: white;
+            transition: 0.3s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background: var(--gradient-primary);
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
+        }
     </style>
 </head>
 <body>
@@ -556,6 +602,11 @@ HTML_TEMPLATE = """
             <button class="tab" onclick="showTab('serial')">
                 <span style="display: flex; align-items: center; gap: 8px;">
                     🔧 Direct Serial
+                </span>
+            </button>
+            <button class="tab" onclick="showTab('serialmonitor')">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    📟 Serial Monitor
                 </span>
             </button>
         </div>
@@ -1275,6 +1326,124 @@ HTML_TEMPLATE = """
                 <!-- Serial command log will be populated here -->
             </div>
         </div>
+
+        <!-- Serial Monitor Tab -->
+        <div id="serialmonitor" class="tab-content hidden">
+            <div style="margin-bottom: 30px;">
+                <h2 style="display: flex; align-items: center; gap: 15px; margin: 0 0 20px 0;">
+                    <span style="font-size: 2rem;">📟</span>
+                    Serial Monitor
+                </h2>
+                <p style="color: var(--text-secondary); margin: 0;">Real-time raw serial data stream from Arduino Mega microcontroller</p>
+            </div>
+
+            <!-- Serial Monitor Controls -->
+            <div class="control-group" style="margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <div>
+                        <h3 style="margin: 0 0 5px 0; font-size: 16px;">Monitor Controls</h3>
+                        <p style="margin: 0; color: var(--text-muted); font-size: 14px;">Control serial data monitoring and display</p>
+                    </div>
+                    <div style="display: flex; gap: 15px;">
+                        <button class="btn btn-success" onclick="startSerialMonitor()" id="monitor-start-btn" style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">▶️</span>
+                            Start Monitor
+                        </button>
+                        <button class="btn btn-danger" onclick="stopSerialMonitor()" id="monitor-stop-btn" style="display: none; flex: align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">⏹️</span>
+                            Stop Monitor
+                        </button>
+                        <button class="btn btn-info" onclick="clearSerialMonitor()" style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🗑️</span>
+                            Clear
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Monitor Settings -->
+                <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px;">
+                    <div>
+                        <label for="monitor-autoscroll" style="font-weight: 500; margin-bottom: 8px; display: block;">Auto-scroll:</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="monitor-autoscroll" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span style="color: var(--text-secondary); font-size: 14px;">Enabled</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="monitor-timestamps" style="font-weight: 500; margin-bottom: 8px; display: block;">Timestamps:</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <label class="toggle-switch">
+                                <input type="checkbox" id="monitor-timestamps" checked>
+                                <span class="toggle-slider"></span>
+                            </label>
+                            <span style="color: var(--text-secondary); font-size: 14px;">Show timestamps</span>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label for="monitor-filter" style="font-weight: 500; margin-bottom: 8px; display: block;">Filter:</label>
+                        <select id="monitor-filter" style="width: 100%;">
+                            <option value="all">All Data</option>
+                            <option value="commands">Commands Only</option>
+                            <option value="responses">Responses Only</option>
+                            <option value="errors">Errors Only</option>
+                            <option value="sensors">Sensor Data</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label style="font-weight: 500; margin-bottom: 8px; display: block;">Connection Status:</label>
+                        <div style="display: flex; align-items: center; gap: 10px;">
+                            <div id="monitor-connection-status" style="width: 12px; height: 12px; border-radius: 50%; background: var(--text-muted); transition: all 0.3s ease;"></div>
+                            <span id="monitor-connection-text" style="color: var(--text-secondary); font-size: 14px;">Disconnected</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Serial Data Display -->
+            <div class="control-group">
+                <h3 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <span style="font-size: 1.5rem;">📊</span>
+                    Raw Serial Data Stream
+                    <span id="data-rate-badge" style="background: var(--gradient-info); color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">0 B/s</span>
+                </h3>
+
+                <div class="log-container" id="serial-monitor-output" style="font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 12px; line-height: 1.4; max-height: 600px;">
+                    <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                        <div style="font-size: 48px; margin-bottom: 15px;">📟</div>
+                        <div>Serial monitor stopped. Click "Start Monitor" to begin receiving data.</div>
+                        <div style="margin-top: 10px; font-size: 14px; opacity: 0.7;">Raw data from Arduino Mega will appear here in real-time.</div>
+                    </div>
+                </div>
+
+                <!-- Data Statistics -->
+                <div style="margin-top: 20px; padding: 15px; background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 15px; font-size: 14px;">
+                        <div>
+                            <span style="color: var(--text-secondary);">Total Bytes:</span>
+                            <span id="stats-total-bytes" style="margin-left: 8px; font-weight: 600; color: var(--accent-blue);">0</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--text-secondary);">Lines Received:</span>
+                            <span id="stats-lines" style="margin-left: 8px; font-weight: 600; color: var(--accent-green);">0</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--text-secondary);">Errors Detected:</span>
+                            <span id="stats-errors" style="margin-left: 8px; font-weight: 600; color: var(--accent-red);">0</span>
+                        </div>
+                        <div>
+                            <span style="color: var(--text-secondary);">Runtime:</span>
+                            <span id="stats-runtime" style="margin-left: 8px; font-weight: 600; color: var(--accent-purple);">00:00:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script>
@@ -1290,6 +1459,19 @@ HTML_TEMPLATE = """
             // Load map when Path Planning tab is activated
             if (tabName === 'pathplanning') {
                 loadMap();
+            }
+
+            // Start serial monitor when Serial Monitor tab is activated
+            if (tabName === 'serialmonitor') {
+                // Small delay to ensure tab content is visible
+                setTimeout(() => {
+                    startSerialMonitor();
+                }, 100);
+            }
+
+            // Stop serial monitor when leaving the tab
+            if (currentTab === 'serialmonitor' && tabName !== 'serialmonitor') {
+                stopSerialMonitor();
             }
         }
 
@@ -1529,6 +1711,18 @@ HTML_TEMPLATE = """
         let mapScale = 50; // 50 pixels = 1 meter
         let showGrid = true;
         let robotPosition = { x: 0, y: 0, heading: 0 };
+
+        // Serial Monitor Variables
+        let serialMonitorActive = false;
+        let serialMonitorInterval = null;
+        let serialMonitorStartTime = null;
+        let fetchCount = 0;
+        let serialStats = {
+            totalBytes: 0,
+            linesReceived: 0,
+            errorsDetected: 0,
+            lastDataRate: 0
+        };
 
         // Movement Sets
         async function executeMovementSet(setName) {
@@ -2111,6 +2305,181 @@ HTML_TEMPLATE = """
             }
         }
 
+        // Serial Monitor Functions
+        async function startSerialMonitor() {
+            if (serialMonitorActive) return;
+
+            serialMonitorActive = true;
+            serialMonitorStartTime = Date.now();
+            serialStats = { totalBytes: 0, linesReceived: 0, errorsDetected: 0, lastDataRate: 0 };
+
+            // Update UI
+            const startBtn = document.getElementById('monitor-start-btn');
+            const stopBtn = document.getElementById('monitor-stop-btn');
+            const statusIndicator = document.getElementById('monitor-connection-status');
+            const statusText = document.getElementById('monitor-connection-text');
+
+            if (startBtn && stopBtn && statusIndicator && statusText) {
+                startBtn.style.display = 'none';
+                stopBtn.style.display = 'flex';
+                statusIndicator.style.backgroundColor = '#10b981';
+                statusText.textContent = 'Monitoring';
+            }
+
+            // Clear previous data
+            clearSerialMonitor();
+
+            // Add initial message
+            addToSerialMonitor('[INFO] Serial monitor started', 'info');
+
+            // Start monitoring loop
+            serialMonitorInterval = setInterval(fetchSerialData, 1000); // Poll every second
+
+            showStatus('success', 'Serial monitor started');
+        }
+
+        async function stopSerialMonitor() {
+            if (!serialMonitorActive) return;
+
+            serialMonitorActive = false;
+            clearInterval(serialMonitorInterval);
+
+            // Update UI
+            document.getElementById('monitor-start-btn').style.display = 'flex';
+            document.getElementById('monitor-stop-btn').style.display = 'none';
+            document.getElementById('monitor-connection-status').style.backgroundColor = 'var(--text-muted)';
+            document.getElementById('monitor-connection-text').textContent = 'Disconnected';
+
+            // Add final message
+            addToSerialMonitor('[INFO] Serial monitor stopped', 'info');
+            updateMonitorStats();
+
+            showStatus('info', 'Serial monitor stopped');
+        }
+
+        function clearSerialMonitor() {
+            const output = document.getElementById('serial-monitor-output');
+            output.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px;"><div style="font-size: 48px; margin-bottom: 15px;">📟</div><div>Serial data will appear here...</div></div>';
+            serialStats.totalBytes = 0;
+            serialStats.linesReceived = 0;
+            serialStats.errorsDetected = 0;
+            updateMonitorStats();
+        }
+
+        async function fetchSerialData() {
+            if (!serialMonitorActive) return;
+
+            try {
+                const response = await fetch('/api/serial/monitor');
+                const data = await response.json();
+
+                if (data.success && data.data && data.data.length > 0) {
+                    // Process each line of serial data
+                    data.data.forEach(line => {
+                        addToSerialMonitor(line, 'data');
+                        serialStats.totalBytes += line.length;
+                        serialStats.linesReceived++;
+
+                        // Check for errors
+                        if (line.toLowerCase().includes('error') ||
+                            line.toLowerCase().includes('fail') ||
+                            line.includes('!')) {
+                            serialStats.errorsDetected++;
+                        }
+                    });
+
+                    updateMonitorStats();
+                    updateDataRate();
+                }
+            } catch (error) {
+                // Silent fail - Mega might not be connected
+                if (serialMonitorActive) {
+                    addToSerialMonitor('[WARNING] Failed to fetch serial data: ' + error.message, 'warning');
+                }
+            }
+        }
+
+        function addToSerialMonitor(text, type = 'data') {
+            const output = document.getElementById('serial-monitor-output');
+            if (!output) return;
+
+            const autoscroll = document.getElementById('monitor-autoscroll').checked;
+            const showTimestamps = document.getElementById('monitor-timestamps').checked;
+
+            // Create message element
+            const messageDiv = document.createElement('div');
+            messageDiv.style.marginBottom = '2px';
+            messageDiv.style.fontFamily = 'inherit';
+
+            let timestamp = '';
+            if (showTimestamps) {
+                const now = new Date();
+                timestamp = `[${now.toLocaleTimeString()}] `;
+            }
+
+            // Color code based on type
+            switch (type) {
+                case 'error':
+                    messageDiv.style.color = '#ef4444';
+                    break;
+                case 'warning':
+                    messageDiv.style.color = '#f59e0b';
+                    break;
+                case 'info':
+                    messageDiv.style.color = '#3b82f6';
+                    break;
+                case 'success':
+                    messageDiv.style.color = '#10b981';
+                    break;
+                default:
+                    messageDiv.style.color = 'var(--text-primary)';
+            }
+
+            messageDiv.textContent = timestamp + text;
+
+            // Add to output
+            if (output.lastChild && output.lastChild.tagName === 'DIV' &&
+                output.lastChild.textContent.includes('Serial data will appear here')) {
+                output.innerHTML = '';
+            }
+
+            output.appendChild(messageDiv);
+
+            // Auto-scroll if enabled
+            if (autoscroll) {
+                output.scrollTop = output.scrollHeight;
+            }
+
+            // Limit lines to prevent memory issues (keep last 1000 lines)
+            while (output.children.length > 1000) {
+                output.removeChild(output.firstChild);
+            }
+        }
+
+        function updateMonitorStats() {
+            document.getElementById('stats-total-bytes').textContent = serialStats.totalBytes;
+            document.getElementById('stats-lines').textContent = serialStats.linesReceived;
+            document.getElementById('stats-errors').textContent = serialStats.errorsDetected;
+
+            if (serialMonitorStartTime) {
+                const elapsed = Math.floor((Date.now() - serialMonitorStartTime) / 1000);
+                const hours = Math.floor(elapsed / 3600);
+                const minutes = Math.floor((elapsed % 3600) / 60);
+                const seconds = elapsed % 60;
+                document.getElementById('stats-runtime').textContent =
+                    `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+            }
+        }
+
+        function updateDataRate() {
+            const elapsed = (Date.now() - serialMonitorStartTime) / 1000;
+            if (elapsed > 0) {
+                const rate = Math.round(serialStats.totalBytes / elapsed);
+                document.getElementById('data-rate-badge').textContent = `${rate} B/s`;
+                serialStats.lastDataRate = rate;
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             updateSpeedDisplay();
@@ -2130,7 +2499,7 @@ HTML_TEMPLATE = """
             setInterval(refreshSensors, 5000);
 
             // Update robot position on map and dashboard every 2 seconds
-            setInterval(updateRobotPositionOnMap, 2000);
+            // setInterval(updateRobotPositionOnMap, 2000); // TODO: Define this function
             setInterval(updateDashboardPosition, 2000);
 
             // Keyboard shortcuts for serial commands
@@ -2266,6 +2635,13 @@ class FlaskApp:
         @self.app.route('/api/map/canvas', methods=['GET'])
         def get_map_canvas():
             return self._get_map_canvas(), 200, {'Content-Type': 'text/html'}
+
+        @self.app.route('/api/serial/monitor', methods=['GET'])
+        def get_serial_monitor_data():
+            return self._get_serial_monitor_data()
+
+        # End of route setup
+        pass
 
     def _get_status(self):
         """Get system status"""
@@ -2987,6 +3363,54 @@ class FlaskApp:
         """Return the map canvas HTML separately to avoid template truncation"""
         map_html = '''<canvas id="waypoint-canvas" width="600" height="400" style="border: 2px solid #374151; border-radius: 8px; background: #1f2937; width: 100%; max-width: 600px;"></canvas>'''
         return map_html
+
+    def _get_serial_monitor_data(self):
+        """Get raw serial data from Mega for monitoring"""
+        try:
+            data_lines = []
+
+            if self.mega and self.mega.mega_connected:
+                # Try to read available serial data without blocking
+                if hasattr(self.mega, 'mega_serial') and self.mega.mega_serial and self.mega.mega_serial.in_waiting > 0:
+                    # Read all available data
+                    raw_data = self.mega.mega_serial.read(self.mega.mega_serial.in_waiting)
+
+                    # Decode and split into lines
+                    try:
+                        decoded_data = raw_data.decode('utf-8', errors='ignore')
+                        lines = decoded_data.split('\n')
+
+                        for line in lines:
+                            line = line.strip()
+                            if line:  # Only add non-empty lines
+                                data_lines.append(line)
+                                logger.debug(f'Serial monitor data: {line}')
+                    except UnicodeDecodeError:
+                        # If decoding fails, show as hex
+                        hex_data = raw_data.hex()
+                        data_lines.append(f'[HEX] {hex_data}')
+                        logger.debug(f'Serial monitor raw data: {hex_data}')
+                else:
+                    # No data available - this is normal
+                    pass
+            else:
+                # Mega not connected
+                data_lines.append('[WARNING] Arduino Mega not connected')
+
+            return jsonify({
+                'success': True,
+                'data': data_lines,
+                'timestamp': time.time()
+            })
+
+        except Exception as e:
+            logger.error(f'Serial monitor data error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'data': [],
+                'timestamp': time.time()
+            }), 500
 
     def _path_to_commands(self, path):
         """Convert path coordinates to movement commands"""
