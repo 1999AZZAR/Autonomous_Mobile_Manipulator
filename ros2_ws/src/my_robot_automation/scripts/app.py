@@ -31,98 +31,697 @@ HTML_TEMPLATE = """
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Autonomous Mobile Manipulator Control</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; background: #f5f5f5; }
-        .container { max-width: 1200px; margin: 0 auto; }
-        .header { background: #2c3e50; color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px; }
-        .tabs { display: flex; margin-bottom: 20px; }
-        .tab { padding: 10px 20px; background: #ecf0f1; border: none; cursor: pointer; margin-right: 5px; border-radius: 4px; }
-        .tab.active { background: #3498db; color: white; }
-        .tab-content { background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.1); }
-        .hidden { display: none; }
-        .control-group { margin-bottom: 20px; }
-        .control-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .control-group input, .control-group select, .control-group button {
-            padding: 8px; margin-right: 10px; border: 1px solid #ddd; border-radius: 4px;
+        :root {
+            --primary-bg: #0f172a;
+            --secondary-bg: #1e293b;
+            --accent-bg: #334155;
+            --card-bg: #1e293b;
+            --border-color: #334155;
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            --accent-blue: #3b82f6;
+            --accent-green: #10b981;
+            --accent-purple: #8b5cf6;
+            --accent-red: #ef4444;
+            --accent-orange: #f59e0b;
+            --gradient-primary: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            --gradient-success: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            --gradient-danger: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+            --gradient-warning: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+            --glass-bg: rgba(30, 41, 59, 0.8);
+            --glass-border: rgba(51, 65, 85, 0.3);
+            --shadow-soft: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+            --shadow-medium: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+            --shadow-large: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
         }
-        .control-group button { background: #3498db; color: white; cursor: pointer; }
-        .control-group button:hover { background: #2980b9; }
-        .status { padding: 10px; margin: 10px 0; border-radius: 4px; }
-        .status.success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
-        .status.error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .status.info { background: #cce7ff; color: #004085; border: 1px solid #b3d7ff; }
-        .log-container { background: #f8f9fa; border: 1px solid #dee2e6; border-radius: 4px; padding: 10px; max-height: 300px; overflow-y: auto; font-family: monospace; font-size: 12px; }
-        .sensor-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; }
-        .sensor-card { background: #f8f9fa; padding: 15px; border-radius: 8px; border: 1px solid #dee2e6; }
-        .sensor-card h4 { margin-top: 0; color: #495057; }
-        .sensor-value { font-size: 24px; font-weight: bold; color: #007bff; }
-        .button-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
-        .btn { padding: 10px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
-        .btn-success { background: #28a745; color: white; }
-        .btn-danger { background: #dc3545; color: white; }
-        .btn-warning { background: #ffc107; color: black; }
-        .btn-info { background: #17a2b8; color: white; }
-        .btn-secondary { background: #6c757d; color: white; }
-        .input-group { display: flex; align-items: center; margin-bottom: 10px; }
-        .input-group label { min-width: 100px; margin-right: 10px; }
-        .input-group input { flex: 1; }
-        .description { font-size: 12px; color: #6c757d; margin-top: 5px; }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            margin: 0;
+            padding: 0;
+            background: var(--primary-bg);
+            color: var(--text-primary);
+            line-height: 1.6;
+            min-height: 100vh;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .header {
+            background: var(--gradient-primary);
+            color: white;
+            padding: 30px;
+            border-radius: 16px;
+            margin-bottom: 30px;
+            box-shadow: var(--shadow-large);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+        }
+
+        .header h1 {
+            margin: 0 0 10px 0;
+            font-size: 2.5rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, #ffffff 0%, #e2e8f0 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .header p {
+            margin: 0;
+            opacity: 0.9;
+            font-size: 1.1rem;
+        }
+
+        .tabs {
+            display: flex;
+            margin-bottom: 30px;
+            background: var(--secondary-bg);
+            border-radius: 12px;
+            padding: 6px;
+            box-shadow: var(--shadow-medium);
+            overflow-x: auto;
+        }
+
+        .tab {
+            padding: 12px 24px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            border-radius: 8px;
+            color: var(--text-secondary);
+            font-weight: 500;
+            font-size: 14px;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            min-width: fit-content;
+        }
+
+        .tab:hover {
+            background: var(--accent-bg);
+            color: var(--text-primary);
+            transform: translateY(-1px);
+        }
+
+        .tab.active {
+            background: var(--gradient-primary);
+            color: white;
+            box-shadow: var(--shadow-soft);
+            font-weight: 600;
+        }
+
+        .tab-content {
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            padding: 30px;
+            border-radius: 16px;
+            box-shadow: var(--shadow-large);
+            border: 1px solid var(--glass-border);
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .hidden { display: none; }
+
+        .control-group {
+            margin-bottom: 25px;
+            background: var(--card-bg);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+        }
+
+        .control-group h3 {
+            margin: 0 0 15px 0;
+            color: var(--text-primary);
+            font-size: 1.25rem;
+            font-weight: 600;
+        }
+
+        .control-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: var(--text-primary);
+            font-size: 14px;
+        }
+
+        .control-group input,
+        .control-group select,
+        .control-group textarea {
+            padding: 12px 16px;
+            margin-right: 12px;
+            border: 2px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--secondary-bg);
+            color: var(--text-primary);
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+
+        .control-group input:focus,
+        .control-group select:focus,
+        .control-group textarea:focus {
+            outline: none;
+            border-color: var(--accent-blue);
+            box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+        }
+
+        .control-group button {
+            background: var(--gradient-primary);
+            color: white;
+            cursor: pointer;
+            border: none;
+            border-radius: 8px;
+            padding: 12px 20px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-soft);
+        }
+
+        .control-group button:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .control-group button:active {
+            transform: translateY(0);
+        }
+
+        .status {
+            padding: 16px 20px;
+            margin: 15px 0;
+            border-radius: 12px;
+            border-left: 4px solid;
+            backdrop-filter: blur(10px);
+        }
+
+        .status.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #10b981;
+            border-left-color: #10b981;
+        }
+
+        .status.error {
+            background: rgba(239, 68, 68, 0.1);
+            color: #ef4444;
+            border-left-color: #ef4444;
+        }
+
+        .status.info {
+            background: rgba(59, 130, 246, 0.1);
+            color: #3b82f6;
+            border-left-color: #3b82f6;
+        }
+
+        .status.warning {
+            background: rgba(245, 158, 11, 0.1);
+            color: #f59e0b;
+            border-left-color: #f59e0b;
+        }
+
+        .log-container {
+            background: var(--secondary-bg);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            line-height: 1.4;
+        }
+
+        .sensor-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 20px;
+        }
+
+        .sensor-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid var(--glass-border);
+            box-shadow: var(--shadow-soft);
+            transition: all 0.3s ease;
+        }
+
+        .sensor-card:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .sensor-card h4 {
+            margin: 0 0 15px 0;
+            color: var(--text-primary);
+            font-size: 1.1rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .sensor-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent-blue);
+            margin: 10px 0;
+            display: flex;
+            align-items: baseline;
+            gap: 4px;
+        }
+
+        .sensor-unit {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+            font-weight: 400;
+        }
+
+        .button-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 12px;
+        }
+
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 14px;
+            font-weight: 500;
+            transition: all 0.3s ease;
+            box-shadow: var(--shadow-soft);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .btn::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: -100%;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent);
+            transition: left 0.5s;
+        }
+
+        .btn:hover::before {
+            left: 100%;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: var(--shadow-medium);
+        }
+
+        .btn:active {
+            transform: translateY(0);
+        }
+
+        .btn-success {
+            background: var(--gradient-success);
+            color: white;
+        }
+
+        .btn-danger {
+            background: var(--gradient-danger);
+            color: white;
+        }
+
+        .btn-warning {
+            background: var(--gradient-warning);
+            color: black;
+        }
+
+        .btn-info {
+            background: linear-gradient(135deg, #06b6d4 0%, #0891b2 100%);
+            color: white;
+        }
+
+        .btn-secondary {
+            background: linear-gradient(135deg, #64748b 0%, #475569 100%);
+            color: white;
+        }
+
+        .btn-primary {
+            background: var(--gradient-primary);
+            color: white;
+        }
+
+        .input-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .input-group label {
+            min-width: 120px;
+            margin-right: 15px;
+            font-weight: 500;
+        }
+
+        .input-group input {
+            flex: 1;
+        }
+
+        .description {
+            font-size: 13px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            font-style: italic;
+        }
+
+        /* Slider styling */
+        input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            height: 8px;
+            background: var(--border-color);
+            border-radius: 4px;
+            outline: none;
+        }
+
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            cursor: pointer;
+            box-shadow: var(--shadow-soft);
+        }
+
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: var(--gradient-primary);
+            cursor: pointer;
+            border: none;
+            box-shadow: var(--shadow-soft);
+        }
+
+        /* Responsive design */
+        @media (max-width: 768px) {
+            .container {
+                padding: 15px;
+            }
+
+            .header {
+                padding: 20px;
+            }
+
+            .header h1 {
+                font-size: 2rem;
+            }
+
+            .tabs {
+                flex-wrap: wrap;
+                gap: 4px;
+            }
+
+            .tab {
+                padding: 10px 16px;
+                font-size: 13px;
+            }
+
+            .tab-content {
+                padding: 20px;
+            }
+
+            .sensor-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .button-grid {
+                grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+            }
+        }
+
+        /* Loading animation */
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        .loading {
+            animation: pulse 2s infinite;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--secondary-bg);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border-color);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-blue);
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="header">
-            <h1>🤖 Autonomous Mobile Manipulator Control</h1>
-            <p>Real-time control interface for robot navigation, manipulation, and sensor monitoring</p>
+            <h1>🚀 Autonomous Mobile Manipulator Control</h1>
+            <p>Advanced real-time control interface for autonomous navigation, precision manipulation, and comprehensive sensor monitoring</p>
+            <div style="display: flex; gap: 20px; margin-top: 20px; font-size: 14px;">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%;"></div>
+                    System Online
+                </span>
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 8px; height: 8px; background: #3b82f6; border-radius: 50%;"></div>
+                    ROS2 Active
+                </span>
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    <div style="width: 8px; height: 8px; background: #8b5cf6; border-radius: 50%;"></div>
+                    Mega Connected
+                </span>
+            </div>
         </div>
 
         <div class="tabs">
-            <button class="tab active" onclick="showTab('dashboard')">Dashboard</button>
-            <button class="tab" onclick="showTab('movement')">Movement</button>
-            <button class="tab" onclick="showTab('manipulation')">Manipulation</button>
-            <button class="tab" onclick="showTab('sensors')">Sensors</button>
-            <button class="tab" onclick="showTab('serial')">Direct Serial</button>
+            <button class="tab active" onclick="showTab('dashboard')">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    📊 Dashboard
+                </span>
+            </button>
+            <button class="tab" onclick="showTab('movement')">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    🏃 Movement
+                </span>
+            </button>
+            <button class="tab" onclick="showTab('manipulation')">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    🤖 Manipulation
+                </span>
+            </button>
+            <button class="tab" onclick="showTab('pathplanning')">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    🗺️ Path Planning
+                </span>
+            </button>
+            <button class="tab" onclick="showTab('sensors')">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    📡 Sensors
+                </span>
+            </button>
+            <button class="tab" onclick="showTab('serial')">
+                <span style="display: flex; align-items: center; gap: 8px;">
+                    🔧 Direct Serial
+                </span>
+            </button>
         </div>
 
         <!-- Dashboard Tab -->
         <div id="dashboard" class="tab-content">
-            <h2>System Status</h2>
-            <div id="system-status" class="status info">
-                <strong>Status:</strong> <span id="status-text">Initializing...</span><br>
-                <strong>Mega Connected:</strong> <span id="mega-status">Checking...</span><br>
-                <strong>ROS2 Services:</strong> <span id="ros2-status">Checking...</span>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 30px; margin-bottom: 30px;">
+                <!-- System Status Card -->
+                <div class="control-group">
+                    <h3 style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">🖥️</span>
+                        System Status
+                    </h3>
+                    <div id="system-status" class="status info" style="margin: 0;">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <strong>Status:</strong>
+                            <span id="status-text" style="font-weight: 600;">Initializing...</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <strong>Mega Connected:</strong>
+                            <span id="mega-status" style="font-weight: 600;">Checking...</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <strong>ROS2 Services:</strong>
+                            <span id="ros2-status" style="font-weight: 600;">Checking...</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Current Position Card -->
+                <div class="control-group">
+                    <h3 style="display: flex; align-items: center; gap: 10px;">
+                        <span style="font-size: 1.5rem;">📍</span>
+                        Current Position
+                    </h3>
+                    <div id="current-position-display" style="font-family: 'JetBrains Mono', monospace; font-size: 14px; color: var(--text-secondary);">
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>X:</span>
+                            <span id="pos-x">--</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Y:</span>
+                            <span id="pos-y">--</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
+                            <span>Z:</span>
+                            <span id="pos-z">--</span>
+                        </div>
+                        <div style="display: flex; justify-content: space-between;">
+                            <span>Heading:</span>
+                            <span id="pos-heading">--°</span>
+                        </div>
+                    </div>
+                </div>
             </div>
 
-            <h3>Quick Actions</h3>
-            <div class="button-grid">
-                <button class="btn btn-success" onclick="emergencyStop()">🚨 Emergency Stop</button>
-                <button class="btn btn-warning" onclick="homeServos()">🏠 Home Servos</button>
-                <button class="btn btn-info" onclick="testLimitSwitches()">🔍 Test Limit Switches</button>
+            <!-- Quick Actions -->
+            <div class="control-group">
+                <h3 style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.5rem;">⚡</span>
+                    Quick Actions
+                </h3>
+                <div class="button-grid" style="grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));">
+                    <button class="btn btn-danger" onclick="emergencyStop()" style="background: var(--gradient-danger);">
+                        🚨 Emergency Stop
+                    </button>
+                    <button class="btn btn-warning" onclick="homeServos()" style="background: var(--gradient-warning); color: #1f2937;">
+                        🏠 Home Servos
+                    </button>
+                    <button class="btn btn-info" onclick="testLimitSwitches()">
+                        🔍 Test Limit Switches
+                    </button>
+                    <button class="btn btn-success" onclick="refreshSensors()">
+                        🔄 Refresh Sensors
+                    </button>
+                </div>
+            </div>
+
+            <!-- Robot Log -->
+            <div class="control-group">
+                <h3 style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 1.5rem;">📝</span>
+                    Robot Log
+                </h3>
+                <div id="robot-log" class="log-container" style="font-size: 12px;">
+                    System initialized...<br>
+                    Waiting for connections...
+                </div>
             </div>
         </div>
 
         <!-- Movement Tab -->
         <div id="movement" class="tab-content hidden">
-            <h2>Robot Movement Control</h2>
-
-            <div class="control-group">
-                <label for="speed-slider">Speed Control (0-100%):</label>
-                <input type="range" id="speed-slider" min="0" max="100" value="50" oninput="updateSpeedDisplay()">
-                <span id="speed-display">50%</span>
-                <button class="btn btn-info" onclick="setSpeed()">Set Speed</button>
+            <div style="margin-bottom: 30px;">
+                <h2 style="display: flex; align-items: center; gap: 15px; margin: 0 0 20px 0;">
+                    <span style="font-size: 2rem;">🏃</span>
+                    Robot Movement Control
+                </h2>
+                <p style="color: var(--text-secondary); margin: 0;">Precise control over robot locomotion and navigation systems</p>
             </div>
 
-            <div class="control-group">
-                <label>Turbo Mode:</label>
-                <button class="btn btn-warning" onclick="toggleTurbo()">🚀 Toggle Turbo</button>
+            <!-- Speed and Turbo Controls -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
+                <div class="control-group">
+                    <label for="speed-slider" style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">
+                        ⚡ Speed Control
+                    </label>
+                    <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                        <input type="range" id="speed-slider" min="0" max="100" value="50" oninput="updateSpeedDisplay()" style="flex: 1;">
+                        <span id="speed-display" style="font-size: 18px; font-weight: 700; color: var(--accent-blue); min-width: 60px;">50%</span>
+                    </div>
+                    <button class="btn btn-info" onclick="setSpeed()" style="width: 100%;">
+                        ✅ Apply Speed
+                    </button>
+                </div>
+
+                <div class="control-group">
+                    <label style="font-size: 16px; font-weight: 600; margin-bottom: 15px;">
+                        🚀 Performance Mode
+                    </label>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 15px;">
+                        <span style="color: var(--text-secondary);">Turbo Mode:</span>
+                        <div id="turbo-indicator" style="width: 12px; height: 12px; border-radius: 50%; background: var(--text-muted); transition: all 0.3s ease;"></div>
+                    </div>
+                    <button class="btn btn-warning" onclick="toggleTurbo()" style="width: 100%; background: var(--gradient-warning); color: #1f2937;">
+                        🚀 Toggle Turbo
+                    </button>
+                </div>
             </div>
 
-            <h3>Basic Movement</h3>
-            <div class="button-grid">
-                <button class="btn btn-primary" onclick="moveRobot('forward')">⬆️ Forward</button>
-                <button class="btn btn-primary" onclick="moveRobot('backward')">⬇️ Backward</button>
-                <button class="btn btn-primary" onclick="turnRobot('left')">⬅️ Turn Left</button>
-                <button class="btn btn-primary" onclick="turnRobot('right')">➡️ Turn Right</button>
-                <button class="btn btn-danger" onclick="stopRobot()">⏹️ Stop</button>
+            <!-- Movement Controls -->
+            <div class="control-group">
+                <h3 style="display: flex; align-items: center; gap: 10px; font-size: 18px;">
+                    <span style="font-size: 1.5rem;">🎮</span>
+                    Movement Controls
+                </h3>
+                <div class="button-grid" style="grid-template-columns: repeat(3, 1fr); max-width: 500px; margin: 0 auto;">
+                    <div></div>
+                    <button class="btn btn-primary" onclick="moveRobot('forward')" style="height: 60px;">
+                        <div style="font-size: 24px;">⬆️</div>
+                        <div style="font-size: 12px; margin-top: 5px;">Forward</div>
+                    </button>
+                    <div></div>
+
+                    <button class="btn btn-primary" onclick="turnRobot('left')" style="height: 60px;">
+                        <div style="font-size: 24px;">⬅️</div>
+                        <div style="font-size: 12px; margin-top: 5px;">Left</div>
+                    </button>
+
+                    <button class="btn btn-danger" onclick="stopRobot()" style="height: 60px; background: var(--gradient-danger);">
+                        <div style="font-size: 24px;">⏹️</div>
+                        <div style="font-size: 12px; margin-top: 5px;">STOP</div>
+                    </button>
+
+                    <button class="btn btn-primary" onclick="turnRobot('right')" style="height: 60px;">
+                        <div style="font-size: 24px;">➡️</div>
+                        <div style="font-size: 12px; margin-top: 5px;">Right</div>
+                    </button>
+
+                    <div></div>
+                    <button class="btn btn-primary" onclick="moveRobot('backward')" style="height: 60px;">
+                        <div style="font-size: 24px;">⬇️</div>
+                        <div style="font-size: 12px; margin-top: 5px;">Backward</div>
+                    </button>
+                    <div></div>
+                </div>
             </div>
 
             <h3>Individual Wheel Control</h3>
@@ -187,48 +786,379 @@ HTML_TEMPLATE = """
             </div>
         </div>
 
+        <!-- Path Planning Tab -->
+        <div id="pathplanning" class="tab-content hidden">
+            <h2>Path Planning & Movement Sequences</h2>
+
+            <h3>Predefined Movement Sets</h3>
+            <div class="button-grid">
+                <button class="btn btn-primary" onclick="executeMovementSet('lawnmower')">🌾 Lawn Mower</button>
+                <button class="btn btn-primary" onclick="executeMovementSet('spiral')">🌀 Spiral Search</button>
+                <button class="btn btn-primary" onclick="executeMovementSet('boundary')">🔲 Boundary Follow</button>
+                <button class="btn btn-primary" onclick="executeMovementSet('zigzag')">⚡ Zigzag Scan</button>
+                <button class="btn btn-primary" onclick="executeMovementSet('figure8')">∞ Figure-8</button>
+                <button class="btn btn-primary" onclick="executeMovementSet('circle')">⭕ Circle</button>
+                <button class="btn btn-success" onclick="executeMovementSet('return_home')">🏠 Return Home</button>
+                <button class="btn btn-danger" onclick="stopSequence()">⏹️ Stop Sequence</button>
+            </div>
+
+            <h3>Movement Sequence Editor</h3>
+            <div class="control-group">
+                <label for="sequence-name">Sequence Name:</label>
+                <input type="text" id="sequence-name" placeholder="Enter sequence name">
+            </div>
+
+            <div class="control-group">
+                <label>Add Commands to Sequence:</label>
+                <div class="button-grid">
+                    <!-- Movement Commands -->
+                    <button class="btn btn-secondary" onclick="addToSequence('f')">⬆️ Forward</button>
+                    <button class="btn btn-secondary" onclick="addToSequence('r')">➡️ Right</button>
+                    <button class="btn btn-secondary" onclick="addToSequence('b')">⬇️ Backward</button>
+                    <button class="btn btn-secondary" onclick="addToSequence('l')">⬅️ Left</button>
+                    <button class="btn btn-secondary" onclick="addToSequence('q')">↖️ F-Left</button>
+                    <button class="btn btn-secondary" onclick="addToSequence('e')">↗️ F-Right</button>
+                    <button class="btn btn-secondary" onclick="addToSequence('z')">↙️ B-Left</button>
+                    <button class="btn btn-secondary" onclick="addToSequence('x')">↘️ B-Right</button>
+                    <button class="btn btn-warning" onclick="addToSequence('s')">⏹️ Stop</button>
+                </div>
+
+                <div class="button-grid">
+                    <!-- Control Commands -->
+                    <button class="btn btn-info" onclick="addToSequence('p')">📊 Status</button>
+                    <button class="btn btn-warning" onclick="addToSequence('5')">5️⃣ Speed 50%</button>
+                    <button class="btn btn-warning" onclick="addToSequence('7')">7️⃣ Speed 70%</button>
+                    <button class="btn btn-warning" onclick="addToSequence('0')">🔟 Speed 100%</button>
+                    <button class="btn btn-success" onclick="addToSequence('u')">⬆️ Lift Up</button>
+                    <button class="btn btn-danger" onclick="addToSequence('d')">⬇️ Lift Down</button>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label>Current Sequence:</label>
+                <div id="sequence-display" class="log-container" style="min-height: 100px;">
+                    <!-- Sequence commands will be displayed here -->
+                </div>
+                <div class="button-grid">
+                    <button class="btn btn-success" onclick="saveSequence()">💾 Save Sequence</button>
+                    <button class="btn btn-info" onclick="loadSequence()">📂 Load Sequence</button>
+                    <button class="btn btn-warning" onclick="executeCustomSequence()">▶️ Execute Sequence</button>
+                    <button class="btn btn-danger" onclick="clearSequence()">🗑️ Clear Sequence</button>
+                </div>
+            </div>
+
+            <h3>Saved Sequences</h3>
+            <div id="saved-sequences" class="log-container">
+                <!-- Saved sequences will be listed here -->
+            </div>
+
+            <h3>Waypoint Navigation</h3>
+
+            <!-- Map Visualization -->
+            <div class="control-group">
+                <label>Map Visualization (50px = 1m)</label>
+                <div id="map-container">
+                    <p>Loading map...</p>
+                </div>
+                <div class="button-grid">
+                    <button class="btn btn-info" onclick="clearMapCanvas()">🗑️ Clear Map</button>
+                    <button class="btn btn-secondary" onclick="loadMap()">🔄 Reload Map</button>
+                </div>
+            </div>
+
+            <!-- Waypoint Examples -->
+            <div class="control-group">
+                <label>Waypoint Examples:</label>
+                <div class="button-grid">
+                    <button class="btn btn-info" onclick="loadWaypointExample('square')">▢ Square Path (4m)</button>
+                    <button class="btn btn-info" onclick="loadWaypointExample('triangle')">△ Triangle Path (3m)</button>
+                    <button class="btn btn-info" onclick="loadWaypointExample('circle')">⭕ Circle Path (5m)</button>
+                    <button class="btn btn-info" onclick="loadWaypointExample('figure8')">∞ Figure-8 Path</button>
+                    <button class="btn btn-info" onclick="loadWaypointExample('inspection')">🔍 Room Inspection</button>
+                    <button class="btn btn-info" onclick="loadWaypointExample('delivery')">📦 Delivery Route</button>
+                </div>
+            </div>
+
+            <!-- Manual Waypoint Entry -->
+            <div class="control-group">
+                <label>Add Waypoint (ENU Coordinates):</label>
+                <div class="input-group">
+                    <label>Easting (X) meters:</label>
+                    <input type="number" id="waypoint-x" step="0.1" placeholder="East coordinate">
+                </div>
+                <div class="input-group">
+                    <label>Northing (Y) meters:</label>
+                    <input type="number" id="waypoint-y" step="0.1" placeholder="North coordinate">
+                </div>
+                <div class="input-group">
+                    <label>Up (Z) meters:</label>
+                    <input type="number" id="waypoint-z" step="0.1" placeholder="Up coordinate" value="0">
+                </div>
+                <button class="btn btn-primary" onclick="addWaypoint()">📍 Add Waypoint</button>
+                <button class="btn btn-success" onclick="navigateWaypoints()">🧭 Navigate Waypoints</button>
+                <button class="btn btn-danger" onclick="clearWaypoints()">🗑️ Clear Waypoints</button>
+            </div>
+
+            <!-- Current Position Display -->
+            <div class="control-group">
+                <label>Current Position (ENU from IMU):</label>
+                <div class="input-group">
+                    <span>E: <span id="current-x">0.0</span>m</span>
+                    <span>N: <span id="current-y">0.0</span>m</span>
+                    <span>U: <span id="current-z">0.0</span>m</span>
+                    <span>Heading: <span id="current-heading">0.0</span>°</span>
+                </div>
+                <button class="btn btn-info" onclick="updateCurrentPosition()">📡 Update Position</button>
+                <button class="btn btn-secondary" onclick="setCurrentAsWaypoint()">📍 Set Current as Waypoint</button>
+                <button class="btn btn-warning" onclick="resetOrigin()">🏠 Reset Origin (0,0,0)</button>
+            </div>
+
+            <!-- Waypoint List -->
+            <div class="control-group">
+                <label>Waypoint List:</label>
+                <div id="waypoint-list" class="log-container" style="min-height: 80px;">
+                    <!-- Waypoints will be listed here -->
+                </div>
+                <div class="button-grid">
+                    <button class="btn btn-warning" onclick="reverseWaypoints()">🔄 Reverse Route</button>
+                    <button class="btn btn-info" onclick="optimizeWaypoints()">⚡ Optimize Route</button>
+                    <button class="btn btn-secondary" onclick="saveWaypointRoute()">💾 Save Route</button>
+                    <button class="btn btn-secondary" onclick="loadWaypointRoute()">📂 Load Route</button>
+                </div>
+            </div>
+
+            <!-- Waypoint Examples Info -->
+            <div class="control-group">
+                <label>Waypoint Navigation Guide:</label>
+                <div id="example-info" class="log-container" style="font-size: 12px; line-height: 1.4;">
+                    <strong>📐 Coordinate System:</strong> East=X, North=Y, Up=Z (ENU)<br>
+                    <strong>🚀 Navigation:</strong> Robot moves between waypoints in order<br>
+                    <strong>⚡ Path Planning:</strong> A* algorithm avoids obstacles automatically<br><br>
+
+                    <strong>🎯 Example Scenarios:</strong><br>
+                    <strong>• Boundary Patrol:</strong> Square path around perimeter<br>
+                    <strong>• Search Pattern:</strong> Spiral or zigzag for area coverage<br>
+                    <strong>• Delivery Route:</strong> Multiple stops with return to start<br>
+                    <strong>• Inspection Tour:</strong> Systematic coverage of workspace<br><br>
+
+                    <strong>💡 Pro Tips:</strong><br>
+                    • Start waypoints from robot's current position (0,0,0)<br>
+                    • Use room dimensions for coordinate planning<br>
+                    • Save successful routes for reuse<br>
+                    • Test with "Stop Sequence" for safety
+                </div>
+            </div>
+
+            <!-- Tutorial Section -->
+            <div class="control-group">
+                <label>Quick Start Tutorial:</label>
+                <div class="log-container" style="font-size: 12px; line-height: 1.4;">
+                    <strong>Step 1:</strong> Click "Square Path" example<br>
+                    <strong>Step 2:</strong> Click "Navigate Waypoints"<br>
+                    <strong>Step 3:</strong> Watch robot move 4m square pattern<br>
+                    <strong>Step 4:</strong> Use "Stop Sequence" to halt if needed<br><br>
+
+                    <strong>Custom Route:</strong><br>
+                    1. Clear waypoints<br>
+                    2. Add points: (0,0) → (2,0) → (2,2) → (0,2)<br>
+                    3. Navigate and observe rectangular path<br><br>
+
+                    <strong>📋 Real-World Examples:</strong><br><br>
+
+                    <strong>🏢 Office Inspection:</strong><br>
+                    Start (0,0) → Reception (3,0) → Meeting Room (3,4) → Kitchen (0,4) → Start<br>
+                    <em>Use: Regular facility monitoring</em><br><br>
+
+                    <strong>🏭 Warehouse Inventory:</strong><br>
+                    Dock (0,0) → Aisle1 (5,0) → Aisle2 (5,8) → Aisle3 (5,16) → Shipping (0,16)<br>
+                    <em>Use: Automated stock checking</em><br><br>
+
+                    <strong>🏥 Hospital Rounds:</strong><br>
+                    Nurses Station (0,0) → Room101 (4,0) → Room102 (4,3) → Room103 (4,6) → Station<br>
+                    <em>Use: Medical supply delivery</em><br><br>
+
+                    <strong>🏪 Store Cleaning:</strong><br>
+                    Storage (0,0) → Produce (6,0) → Dairy (6,4) → Bakery (6,8) → Checkout (0,8)<br>
+                    <em>Use: Automated floor cleaning</em><br><br>
+
+                    <strong>🔍 Search & Rescue:</strong><br>
+                    Base (0,0) → Grid1 (10,0) → Grid2 (10,10) → Grid3 (0,10) → Spiral outward<br>
+                    <em>Use: Systematic area search</em><br><br>
+
+                    <strong>📐 Coordinate Planning Tips:</strong><br>
+                    • Measure room dimensions in meters<br>
+                    • Use tape measure for accuracy<br>
+                    • Mark waypoints on floor plan first<br>
+                    • Test small routes before large ones<br>
+                    • Save successful routes for reuse
+                </div>
+            </div>
+        </div>
+
         <!-- Sensors Tab -->
         <div id="sensors" class="tab-content hidden">
-            <h2>Sensor Monitoring</h2>
-            <button class="btn btn-info" onclick="refreshSensors()">🔄 Refresh Sensors</button>
-
-            <h3>IR Distance Sensors</h3>
-            <div class="sensor-grid" id="ir-sensors">
-                <!-- IR sensors will be populated here -->
+            <div style="margin-bottom: 30px;">
+                <h2 style="display: flex; align-items: center; gap: 15px; margin: 0 0 20px 0;">
+                    <span style="font-size: 2rem;">📡</span>
+                    Sensor Monitoring
+                </h2>
+                <p style="color: var(--text-secondary); margin: 0;">Real-time environmental sensing and spatial awareness</p>
             </div>
 
-            <h3>Ultrasonic Sensors</h3>
-            <div class="sensor-grid" id="ultrasonic-sensors">
-                <!-- Ultrasonic sensors will be populated here -->
+            <!-- Control Panel -->
+            <div class="control-group" style="margin-bottom: 30px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <h3 style="margin: 0 0 5px 0; font-size: 16px;">Sensor Control</h3>
+                        <p style="margin: 0; color: var(--text-muted); font-size: 14px;">Monitor and refresh sensor data</p>
+                    </div>
+                    <button class="btn btn-info" onclick="refreshSensors()" style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">🔄</span>
+                        Refresh All
+                    </button>
+                </div>
             </div>
 
-            <h3>IMU Data</h3>
-            <div class="sensor-grid" id="imu-data">
-                <!-- IMU data will be populated here -->
+            <!-- IR Distance Sensors -->
+            <div class="control-group">
+                <h3 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <span style="font-size: 1.5rem;">👁️</span>
+                    IR Distance Sensors
+                    <span style="background: var(--gradient-primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">6 Sensors</span>
+                </h3>
+                <div class="sensor-grid" id="ir-sensors">
+                    <div class="sensor-card" style="text-align: center; color: var(--text-muted);">
+                        <div style="font-size: 48px; margin-bottom: 10px;">📡</div>
+                        <div>Loading IR sensors...</div>
+                    </div>
+                </div>
             </div>
 
-            <h3>Sensor Health</h3>
-            <div id="sensor-health" class="status info">
-                <!-- Sensor health status will be populated here -->
+            <!-- Ultrasonic Sensors -->
+            <div class="control-group">
+                <h3 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <span style="font-size: 1.5rem;">🌊</span>
+                    Ultrasonic Sensors
+                    <span style="background: var(--gradient-success); color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">2 Sensors</span>
+                </h3>
+                <div class="sensor-grid" id="ultrasonic-sensors">
+                    <div class="sensor-card" style="text-align: center; color: var(--text-muted);">
+                        <div style="font-size: 48px; margin-bottom: 10px;">📡</div>
+                        <div>Loading ultrasonic sensors...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- IMU Data -->
+            <div class="control-group">
+                <h3 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <span style="font-size: 1.5rem;">🧭</span>
+                    IMU & Orientation
+                    <span style="background: var(--gradient-purple); color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">9-DOF</span>
+                </h3>
+                <div class="sensor-grid" id="imu-data">
+                    <div class="sensor-card" style="text-align: center; color: var(--text-muted);">
+                        <div style="font-size: 48px; margin-bottom: 10px;">🧭</div>
+                        <div>Loading IMU data...</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sensor Health Status -->
+            <div class="control-group">
+                <h3 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <span style="font-size: 1.5rem;">💚</span>
+                    System Health
+                </h3>
+                <div id="sensor-health" class="status info">
+                    <div style="display: flex; align-items: center; gap: 15px;">
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%;"></div>
+                            <span>Sensors: <strong>Online</strong></span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%;"></div>
+                            <span>Mega: <strong>Connected</strong></span>
+                        </div>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%;"></div>
+                            <span>ROS2: <strong>Active</strong></span>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
         <!-- Direct Serial Tab -->
         <div id="serial" class="tab-content hidden">
-            <h2>Direct Serial Communication</h2>
-
-            <div class="control-group">
-                <label for="serial-command">Command:</label>
-                <input type="text" id="serial-command" placeholder="Enter command (e.g., f, s, p)">
-                <button class="btn btn-success" onclick="sendSerialCommand()">📤 Send Command</button>
+            <div style="margin-bottom: 30px;">
+                <h2 style="display: flex; align-items: center; gap: 15px; margin: 0 0 20px 0;">
+                    <span style="font-size: 2rem;">🔧</span>
+                    Direct Serial Communication
+                </h2>
+                <p style="color: var(--text-secondary); margin: 0;">Low-level Arduino Mega control bypassing ROS2 abstraction layer</p>
             </div>
 
-            <h3>Quick Commands</h3>
-            <div class="button-grid">
-                <button class="btn btn-info" onclick="sendQuickCommand('p')">📊 Status (p)</button>
-                <button class="btn btn-warning" onclick="sendQuickCommand('ls')">🔍 Limit Switch Test (ls)</button>
-                <button class="btn btn-success" onclick="sendQuickCommand('se')">🛡️ Enable Safety (se)</button>
-                <button class="btn btn-danger" onclick="sendQuickCommand('sd')">⚠️ Disable Safety (sd)</button>
+            <!-- Command Input -->
+            <div class="control-group">
+                <label for="serial-command" style="font-size: 16px; font-weight: 600; margin-bottom: 15px; display: block;">
+                    🔍 Direct Command Input
+                </label>
+                <div style="display: flex; gap: 15px; align-items: center;">
+                    <div style="flex: 1; position: relative;">
+                        <input type="text" id="serial-command"
+                               placeholder="Enter command (e.g., f, s, p, ls, se, sd)"
+                               style="width: 100%; padding-right: 50px;">
+                        <div style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: var(--text-muted); font-size: 12px;">
+                            Serial
+                        </div>
+                    </div>
+                    <button class="btn btn-success" onclick="sendSerialCommand()" style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 16px;">📤</span>
+                        Send
+                    </button>
+                </div>
+                <div class="description" style="margin-top: 10px;">
+                    Use single character commands or multi-character sequences. Check COMMANDS.md for full reference.
+                </div>
+            </div>
+
+            <!-- Quick Commands -->
+            <div class="control-group">
+                <h3 style="display: flex; align-items: center; gap: 10px; margin-bottom: 20px;">
+                    <span style="font-size: 1.5rem;">⚡</span>
+                    Quick Commands
+                    <span style="background: var(--gradient-primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px; font-weight: 500;">Essential</span>
+                </h3>
+                <div class="button-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));">
+                    <button class="btn btn-info" onclick="sendQuickCommand('p')" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span style="font-size: 16px;">📊</span>
+                        <div style="text-align: left;">
+                            <div style="font-weight: 600;">Status</div>
+                            <div style="font-size: 12px; opacity: 0.8;">(p)</div>
+                        </div>
+                    </button>
+                    <button class="btn btn-warning" onclick="sendQuickCommand('ls')" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span style="font-size: 16px;">🔍</span>
+                        <div style="text-align: left;">
+                            <div style="font-weight: 600;">Limit Switch Test</div>
+                            <div style="font-size: 12px; opacity: 0.8;">(ls)</div>
+                        </div>
+                    </button>
+                    <button class="btn btn-success" onclick="sendQuickCommand('se')" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span style="font-size: 16px;">🛡️</span>
+                        <div style="text-align: left;">
+                            <div style="font-weight: 600;">Enable Safety</div>
+                            <div style="font-size: 12px; opacity: 0.8;">(se)</div>
+                        </div>
+                    </button>
+                    <button class="btn btn-danger" onclick="sendQuickCommand('sd')" style="display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span style="font-size: 16px;">⚠️</span>
+                        <div style="text-align: left;">
+                            <div style="font-weight: 600;">Disable Safety</div>
+                            <div style="font-size: 12px; opacity: 0.8;">(sd)</div>
+                        </div>
+                    </button>
                 <button class="btn btn-secondary" onclick="sendQuickCommand('wstop')">⏹️ Stop Wheels (wstop)</button>
             </div>
 
@@ -243,13 +1173,101 @@ HTML_TEMPLATE = """
 
             <h3>Movement Commands</h3>
             <div class="button-grid">
+                <!-- Cardinal Directions -->
                 <button class="btn btn-primary" onclick="sendQuickCommand('f')">⬆️ Forward (f)</button>
                 <button class="btn btn-primary" onclick="sendQuickCommand('b')">⬇️ Backward (b)</button>
-                <button class="btn btn-primary" onclick="sendQuickCommand('l')">⬅️ Left (l)</button>
-                <button class="btn btn-primary" onclick="sendQuickCommand('r')">➡️ Right (r)</button>
-                <button class="btn btn-primary" onclick="sendQuickCommand('q')">↺ Turn Left (q)</button>
-                <button class="btn btn-primary" onclick="sendQuickCommand('e')">↻ Turn Right (e)</button>
+                <button class="btn btn-primary" onclick="sendQuickCommand('l')">⬅️ Strafe Left (l)</button>
+                <button class="btn btn-primary" onclick="sendQuickCommand('r')">➡️ Strafe Right (r)</button>
+
+                <!-- Diagonal Directions -->
+                <button class="btn btn-primary" onclick="sendQuickCommand('q')">↖️ Forward-Left (q)</button>
+                <button class="btn btn-primary" onclick="sendQuickCommand('e')">↗️ Forward-Right (e)</button>
+                <button class="btn btn-primary" onclick="sendQuickCommand('z')">↙️ Backward-Left (z)</button>
+                <button class="btn btn-primary" onclick="sendQuickCommand('x')">↘️ Backward-Right (x)</button>
+
+                <!-- Rotation -->
+                <button class="btn btn-primary" onclick="sendQuickCommand('c')">🔄 Clockwise (c)</button>
+                <button class="btn btn-primary" onclick="sendQuickCommand('w')">🔄 Counter-clockwise (w)</button>
+
+                <!-- Turning -->
+                <button class="btn btn-primary" onclick="sendQuickCommand('t')">↺ Turn Left (t)</button>
+                <button class="btn btn-primary" onclick="sendQuickCommand('y')">↻ Turn Right (y)</button>
+                <button class="btn btn-primary" onclick="sendQuickCommand('a')">🌀 Arc Left (a)</button>
+                <button class="btn btn-primary" onclick="sendQuickCommand('j')">🌀 Arc Right (j)</button>
+
+                <!-- Stop -->
                 <button class="btn btn-danger" onclick="sendQuickCommand('s')">⏹️ Stop (s)</button>
+            </div>
+
+            <h3>Control Commands</h3>
+            <div class="button-grid">
+                <button class="btn btn-info" onclick="sendQuickCommand('p')">📊 Status (p)</button>
+                <button class="btn btn-warning" onclick="sendQuickCommand('v')">🚨 Emergency Stop (v)</button>
+                <button class="btn btn-secondary" onclick="sendQuickCommand('o')">🚀 Turbo Toggle (o)</button>
+            </div>
+
+            <h3>Speed Control</h3>
+            <div class="button-grid">
+                <button class="btn btn-secondary" onclick="sendQuickCommand('5')">5️⃣ 50% (5)</button>
+                <button class="btn btn-secondary" onclick="sendQuickCommand('6')">6️⃣ 60% (6)</button>
+                <button class="btn btn-secondary" onclick="sendQuickCommand('7')">7️⃣ 70% (7)</button>
+                <button class="btn btn-secondary" onclick="sendQuickCommand('8')">8️⃣ 80% (8)</button>
+                <button class="btn btn-secondary" onclick="sendQuickCommand('9')">9️⃣ 90% (9)</button>
+                <button class="btn btn-secondary" onclick="sendQuickCommand('0')">🔟 100% (0)</button>
+            </div>
+
+            <h3>Lifter Commands</h3>
+            <div class="button-grid">
+                <button class="btn btn-success" onclick="sendQuickCommand('u')">⬆️ Lift Up (u)</button>
+                <button class="btn btn-danger" onclick="sendQuickCommand('d')">⬇️ Lift Down (d)</button>
+            </div>
+
+            <h3>Testing Commands</h3>
+            <div class="button-grid">
+                <button class="btn btn-warning" onclick="sendQuickCommand('1')">1️⃣ Test Motor 1 (lifter)</button>
+                <button class="btn btn-warning" onclick="sendQuickCommand('2')">2️⃣ Test Motor 2 (FR)</button>
+                <button class="btn btn-warning" onclick="sendQuickCommand('3')">3️⃣ Test Motor 3 (FL)</button>
+                <button class="btn btn-warning" onclick="sendQuickCommand('4')">4️⃣ Test Motor 4 (Back)</button>
+                <button class="btn btn-warning" onclick="sendQuickCommand('g')">∞ Figure-8 (g)</button>
+                <button class="btn btn-warning" onclick="sendQuickCommand('h')">🔄 Continuous Rotation (h)</button>
+            </div>
+
+            <h3>Safety Commands</h3>
+            <div class="button-grid">
+                <button class="btn btn-success" onclick="sendQuickCommand('se')">🛡️ Enable Safety (se)</button>
+                <button class="btn btn-danger" onclick="sendQuickCommand('sd')">⚠️ Disable Safety (sd)</button>
+            </div>
+
+            <h3>Sensor Commands</h3>
+            <div class="button-grid">
+                <button class="btn btn-info" onclick="sendQuickCommand('sr')">📡 Sensor Readings (sr)</button>
+                <button class="btn btn-info" onclick="sendQuickCommand('ls')">🔍 Limit Switch Test (ls)</button>
+            </div>
+
+            <h3>Publishing Control</h3>
+            <div class="button-grid">
+                <button class="btn btn-success" onclick="sendQuickCommand('spe')">📤 Enable Publishing (spe)</button>
+                <button class="btn btn-danger" onclick="sendQuickCommand('spd')">📥 Disable Publishing (spd)</button>
+            </div>
+
+            <h3>Individual Wheel Control</h3>
+            <div class="control-group">
+                <label>Wheel Speed Commands (w[wheel][speed]):</label>
+                <div class="input-group">
+                    <label>Wheel:</label>
+                    <select id="wheel-select-serial">
+                        <option value="0">0 - Lifter Motor</option>
+                        <option value="1">1 - Front Right</option>
+                        <option value="2">2 - Front Left</option>
+                        <option value="3">3 - Back Motor</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Speed (-100 to 100):</label>
+                    <input type="number" id="wheel-speed-serial" min="-100" max="100" value="50" step="10">
+                </div>
+                <button class="btn btn-info" onclick="sendWheelCommand()">Set Wheel Speed</button>
+                <button class="btn btn-danger" onclick="sendQuickCommand('wstop')">Stop All Wheels (wstop)</button>
             </div>
 
             <h3>Command Log</h3>
@@ -268,6 +1286,11 @@ HTML_TEMPLATE = """
             document.getElementById(tabName).classList.remove('hidden');
             event.target.classList.add('active');
             currentTab = tabName;
+
+            // Load map when Path Planning tab is activated
+            if (tabName === 'pathplanning') {
+                loadMap();
+            }
         }
 
         function updateSpeedDisplay() {
@@ -320,7 +1343,23 @@ HTML_TEMPLATE = """
         }
 
         async function toggleTurbo() {
-            await apiCall('/api/robot/turbo');
+            const indicator = document.getElementById('turbo-indicator');
+            const currentColor = indicator.style.backgroundColor;
+
+            // Toggle visual indicator
+            if (currentColor === 'rgb(239, 68, 68)' || currentColor === '#ef4444') {
+                indicator.style.backgroundColor = 'var(--text-muted)';
+            } else {
+                indicator.style.backgroundColor = '#ef4444';
+                indicator.style.boxShadow = '0 0 10px rgba(239, 68, 68, 0.5)';
+            }
+
+            const result = await apiCall('/api/robot/turbo');
+            if (!result || !result.success) {
+                // Revert on error
+                indicator.style.backgroundColor = 'var(--text-muted)';
+                indicator.style.boxShadow = 'none';
+            }
         }
 
         async function moveRobot(direction) {
@@ -392,6 +1431,14 @@ HTML_TEMPLATE = """
         }
 
         async function sendQuickCommand(command) {
+            await apiCall('/api/serial/send', { command });
+            addToSerialLog(`> ${command}`, 'command');
+        }
+
+        async function sendWheelCommand() {
+            const wheel = document.getElementById('wheel-select-serial').value;
+            const speed = document.getElementById('wheel-speed-serial').value;
+            const command = `w${wheel}${speed}`;
             await apiCall('/api/serial/send', { command });
             addToSerialLog(`> ${command}`, 'command');
         }
@@ -471,14 +1518,620 @@ HTML_TEMPLATE = """
             }
         }
 
+        // Path Planning Variables
+        let currentSequence = [];
+        let waypoints = [];
+        let savedSequences = JSON.parse(localStorage.getItem('robotSequences') || '{}');
+
+        // Map Rendering Variables
+        let mapCanvas = null;
+        let mapContext = null;
+        let mapScale = 50; // 50 pixels = 1 meter
+        let showGrid = true;
+        let robotPosition = { x: 0, y: 0, heading: 0 };
+
+        // Movement Sets
+        async function executeMovementSet(setName) {
+            showStatus('info', `Executing ${setName} movement set...`);
+
+            const movementSets = {
+                'lawnmower': [
+                    'f', 'r', 'f', 'r', 'f', 'r', 'f', 'r', 'f', 's'  // Simple lawn mower pattern
+                ],
+                'spiral': [
+                    'f', 'e', 'f', 'e', 'f', 'e', 'f', 's'  // Spiral outward
+                ],
+                'boundary': [
+                    'f', 'r', 'f', 'r', 'f', 'r', 'f', 's'  // Follow boundary
+                ],
+                'zigzag': [
+                    'f', 'r', 'f', 'l', 'f', 'r', 'f', 'l', 's'  // Zigzag pattern
+                ],
+                'figure8': [
+                    'g'  // Use built-in figure-8 command
+                ],
+                'circle': [
+                    'c', 'c', 'c', 's'  // Continuous rotation for circle
+                ],
+                'return_home': [
+                    'b', 'b', 's'  // Simple return pattern
+                ]
+            };
+
+            const sequence = movementSets[setName];
+            if (sequence) {
+                await executeSequence(sequence);
+            }
+        }
+
+        async function executeSequence(commands) {
+            for (const command of commands) {
+                if (command === 's') {
+                    // Stop command - wait a bit longer
+                    await new Promise(resolve => setTimeout(resolve, 1000));
+                } else {
+                    // Regular command - execute and wait
+                    await apiCall('/api/serial/send', { command });
+                    await new Promise(resolve => setTimeout(resolve, 500));
+                }
+            }
+            showStatus('success', 'Movement sequence completed');
+        }
+
+        async function stopSequence() {
+            await apiCall('/api/serial/send', { command: 's' });
+            showStatus('warning', 'Movement sequence stopped');
+        }
+
+        // Sequence Editor Functions
+        function addToSequence(command) {
+            currentSequence.push(command);
+            updateSequenceDisplay();
+        }
+
+        function updateSequenceDisplay() {
+            const display = document.getElementById('sequence-display');
+            display.innerHTML = '';
+
+            if (currentSequence.length === 0) {
+                display.innerHTML = '<em>No commands in sequence</em>';
+                return;
+            }
+
+            const commandNames = {
+                'f': 'Forward', 'b': 'Backward', 'l': 'Left', 'r': 'Right',
+                'q': 'Forward-Left', 'e': 'Forward-Right', 'z': 'Backward-Left', 'x': 'Backward-Right',
+                'c': 'Clockwise', 'w': 'Counter-clockwise', 't': 'Turn Left', 'y': 'Turn Right',
+                'a': 'Arc Left', 'j': 'Arc Right', 's': 'Stop', 'p': 'Status',
+                '5': 'Speed 50%', '7': 'Speed 70%', '0': 'Speed 100%',
+                'u': 'Lift Up', 'd': 'Lift Down'
+            };
+
+            currentSequence.forEach((cmd, index) => {
+                const cmdName = commandNames[cmd] || cmd;
+                const step = document.createElement('div');
+                step.innerHTML = `${index + 1}. ${cmdName} (${cmd})`;
+                display.appendChild(step);
+            });
+        }
+
+        function saveSequence() {
+            const name = document.getElementById('sequence-name').value.trim();
+            if (!name) {
+                showStatus('error', 'Please enter a sequence name');
+                return;
+            }
+
+            if (currentSequence.length === 0) {
+                showStatus('error', 'Sequence is empty');
+                return;
+            }
+
+            savedSequences[name] = [...currentSequence];
+            localStorage.setItem('robotSequences', JSON.stringify(savedSequences));
+
+            updateSavedSequences();
+            showStatus('success', `Sequence "${name}" saved`);
+            document.getElementById('sequence-name').value = '';
+        }
+
+        function loadSequence() {
+            const name = document.getElementById('sequence-name').value.trim();
+            if (!name || !savedSequences[name]) {
+                showStatus('error', 'Sequence not found');
+                return;
+            }
+
+            currentSequence = [...savedSequences[name]];
+            updateSequenceDisplay();
+            showStatus('success', `Sequence "${name}" loaded`);
+        }
+
+        function executeCustomSequence() {
+            if (currentSequence.length === 0) {
+                showStatus('error', 'No sequence to execute');
+                return;
+            }
+
+            showStatus('info', 'Executing custom sequence...');
+            executeSequence(currentSequence);
+        }
+
+        function clearSequence() {
+            currentSequence = [];
+            updateSequenceDisplay();
+            showStatus('info', 'Sequence cleared');
+        }
+
+        function updateSavedSequences() {
+            const container = document.getElementById('saved-sequences');
+            container.innerHTML = '';
+
+            if (Object.keys(savedSequences).length === 0) {
+                container.innerHTML = '<em>No saved sequences</em>';
+                return;
+            }
+
+            Object.keys(savedSequences).forEach(name => {
+                const sequence = savedSequences[name];
+                const item = document.createElement('div');
+                item.innerHTML = `
+                    <strong>${name}</strong> (${sequence.length} commands)
+                    <button class="btn btn-sm btn-info" onclick="loadSequenceByName('${name}')">Load</button>
+                    <button class="btn btn-sm btn-danger" onclick="deleteSequence('${name}')">Delete</button>
+                `;
+                container.appendChild(item);
+            });
+        }
+
+        function loadSequenceByName(name) {
+            document.getElementById('sequence-name').value = name;
+            loadSequence();
+        }
+
+        function deleteSequence(name) {
+            if (confirm(`Delete sequence "${name}"?`)) {
+                delete savedSequences[name];
+                localStorage.setItem('robotSequences', JSON.stringify(savedSequences));
+                updateSavedSequences();
+                showStatus('info', `Sequence "${name}" deleted`);
+            }
+        }
+
+        // Waypoint Navigation
+        function addWaypoint() {
+            const x = parseFloat(document.getElementById('waypoint-x').value);
+            const y = parseFloat(document.getElementById('waypoint-y').value);
+            const z = parseFloat(document.getElementById('waypoint-z').value || 0);
+
+            if (isNaN(x) || isNaN(y)) {
+                showStatus('error', 'Please enter valid coordinates');
+                return;
+            }
+
+            waypoints.push({ x, y, z, id: waypoints.length + 1 });
+            updateWaypointDisplay();
+            updateMapVisualization();
+
+            // Clear inputs
+            document.getElementById('waypoint-x').value = '';
+            document.getElementById('waypoint-y').value = '';
+            document.getElementById('waypoint-z').value = '0';
+
+            showStatus('success', `Waypoint ${waypoints.length} added`);
+        }
+
+        function updateWaypointDisplay() {
+            const container = document.getElementById('waypoint-list');
+            container.innerHTML = '';
+
+            if (waypoints.length === 0) {
+                container.innerHTML = '<em>No waypoints set</em>';
+                return;
+            }
+
+            waypoints.forEach((wp, index) => {
+                const item = document.createElement('div');
+                item.innerHTML = `WP${wp.id}: E=${wp.x.toFixed(1)}, N=${wp.y.toFixed(1)}, U=${wp.z.toFixed(1)}`;
+                container.appendChild(item);
+            });
+        }
+
+        async function navigateWaypoints() {
+            if (waypoints.length < 2) {
+                showStatus('error', 'Need at least 2 waypoints for navigation');
+                return;
+            }
+
+            showStatus('info', 'Starting waypoint navigation...');
+
+            // Simple waypoint navigation - move between points
+            // In a real implementation, this would use proper path planning
+            for (let i = 1; i < waypoints.length; i++) {
+                const current = waypoints[i - 1];
+                const next = waypoints[i];
+
+                // Calculate simple movement (simplified - would need proper navigation)
+                const dx = next.x - current.x;
+                const dy = next.y - current.y;
+
+                // Determine primary direction
+                let primaryCommand = 'f'; // Default forward
+                if (Math.abs(dx) > Math.abs(dy)) {
+                    primaryCommand = dx > 0 ? 'r' : 'l'; // Right or left
+                } else {
+                    primaryCommand = dy > 0 ? 'f' : 'b'; // Forward or backward
+                }
+
+                // Execute movement (simplified)
+                await apiCall('/api/serial/send', { command: primaryCommand });
+                await new Promise(resolve => setTimeout(resolve, 2000)); // Move for 2 seconds
+                await apiCall('/api/serial/send', { command: 's' }); // Stop
+
+                showStatus('info', `Reached waypoint ${i}`);
+                await new Promise(resolve => setTimeout(resolve, 1000)); // Pause at waypoint
+            }
+
+            showStatus('success', 'Waypoint navigation completed');
+        }
+
+        function clearWaypoints() {
+            waypoints = [];
+            updateWaypointDisplay();
+            updateMapVisualization();
+            showStatus('info', 'Waypoints cleared');
+        }
+
+        // Waypoint Examples
+        function loadWaypointExample(example) {
+            const examples = {
+                'square': [
+                    { x: 0, y: 0, z: 0 },
+                    { x: 4, y: 0, z: 0 },
+                    { x: 4, y: 4, z: 0 },
+                    { x: 0, y: 4, z: 0 }
+                ],
+                'triangle': [
+                    { x: 0, y: 0, z: 0 },
+                    { x: 3, y: 0, z: 0 },
+                    { x: 1.5, y: 2.6, z: 0 }  // Equilateral triangle
+                ],
+                'circle': [
+                    { x: 5, y: 0, z: 0 },
+                    { x: 3.5, y: 3.5, z: 0 },
+                    { x: 0, y: 5, z: 0 },
+                    { x: -3.5, y: 3.5, z: 0 },
+                    { x: -5, y: 0, z: 0 },
+                    { x: -3.5, y: -3.5, z: 0 },
+                    { x: 0, y: -5, z: 0 },
+                    { x: 3.5, y: -3.5, z: 0 }
+                ],
+                'figure8': [
+                    { x: 0, y: 0, z: 0 },
+                    { x: 2, y: 2, z: 0 },
+                    { x: 4, y: 0, z: 0 },
+                    { x: 2, y: -2, z: 0 },
+                    { x: 0, y: 0, z: 0 },
+                    { x: -2, y: 2, z: 0 },
+                    { x: -4, y: 0, z: 0 },
+                    { x: -2, y: -2, z: 0 }
+                ],
+                'inspection': [
+                    { x: 0, y: 0, z: 0 },
+                    { x: 2, y: 0, z: 0 },
+                    { x: 2, y: 3, z: 0 },
+                    { x: 0, y: 3, z: 0 },
+                    { x: 0, y: 6, z: 0 },
+                    { x: 2, y: 6, z: 0 },
+                    { x: 4, y: 6, z: 0 },
+                    { x: 4, y: 3, z: 0 },
+                    { x: 4, y: 0, z: 0 }
+                ],
+                'delivery': [
+                    { x: 0, y: 0, z: 0 },      // Start/Home
+                    { x: 1, y: 2, z: 0 },      // Stop 1
+                    { x: 3, y: 1, z: 0 },      // Stop 2
+                    { x: 2, y: 4, z: 0 },      // Stop 3
+                    { x: 4, y: 3, z: 0 },      // Stop 4
+                    { x: 0, y: 0, z: 0 }       // Return Home
+                ]
+            };
+
+            if (examples[example]) {
+            waypoints = examples[example].map((wp, index) => ({
+                x: wp.x,
+                y: wp.y,
+                z: wp.z,
+                id: index + 1
+            }));
+            updateWaypointDisplay();
+            updateMapVisualization();
+            showStatus('success', `${example.charAt(0).toUpperCase() + example.slice(1)} waypoint example loaded (${waypoints.length} waypoints)`);
+
+                // Update example info
+                const descriptions = {
+                    'square': '4m × 4m square pattern - perfect for boundary testing',
+                    'triangle': 'Equilateral triangle - good for corner navigation',
+                    'circle': '8-point circle approximation - smooth curved path',
+                    'figure8': 'Figure-8 pattern - tests complex path following',
+                    'inspection': 'Systematic room coverage - like lawn mower for indoor spaces',
+                    'delivery': 'Multi-stop delivery route with return to origin'
+                };
+
+                updateExampleInfo(descriptions[example] || 'Example loaded successfully');
+            }
+        }
+
+        function updateExampleInfo(info) {
+            const infoDiv = document.getElementById('example-info');
+            infoDiv.innerHTML = `<strong>Current Example:</strong> ${info}<br><br>` +
+                `<strong>Square Path:</strong> 4 waypoints forming a 4m × 4m square<br>` +
+                `<strong>Triangle Path:</strong> 3 waypoints forming an equilateral triangle<br>` +
+                `<strong>Circle Path:</strong> 8 waypoints approximating a 5m radius circle<br>` +
+                `<strong>Figure-8:</strong> 8 waypoints creating a figure-8 pattern<br>` +
+                `<strong>Room Inspection:</strong> Systematic room coverage pattern<br>` +
+                `<strong>Delivery Route:</strong> Optimized multi-stop delivery path<br><br>` +
+                `<em>Tip: Use ENU coordinates where East is X, North is Y, Up is Z</em>`;
+        }
+
+        // Current Position Management
+        function setCurrentAsWaypoint() {
+            const x = parseFloat(document.getElementById('current-x').textContent) || 0;
+            const y = parseFloat(document.getElementById('current-y').textContent) || 0;
+            const z = parseFloat(document.getElementById('current-z').textContent) || 0;
+
+            waypoints.push({ x, y, z, id: waypoints.length + 1 });
+            updateWaypointDisplay();
+            showStatus('success', `Current position added as waypoint ${waypoints.length}`);
+        }
+
+        function resetOrigin() {
+            document.getElementById('current-x').textContent = '0.0';
+            document.getElementById('current-y').textContent = '0.0';
+            document.getElementById('current-z').textContent = '0.0';
+            document.getElementById('current-heading').textContent = '0.0';
+            showStatus('info', 'Origin reset to (0,0,0)');
+        }
+
+        async function updateCurrentPosition() {
+            try {
+                const response = await fetch('/api/robot/position');
+                const data = await response.json();
+
+                if (data.success) {
+                    document.getElementById('current-x').textContent = data.position.x.toFixed(2);
+                    document.getElementById('current-y').textContent = data.position.y.toFixed(2);
+                    document.getElementById('current-z').textContent = data.position.z.toFixed(2);
+                    document.getElementById('current-heading').textContent = data.orientation.yaw.toFixed(1);
+
+                    if (data.initialized) {
+                        showStatus('success', `Position updated: (${data.position.x.toFixed(2)}, ${data.position.y.toFixed(2)})m`);
+                    } else {
+                        showStatus('warning', 'IMU position not yet initialized');
+                    }
+                } else {
+                    showStatus('error', 'Failed to get current position: ' + data.error);
+                }
+            } catch (error) {
+                showStatus('error', 'Network error getting position');
+            }
+        }
+
+        // Waypoint Route Management
+        function reverseWaypoints() {
+            waypoints.reverse();
+            // Reassign IDs
+            waypoints.forEach((wp, index) => wp.id = index + 1);
+            updateWaypointDisplay();
+            showStatus('info', 'Waypoint route reversed');
+        }
+
+        function optimizeWaypoints() {
+            if (waypoints.length < 3) {
+                showStatus('warning', 'Need at least 3 waypoints to optimize');
+                return;
+            }
+
+            // Simple nearest neighbor optimization (could be enhanced with TSP)
+            const optimized = [waypoints[0]]; // Start with first waypoint
+            const remaining = waypoints.slice(1);
+
+            while (remaining.length > 0) {
+                const last = optimized[optimized.length - 1];
+                let nearestIndex = 0;
+                let nearestDistance = Infinity;
+
+                remaining.forEach((wp, index) => {
+                    const distance = Math.sqrt(
+                        Math.pow(wp.x - last.x, 2) +
+                        Math.pow(wp.y - last.y, 2) +
+                        Math.pow(wp.z - last.z, 2)
+                    );
+                    if (distance < nearestDistance) {
+                        nearestDistance = distance;
+                        nearestIndex = index;
+                    }
+                });
+
+                optimized.push(remaining[nearestIndex]);
+                remaining.splice(nearestIndex, 1);
+            }
+
+            waypoints = optimized.map((wp, index) => ({ ...wp, id: index + 1 }));
+            updateWaypointDisplay();
+            showStatus('success', 'Route optimized using nearest neighbor algorithm');
+        }
+
+        function saveWaypointRoute() {
+            const name = prompt('Enter route name:');
+            if (!name) return;
+
+            const routes = JSON.parse(localStorage.getItem('waypointRoutes') || '{}');
+            routes[name] = [...waypoints];
+            localStorage.setItem('waypointRoutes', JSON.stringify(routes));
+
+            updateSavedRoutes();
+            showStatus('success', `Route "${name}" saved`);
+        }
+
+        function loadWaypointRoute() {
+            const routes = JSON.parse(localStorage.getItem('waypointRoutes') || '{}');
+            const routeNames = Object.keys(routes);
+
+            if (routeNames.length === 0) {
+                showStatus('warning', 'No saved routes found');
+                return;
+            }
+
+            const name = prompt(`Available routes: ${routeNames.join(', ')}\nEnter route name:`);
+            if (!name || !routes[name]) {
+                showStatus('error', 'Route not found');
+                return;
+            }
+
+            waypoints = routes[name].map((wp, index) => ({ ...wp, id: index + 1 }));
+            updateWaypointDisplay();
+            updateMapVisualization();
+            showStatus('success', `Route "${name}" loaded (${waypoints.length} waypoints)`);
+        }
+
+        function updateSavedRoutes() {
+            // This could display saved routes in a list if needed
+            console.log('Saved routes updated');
+        }
+
+        // Simple Map Rendering Functions
+        function initializeMapCanvas() {
+            if (!mapCanvas) {
+                mapCanvas = document.getElementById('waypoint-canvas');
+                if (mapCanvas) {
+                    mapContext = mapCanvas.getContext('2d');
+                    updateMapVisualization();
+                }
+            }
+        }
+
+        function updateMapVisualization() {
+            initializeMapCanvas();
+            if (!mapContext) return;
+
+            const canvas = mapCanvas;
+            const ctx = mapContext;
+
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw simple grid
+            ctx.strokeStyle = '#374151';
+            ctx.lineWidth = 1;
+            const gridSize = 50;
+
+            for (let x = 0; x <= canvas.width; x += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+
+            for (let y = 0; y <= canvas.height; y += gridSize) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            // Draw origin
+            const centerX = canvas.width / 2;
+            const centerY = canvas.height / 2;
+            ctx.strokeStyle = '#10b981';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(centerX - 10, centerY);
+            ctx.lineTo(centerX + 10, centerY);
+            ctx.moveTo(centerX, centerY - 10);
+            ctx.lineTo(centerX, centerY + 10);
+            ctx.stroke();
+
+            // Draw waypoints
+            waypoints.forEach((wp, index) => {
+                const wpX = centerX + (wp.x * mapScale);
+                const wpY = centerY - (wp.y * mapScale);
+
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath();
+                ctx.arc(wpX, wpY, 6, 0, 2 * Math.PI);
+                ctx.fill();
+
+                ctx.fillStyle = '#ffffff';
+                ctx.font = '10px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText((index + 1).toString(), wpX, wpY + 3);
+            });
+        }
+
+        function clearMapCanvas() {
+            if (mapContext && mapCanvas) {
+                mapContext.clearRect(0, 0, mapCanvas.width, mapCanvas.height);
+            }
+        }
+
+        async function loadMap() {
+            try {
+                const response = await fetch('/api/map/canvas');
+                const html = await response.text();
+                document.getElementById('map-container').innerHTML = html;
+            } catch (error) {
+                console.error('Failed to load map:', error);
+                document.getElementById('map-container').innerHTML = '<p style="color: #ef4444;">Failed to load map</p>';
+            }
+        }
+
+        // Update dashboard position display
+        async function updateDashboardPosition() {
+            try {
+                const response = await fetch('/api/robot/position');
+                const data = await response.json();
+
+                if (data.success && data.initialized) {
+                    document.getElementById('pos-x').textContent = data.position.x.toFixed(2) + 'm';
+                    document.getElementById('pos-y').textContent = data.position.y.toFixed(2) + 'm';
+                    document.getElementById('pos-z').textContent = data.position.z.toFixed(2) + 'm';
+                    document.getElementById('pos-heading').textContent = data.orientation.yaw.toFixed(1) + '°';
+                } else {
+                    document.getElementById('pos-x').textContent = '--';
+                    document.getElementById('pos-y').textContent = '--';
+                    document.getElementById('pos-z').textContent = '--';
+                    document.getElementById('pos-heading').textContent = '--°';
+                }
+            } catch (error) {
+                document.getElementById('pos-x').textContent = '--';
+                document.getElementById('pos-y').textContent = '--';
+                document.getElementById('pos-z').textContent = '--';
+                document.getElementById('pos-heading').textContent = '--°';
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             updateSpeedDisplay();
             updateWheelSpeedDisplay();
             updateGripperTiltDisplay();
+            updateSequenceDisplay();
+            updateSavedSequences();
+            updateWaypointDisplay();
+
+            // Load map when Path Planning tab is shown
+            const pathPlanningTab = document.getElementById('pathplanning');
+            if (pathPlanningTab && !pathPlanningTab.classList.contains('hidden')) {
+                loadMap();
+            }
 
             // Auto-refresh sensors every 5 seconds
             setInterval(refreshSensors, 5000);
+
+            // Update robot position on map and dashboard every 2 seconds
+            setInterval(updateRobotPositionOnMap, 2000);
+            setInterval(updateDashboardPosition, 2000);
 
             // Keyboard shortcuts for serial commands
             document.getElementById('serial-command').addEventListener('keypress', function(e) {
@@ -495,12 +2148,13 @@ HTML_TEMPLATE = """
 class FlaskApp:
     """Main Flask application for robot control"""
 
-    def __init__(self, mega_interface=None, sensor_manager=None, ros2_interface=None, simulation_mode=False):
+    def __init__(self, mega_interface=None, sensor_manager=None, ros2_interface=None, simulation_mode=False, main_app=None):
         self.app = Flask(__name__)
         self.mega = mega_interface
         self.sensors = sensor_manager
         self.ros2 = ros2_interface
         self.simulation_mode = simulation_mode
+        self.main_app = main_app  # Reference to main app for IMU access
 
         # Setup routes
         self._setup_routes()
@@ -583,6 +2237,35 @@ class FlaskApp:
         @self.app.route('/api/robot/emergency-stop', methods=['POST'])
         def emergency_stop():
             return self._emergency_stop()
+
+        # Path Planning
+        @self.app.route('/api/robot/sequences/execute', methods=['POST'])
+        def execute_sequence():
+            return self._execute_sequence()
+
+        @self.app.route('/api/robot/sequences/save', methods=['POST'])
+        def save_sequence():
+            return self._save_sequence()
+
+        @self.app.route('/api/robot/sequences/load/<name>', methods=['GET'])
+        def load_sequence(name):
+            return self._load_sequence(name)
+
+        @self.app.route('/api/robot/sequences/list', methods=['GET'])
+        def list_sequences():
+            return self._list_sequences()
+
+        @self.app.route('/api/robot/waypoints/navigate', methods=['POST'])
+        def navigate_waypoints():
+            return self._navigate_waypoints()
+
+        @self.app.route('/api/robot/position', methods=['GET'])
+        def get_current_position():
+            return self._get_current_position()
+
+        @self.app.route('/api/map/canvas', methods=['GET'])
+        def get_map_canvas():
+            return self._get_map_canvas(), 200, {'Content-Type': 'text/html'}
 
     def _get_status(self):
         """Get system status"""
@@ -894,11 +2577,26 @@ class FlaskApp:
             if len(command) < 1:
                 return jsonify({'success': False, 'error': 'Command cannot be empty', 'timestamp': time.time()}), 400
 
-            # Validate command
+            # Validate command - complete set from COMMANDS.md
             valid_commands = [
-                'f', 'b', 'l', 'r', 'q', 'e', 'z', 'x', 'c', 'w', 't', 'y', 'a', 'j', 's', 'p', 'v', 'o',
-                '5', '6', '7', '8', '9', '0', 'u', 'd', '1', '2', '3', '4', 'g', 'h',
-                'mu', 'md', 'mc', 'no', 'nc', 'nh', 'sr', 'ls', 'se', 'sd'
+                # Movement commands (all cardinal, diagonal, rotation, turning)
+                'f', 'b', 'l', 'r', 'q', 'e', 'z', 'x', 'c', 'w', 't', 'y', 'a', 'j', 's',
+                # Control commands
+                'p', 'v', 'o',
+                # Speed control (50%-100%)
+                '5', '6', '7', '8', '9', '0',
+                # Lifter commands
+                'u', 'd',
+                # Testing commands
+                '1', '2', '3', '4', 'g', 'h',
+                # Servo commands
+                'mu', 'md', 'mc', 'no', 'nc', 'nh',
+                # Sensor commands
+                'sr', 'ls',
+                # Safety commands
+                'se', 'sd',
+                # Publishing commands
+                'spe', 'spd'
             ]
 
             # Check for angle commands
@@ -983,6 +2681,335 @@ class FlaskApp:
                 'error': str(e),
                 'timestamp': time.time()
             }), 500
+
+    def _execute_sequence(self):
+        """Execute a movement sequence"""
+        try:
+            data = request.get_json()
+            if not data or 'sequence' not in data:
+                return jsonify({'success': False, 'error': 'Sequence required', 'timestamp': time.time()}), 400
+
+            sequence = data['sequence']
+            if not isinstance(sequence, list) or len(sequence) == 0:
+                return jsonify({'success': False, 'error': 'Valid sequence list required', 'timestamp': time.time()}), 400
+
+            # Execute sequence in background
+            threading.Thread(target=self._execute_sequence_async, args=(sequence,), daemon=True).start()
+
+            return jsonify({
+                'success': True,
+                'message': f'Sequence execution started ({len(sequence)} commands)',
+                'timestamp': time.time()
+            })
+
+        except Exception as e:
+            logger.error(f'Sequence execution error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'timestamp': time.time()
+            }), 500
+
+    def _execute_sequence_async(self, sequence):
+        """Execute sequence asynchronously"""
+        try:
+            for command in sequence:
+                if self.mega:
+                    self.mega.send_command_to_mega(command)
+                # Add delay between commands
+                time.sleep(0.5)
+
+            logger.info(f'Sequence execution completed: {len(sequence)} commands')
+
+        except Exception as e:
+            logger.error(f'Async sequence execution error: {str(e)}')
+
+    def _save_sequence(self):
+        """Save a movement sequence"""
+        try:
+            data = request.get_json()
+            if not data or 'name' not in data or 'sequence' not in data:
+                return jsonify({'success': False, 'error': 'Name and sequence required', 'timestamp': time.time()}), 400
+
+            name = data['name']
+            sequence = data['sequence']
+
+            if not isinstance(sequence, list):
+                return jsonify({'success': False, 'error': 'Sequence must be a list', 'timestamp': time.time()}), 400
+
+            # In a real implementation, this would save to a database
+            # For now, we'll just acknowledge the save
+            logger.info(f'Sequence saved: {name} ({len(sequence)} commands)')
+
+            return jsonify({
+                'success': True,
+                'message': f'Sequence "{name}" saved ({len(sequence)} commands)',
+                'timestamp': time.time()
+            })
+
+        except Exception as e:
+            logger.error(f'Save sequence error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'timestamp': time.time()
+            }), 500
+
+    def _load_sequence(self, name):
+        """Load a movement sequence"""
+        try:
+            # In a real implementation, this would load from a database
+            # For now, return a placeholder
+            return jsonify({
+                'success': True,
+                'sequence': ['f', 's'],  # Placeholder sequence
+                'name': name,
+                'timestamp': time.time()
+            })
+
+        except Exception as e:
+            logger.error(f'Load sequence error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'timestamp': time.time()
+            }), 500
+
+    def _list_sequences(self):
+        """List saved sequences"""
+        try:
+            # In a real implementation, this would query a database
+            # For now, return placeholder data
+            sequences = {
+                'lawn_mower': {'commands': 10, 'description': 'Systematic coverage pattern'},
+                'spiral_search': {'commands': 8, 'description': 'Expanding spiral search'},
+                'boundary_follow': {'commands': 12, 'description': 'Follow perimeter boundary'}
+            }
+
+            return jsonify({
+                'success': True,
+                'sequences': sequences,
+                'timestamp': time.time()
+            })
+
+        except Exception as e:
+            logger.error(f'List sequences error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'timestamp': time.time()
+            }), 500
+
+    def _navigate_waypoints(self):
+        """Navigate through waypoints"""
+        try:
+            data = request.get_json()
+            if not data or 'waypoints' not in data:
+                return jsonify({'success': False, 'error': 'Waypoints required', 'timestamp': time.time()}), 400
+
+            waypoints = data['waypoints']
+            if not isinstance(waypoints, list) or len(waypoints) < 2:
+                return jsonify({'success': False, 'error': 'At least 2 waypoints required', 'timestamp': time.time()}), 400
+
+            # Execute waypoint navigation in background
+            threading.Thread(target=self._navigate_waypoints_async, args=(waypoints,), daemon=True).start()
+
+            return jsonify({
+                'success': True,
+                'message': f'Waypoint navigation started ({len(waypoints)} waypoints)',
+                'timestamp': time.time()
+            })
+
+        except Exception as e:
+            logger.error(f'Waypoint navigation error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'timestamp': time.time()
+            }), 500
+
+    def _navigate_waypoints_async(self, waypoints):
+        """Navigate waypoints asynchronously using IMU-based dead reckoning"""
+        try:
+            logger.info(f'Starting IMU-based waypoint navigation with {len(waypoints)} waypoints')
+
+            # Access the main app's IMU position tracking
+            main_app = None
+            if hasattr(self, 'main_app'):
+                main_app = self.main_app
+
+            for i, waypoint in enumerate(waypoints):
+                if i == 0:
+                    logger.info('Starting from first waypoint (origin)')
+                    continue  # Skip first waypoint (starting point)
+
+                target_x, target_y, target_z = waypoint
+                logger.info(f'Navigating to waypoint {i + 1}: ({target_x:.1f}, {target_y:.1f}, {target_z:.1f})')
+
+                # Navigate to waypoint using IMU-based position tracking
+                success = self._navigate_to_coordinate_imu(target_x, target_y, main_app)
+
+                if success:
+                    logger.info(f'Successfully reached waypoint {i + 1}')
+                else:
+                    logger.warning(f'Failed to reach waypoint {i + 1} within timeout, continuing to next waypoint')
+
+                # Brief pause at waypoint
+                time.sleep(2)
+
+            logger.info(f'IMU-based waypoint navigation completed: {len(waypoints)} waypoints')
+
+        except Exception as e:
+            logger.error(f'IMU waypoint navigation error: {str(e)}')
+
+    def _navigate_to_coordinate_imu(self, target_x, target_y, main_app=None):
+        """Navigate to specific coordinate using IMU dead reckoning"""
+        try:
+            timeout = 30.0  # 30 second timeout per waypoint
+            start_time = time.time()
+            tolerance = 0.2  # 20cm tolerance
+
+            while time.time() - start_time < timeout:
+                # Get current position from IMU tracking
+                if main_app and hasattr(main_app, 'get_current_position'):
+                    current_state = main_app.get_current_position()
+                    if not current_state['initialized']:
+                        logger.warning("IMU position not initialized, waiting...")
+                        time.sleep(1)
+                        continue
+
+                    current_pos = current_state['position']
+                    current_heading = current_state['orientation'][2]  # yaw
+                else:
+                    # Fallback to simple position tracking
+                    current_pos = [0.0, 0.0, 0.0]
+                    current_heading = 0.0
+
+                # Calculate distance and bearing to target
+                dx = target_x - current_pos[0]
+                dy = target_y - current_pos[1]
+                distance = math.sqrt(dx*dx + dy*dy)
+
+                logger.debug(f'Current: ({current_pos[0]:.2f}, {current_pos[1]:.2f}) '
+                           f'Heading: {current_heading:.1f}°, '
+                           f'Target: ({target_x:.1f}, {target_y:.1f}), '
+                           f'Distance: {distance:.2f}m')
+
+                # Check if we've reached the waypoint
+                if distance <= tolerance:
+                    logger.info(f'Waypoint reached! Distance: {distance:.2f}m')
+                    if self.mega:
+                        self.mega.send_command_to_mega('s')  # Stop
+                    return True
+
+                # Calculate required bearing to target
+                target_bearing = math.degrees(math.atan2(dy, dx))
+
+                # Calculate turn angle
+                turn_angle = target_bearing - current_heading
+
+                # Normalize turn angle to -180 to 180 degrees
+                while turn_angle > 180:
+                    turn_angle -= 360
+                while turn_angle < -180:
+                    turn_angle += 360
+
+                # Execute turn if needed (5 degree tolerance)
+                if abs(turn_angle) > 5:
+                    turn_command = 'e' if turn_angle > 0 else 'q'  # e=right turn, q=left turn
+                    turn_time = min(abs(turn_angle) / 45.0, 2.0)  # Max 2 seconds turn
+
+                    if self.mega:
+                        logger.debug(f'Turning {turn_angle:.1f}° for {turn_time:.1f}s')
+                        self.mega.send_command_to_mega(turn_command)
+                        time.sleep(turn_time)
+                        self.mega.send_command_to_mega('s')
+                        time.sleep(0.5)  # Brief pause
+
+                # Move forward (proportional to remaining distance)
+                if distance > tolerance:
+                    # Speed based on distance (slower when close)
+                    speed_factor = min(distance / 2.0, 1.0)  # Max speed at 2m distance
+                    move_time = min(distance / 0.3 * speed_factor, 5.0)  # Max 5 seconds
+
+                    if self.mega:
+                        logger.debug(f'Moving forward for {move_time:.1f}s (distance: {distance:.2f}m)')
+                        self.mega.send_command_to_mega('f')
+                        time.sleep(move_time)
+                        self.mega.send_command_to_mega('s')
+                        time.sleep(0.5)  # Brief pause
+
+                time.sleep(0.2)  # Small delay between navigation iterations
+
+            logger.warning(f'Waypoint navigation timeout after {timeout}s')
+            return False
+
+        except Exception as e:
+            logger.error(f'IMU coordinate navigation error: {str(e)}')
+            return False
+
+    def _get_current_position(self):
+        """Get current robot position from IMU tracking"""
+        try:
+            if self.main_app and hasattr(self.main_app, 'get_current_position'):
+                position_data = self.main_app.get_current_position()
+                return jsonify({
+                    'success': True,
+                    'position': {
+                        'x': position_data['position'][0],
+                        'y': position_data['position'][1],
+                        'z': position_data['position'][2]
+                    },
+                    'orientation': {
+                        'roll': position_data['orientation'][0],
+                        'pitch': position_data['orientation'][1],
+                        'yaw': position_data['orientation'][2]
+                    },
+                    'initialized': position_data['initialized'],
+                    'timestamp': time.time()
+                })
+            else:
+                return jsonify({
+                    'success': False,
+                    'error': 'IMU position tracking not available',
+                    'timestamp': time.time()
+                }), 503
+
+        except Exception as e:
+            logger.error(f'Get current position error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'timestamp': time.time()
+            }), 500
+
+    def _get_map_canvas(self):
+        """Return the map canvas HTML separately to avoid template truncation"""
+        map_html = '''<canvas id="waypoint-canvas" width="600" height="400" style="border: 2px solid #374151; border-radius: 8px; background: #1f2937; width: 100%; max-width: 600px;"></canvas>'''
+        return map_html
+
+    def _path_to_commands(self, path):
+        """Convert path coordinates to movement commands"""
+        commands = []
+
+        for i in range(1, len(path)):
+            current = path[i - 1]
+            next_pos = path[i]
+
+            # Calculate movement direction
+            dx = next_pos[0] - current[0]
+            dy = next_pos[1] - current[1]
+
+            # Determine primary direction
+            if abs(dx) > abs(dy):
+                command = 'r' if dx > 0 else 'l'
+            else:
+                command = 'f' if dy > 0 else 'b'
+
+            commands.append(command)
+
+        commands.append('s')  # Stop at destination
+        return commands
 
     def run(self, host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG):
         """Run the Flask application"""

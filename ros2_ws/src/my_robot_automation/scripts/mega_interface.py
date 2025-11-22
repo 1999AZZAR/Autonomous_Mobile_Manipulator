@@ -213,6 +213,31 @@ class MegaInterface:
         """Test limit switches"""
         return self.send_command_to_mega('ls')
 
+    def enable_sensor_publishing(self):
+        """Enable sensor publishing"""
+        return self.send_command_to_mega('spe')
+
+    def disable_sensor_publishing(self):
+        """Disable sensor publishing"""
+        return self.send_command_to_mega('spd')
+
+    def set_individual_wheel_speed(self, wheel, speed):
+        """Set individual wheel speed (w[wheel][speed])"""
+        if not (0 <= wheel <= 3):
+            logger.error(f"Invalid wheel ID: {wheel} (must be 0-3)")
+            return False
+
+        if not (-100 <= speed <= 100):
+            logger.error(f"Invalid wheel speed: {speed} (must be -100 to 100)")
+            return False
+
+        command = f"w{wheel}{speed}"
+        return self.send_command_to_mega(command)
+
+    def stop_individual_wheel_control(self):
+        """Stop all individual wheel control"""
+        return self.send_command_to_mega('wstop')
+
     def cleanup(self):
         """Clean up serial connection"""
         if self.mega_serial and self.mega_connected:
