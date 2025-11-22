@@ -1,80 +1,321 @@
 """
 Arduino Mega Serial Interface
 Handles communication with Arduino Mega for motor control and sensor reading
+Enhanced with automatic reconnection, connection monitoring, and robust error handling
 """
 
 import serial
 import time
+import threading
 import logging
+from typing import Optional, Callable, Dict, Any
 from config import MEGA_BAUDRATE, MEGA_TIMEOUT, MEGA_WRITE_TIMEOUT, MEGA_PORTS
 
 logger = logging.getLogger(__name__)
 
 class MegaInterface:
-    """Serial communication interface with Arduino Mega"""
+    """Enhanced serial communication interface with Arduino Mega"""
 
-    def __init__(self):
-        self.mega_serial = None
+    def __init__(self, auto_reconnect=True, max_reconnect_attempts=5, reconnect_interval=5.0):
+        # Connection state
+        self.mega_serial: Optional[serial.Serial] = None
         self.mega_connected = False
+        self.current_port = None
+
+        # Reconnection settings
+        self.auto_reconnect = auto_reconnect
+        self.max_reconnect_attempts = max_reconnect_attempts
+        self.reconnect_interval = reconnect_interval
+        self.reconnect_attempts = 0
+        self.last_reconnect_time = 0
+
+        # Monitoring and callbacks
+        self.connection_callbacks: list[Callable[[bool], None]] = []
+        self.last_activity_time = time.time()
+        self.connection_health_check_interval = 30.0  # Check every 30 seconds
+
+        # Threading
+        self._lock = threading.RLock()
+        self._monitor_thread: Optional[threading.Thread] = None
+        self._stop_monitor = False
+
+        # Statistics
+        self.stats = {
+            'commands_sent': 0,
+            'commands_failed': 0,
+            'bytes_sent': 0,
+            'bytes_received': 0,
+            'connection_drops': 0,
+            'reconnections': 0,
+            'uptime_start': time.time()
+        }
+
+        # Initial connection attempt
         self.connect_to_mega()
 
-    def connect_to_mega(self):
-        """Connect to Arduino Mega via serial"""
-        possible_ports = MEGA_PORTS
+        # Start monitoring thread if auto-reconnect is enabled
+        if self.auto_reconnect:
+            self._start_monitoring()
 
-        for port in possible_ports:
+    def _start_monitoring(self):
+        """Start background monitoring thread"""
+        if self._monitor_thread and self._monitor_thread.is_alive():
+            return
+
+        self._stop_monitor = False
+        self._monitor_thread = threading.Thread(target=self._monitor_connection, daemon=True)
+        self._monitor_thread.start()
+        logger.info("Mega connection monitoring started")
+
+    def _stop_monitoring(self):
+        """Stop background monitoring thread"""
+        self._stop_monitor = True
+        if self._monitor_thread:
+            self._monitor_thread.join(timeout=2.0)
+
+    def _monitor_connection(self):
+        """Background thread to monitor connection health"""
+        while not self._stop_monitor:
             try:
-                logger.info(f'Attempting to connect to Mega on {port}')
-                self.mega_serial = serial.Serial(
-                    port=port,
-                    baudrate=MEGA_BAUDRATE,
-                    timeout=MEGA_TIMEOUT,
-                    write_timeout=MEGA_WRITE_TIMEOUT
-                )
-                time.sleep(2)  # Wait for connection
+                time.sleep(self.connection_health_check_interval)
 
-                # Test the connection by sending a status request
-                self.mega_serial.write(b'p\n')  # Status command
-                self.mega_serial.flush()
+                if self._stop_monitor:
+                    break
 
-                # Try to read response
-                response = self.mega_serial.readline().decode().strip()
-                if response:
-                    self.mega_connected = True
-                    logger.info(f'Successfully connected to Arduino Mega on {port}')
-                    return
+                with self._lock:
+                    if self.mega_connected and self.mega_serial:
+                        # Check if connection is still alive
+                        try:
+                            # Try a simple health check
+                            if self.mega_serial.in_waiting == 0:
+                                # Send a minimal status check (non-blocking)
+                                self.mega_serial.write(b'p\n')
+                                self.mega_serial.flush()
+
+                                # Check if we can still write
+                                current_time = time.time()
+                                if current_time - self.last_activity_time > 60.0:  # No activity for 1 minute
+                                    logger.warning("Mega connection appears stale, attempting health check")
+                                    # This will trigger reconnection if needed
+                        except (serial.SerialException, OSError) as e:
+                            logger.warning(f"Mega connection health check failed: {e}")
+                            self._handle_connection_loss()
+
+                    elif self.auto_reconnect and not self.mega_connected:
+                        # Attempt reconnection
+                        self._attempt_reconnection()
 
             except Exception as e:
-                logger.warn(f'Failed to connect on {port}: {e}')
+                logger.error(f"Connection monitoring error: {e}")
+                time.sleep(5.0)  # Back off on errors
+
+    def add_connection_callback(self, callback: Callable[[bool], None]):
+        """Add callback for connection status changes"""
+        self.connection_callbacks.append(callback)
+
+    def _notify_connection_callbacks(self, connected: bool):
+        """Notify all connection callbacks"""
+        for callback in self.connection_callbacks:
+            try:
+                callback(connected)
+            except Exception as e:
+                logger.error(f"Connection callback error: {e}")
+
+    def _handle_connection_loss(self):
+        """Handle unexpected connection loss"""
+        with self._lock:
+            if self.mega_connected:
+                self.mega_connected = False
+                self.stats['connection_drops'] += 1
+                logger.warning("Mega connection lost")
+
+                # Close the connection
                 if self.mega_serial:
                     try:
                         self.mega_serial.close()
-                    except:
-                        pass
+                    except Exception as e:
+                        logger.error(f"Error closing lost connection: {e}")
+                    self.mega_serial = None
+
+                self._notify_connection_callbacks(False)
+
+                # Trigger reconnection if enabled
+                if self.auto_reconnect:
+                    threading.Thread(target=self._attempt_reconnection, daemon=True).start()
+
+    def _attempt_reconnection(self):
+        """Attempt to reconnect to Mega with exponential backoff"""
+        current_time = time.time()
+
+        # Check if we're attempting too frequently
+        if current_time - self.last_reconnect_time < self.reconnect_interval:
+            return
+
+        if self.reconnect_attempts >= self.max_reconnect_attempts:
+            logger.error(f"Max reconnection attempts ({self.max_reconnect_attempts}) reached")
+            return
+
+        self.reconnect_attempts += 1
+        self.last_reconnect_time = current_time
+
+        logger.info(f"Attempting reconnection ({self.reconnect_attempts}/{self.max_reconnect_attempts})")
+
+        # Try to reconnect
+        if self.connect_to_mega():
+            self.reconnect_attempts = 0
+            self.stats['reconnections'] += 1
+            logger.info("Successfully reconnected to Mega")
+        else:
+            # Exponential backoff
+            next_attempt = min(self.reconnect_interval * (2 ** (self.reconnect_attempts - 1)), 300)  # Max 5 minutes
+            logger.warning(f"Reconnection failed, next attempt in {next_attempt:.1f} seconds")
+
+    def connect_to_mega(self) -> bool:
+        """Connect to Arduino Mega via serial with enhanced error handling"""
+        possible_ports = MEGA_PORTS
+
+        with self._lock:
+            # Close existing connection if any
+            if self.mega_serial:
+                try:
+                    self.mega_serial.close()
+                except Exception as e:
+                    logger.debug(f"Error closing existing connection: {e}")
                 self.mega_serial = None
-                continue
 
-        self.mega_connected = False
-        self.mega_serial = None
-        logger.error("Failed to connect to Arduino Mega on any available port")
-        logger.info('Available serial ports: ' + ', '.join(possible_ports))
+            for port in possible_ports:
+                try:
+                    logger.info(f'Attempting to connect to Mega on {port}')
 
-    def send_command_to_mega(self, command):
-        """Send command to Arduino Mega"""
-        if not self.mega_connected or not self.mega_serial:
-            logger.warning(f"Cannot send command '{command}' - Mega not connected")
+                    # Create serial connection with additional error handling
+                    self.mega_serial = serial.Serial(
+                        port=port,
+                        baudrate=MEGA_BAUDRATE,
+                        timeout=MEGA_TIMEOUT,
+                        write_timeout=MEGA_WRITE_TIMEOUT,
+                        exclusive=True  # Prevent other processes from accessing
+                    )
+
+                    # Wait for connection to stabilize
+                    time.sleep(2.5)
+
+                    # Clear any pending data
+                    self.mega_serial.reset_input_buffer()
+                    self.mega_serial.reset_output_buffer()
+
+                    # Test the connection multiple times for reliability
+                    connection_tested = False
+                    for test_attempt in range(3):
+                        try:
+                            logger.debug(f'Connection test {test_attempt + 1}/3')
+
+                            # Send status command
+                            self.mega_serial.write(b'p\n')
+                            self.mega_serial.flush()
+
+                            # Wait for response with timeout
+                            start_time = time.time()
+                            while time.time() - start_time < 3.0:  # 3 second timeout
+                                if self.mega_serial.in_waiting > 0:
+                                    response = self.mega_serial.readline().decode('utf-8', errors='ignore').strip()
+                                    if response and len(response) > 0:
+                                        connection_tested = True
+                                        break
+                                time.sleep(0.1)
+
+                            if connection_tested:
+                                break
+
+                        except Exception as e:
+                            logger.debug(f'Connection test {test_attempt + 1} failed: {e}')
+                            continue
+
+                    if connection_tested:
+                        self.mega_connected = True
+                        self.current_port = port
+                        self.last_activity_time = time.time()
+                        logger.info(f'Successfully connected to Arduino Mega on {port}')
+
+                        # Notify callbacks
+                        self._notify_connection_callbacks(True)
+                        return True
+
+                    # If we get here, connection test failed
+                    logger.warning(f'Connection test failed on {port}')
+                    self.mega_serial.close()
+                    self.mega_serial = None
+
+                except serial.SerialException as e:
+                    logger.warning(f'Serial exception on {port}: {e}')
+                    if self.mega_serial:
+                        try:
+                            self.mega_serial.close()
+                        except:
+                            pass
+                        self.mega_serial = None
+                    continue
+
+                except Exception as e:
+                    logger.warning(f'Unexpected error connecting to {port}: {e}')
+                    if self.mega_serial:
+                        try:
+                            self.mega_serial.close()
+                        except:
+                            pass
+                        self.mega_serial = None
+                    continue
+
+            # If we get here, no connection succeeded
+            self.mega_connected = False
+            self.mega_serial = None
+            self.current_port = None
+            logger.error("Failed to connect to Arduino Mega on any available port")
+            logger.info(f'Available serial ports: {", ".join(possible_ports)}')
             return False
 
-        try:
-            logger.debug(f"Sending command to Mega: {command}")
-            self.mega_serial.write(f"{command}\n".encode())
-            self.mega_serial.flush()
-            return True
-        except Exception as e:
-            logger.error(f"Failed to send command '{command}' to Mega: {str(e)}")
-            # Try to reconnect
-            self.connect_to_mega()
-            return False
+    def send_command_to_mega(self, command: str) -> bool:
+        """Send command to Arduino Mega with enhanced error handling"""
+        with self._lock:
+            if not self.mega_connected or not self.mega_serial:
+                logger.warning(f"Cannot send command '{command}' - Mega not connected")
+                self.stats['commands_failed'] += 1
+                return False
+
+            try:
+                logger.debug(f"Sending command to Mega: {command}")
+
+                # Encode command
+                command_bytes = f"{command}\n".encode('utf-8')
+                self.stats['bytes_sent'] += len(command_bytes)
+
+                # Send command
+                self.mega_serial.write(command_bytes)
+                self.mega_serial.flush()
+
+                # Update activity timestamp
+                self.last_activity_time = time.time()
+
+                self.stats['commands_sent'] += 1
+                logger.debug(f"Command sent successfully: {command}")
+                return True
+
+            except serial.SerialTimeoutException as e:
+                logger.error(f"Timeout sending command '{command}' to Mega: {str(e)}")
+                self.stats['commands_failed'] += 1
+                self._handle_connection_loss()
+                return False
+
+            except serial.SerialException as e:
+                logger.error(f"Serial error sending command '{command}' to Mega: {str(e)}")
+                self.stats['commands_failed'] += 1
+                self._handle_connection_loss()
+                return False
+
+            except Exception as e:
+                logger.error(f"Unexpected error sending command '{command}' to Mega: {str(e)}")
+                self.stats['commands_failed'] += 1
+                self._handle_connection_loss()
+                return False
 
     def control_gripper(self, command):
         """Send gripper control command to Mega"""
@@ -238,12 +479,98 @@ class MegaInterface:
         """Stop all individual wheel control"""
         return self.send_command_to_mega('wstop')
 
-    def cleanup(self):
-        """Clean up serial connection"""
-        if self.mega_serial and self.mega_connected:
+    def read_available_data(self, max_lines: int = 100) -> list[str]:
+        """Read available data from Mega serial buffer"""
+        data_lines = []
+
+        with self._lock:
+            if not self.mega_connected or not self.mega_serial:
+                return data_lines
+
             try:
-                self.mega_serial.close()
-                logger.info('Mega serial connection closed')
-                self.mega_connected = False
+                lines_read = 0
+                while self.mega_serial.in_waiting > 0 and lines_read < max_lines:
+                    try:
+                        line = self.mega_serial.readline().decode('utf-8', errors='ignore').strip()
+                        if line:
+                            data_lines.append(line)
+                            self.stats['bytes_received'] += len(line.encode('utf-8'))
+                            lines_read += 1
+                            self.last_activity_time = time.time()
+                    except UnicodeDecodeError:
+                        # Skip lines that can't be decoded
+                        continue
+
+                    # Prevent reading too much at once
+                    if lines_read >= max_lines:
+                        break
+
+            except (serial.SerialException, OSError) as e:
+                logger.warning(f"Error reading from Mega: {e}")
+                self._handle_connection_loss()
+
             except Exception as e:
-                logger.error(f'Error closing Mega serial: {str(e)}')
+                logger.error(f"Unexpected error reading from Mega: {e}")
+                self._handle_connection_loss()
+
+        return data_lines
+
+    def cleanup(self):
+        """Clean up serial connection and monitoring thread"""
+        logger.info("Cleaning up Mega interface...")
+
+        # Stop monitoring thread
+        self._stop_monitoring()
+
+        with self._lock:
+            self.mega_connected = False
+
+            if self.mega_serial:
+                try:
+                    self.mega_serial.close()
+                    logger.info('Mega serial connection closed')
+                except Exception as e:
+                    logger.error(f'Error closing Mega serial: {str(e)}')
+                finally:
+                    self.mega_serial = None
+
+            # Notify callbacks
+            self._notify_connection_callbacks(False)
+
+        logger.info("Mega interface cleanup completed")
+
+    def get_connection_status(self) -> Dict[str, Any]:
+        """Get detailed connection status"""
+        with self._lock:
+            return {
+                'connected': self.mega_connected,
+                'port': self.current_port,
+                'auto_reconnect': self.auto_reconnect,
+                'reconnect_attempts': self.reconnect_attempts,
+                'last_activity': self.last_activity_time,
+                'uptime': time.time() - self.stats['uptime_start'],
+                'stats': self.stats.copy()
+            }
+
+    def force_reconnect(self) -> bool:
+        """Force immediate reconnection attempt"""
+        logger.info("Forcing Mega reconnection...")
+        self.reconnect_attempts = 0  # Reset attempt counter
+        return self.connect_to_mega()
+
+    def is_healthy(self) -> bool:
+        """Check if connection is healthy"""
+        with self._lock:
+            if not self.mega_connected or not self.mega_serial:
+                return False
+
+            # Check if we've had recent activity
+            if time.time() - self.last_activity_time > 60.0:
+                return False
+
+            # Try a quick health check
+            try:
+                # Check if we can still access the port
+                return self.mega_serial.is_open
+            except:
+                return False

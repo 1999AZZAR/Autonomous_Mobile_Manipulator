@@ -626,8 +626,16 @@ HTML_TEMPLATE = """
                             <span id="status-text" style="font-weight: 600;">Initializing...</span>
                         </div>
                         <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
-                            <strong>Mega Connected:</strong>
-                            <span id="mega-status" style="font-weight: 600;">Checking...</span>
+                            <strong>Mega:</strong>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div id="mega-connection-dot" style="width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted);"></div>
+                                <span id="mega-status" style="font-weight: 600;">Checking...</span>
+                                <button id="mega-reconnect-btn" onclick="reconnectMega()" class="btn btn-sm" style="display: none; padding: 2px 8px; font-size: 12px;">🔄</button>
+                            </div>
+                        </div>
+                        <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                            <strong>Port:</strong>
+                            <span id="mega-port" style="font-weight: 600; font-family: monospace;">--</span>
                         </div>
                         <div style="display: flex; justify-content: space-between;">
                             <strong>ROS2 Services:</strong>
@@ -1357,6 +1365,14 @@ HTML_TEMPLATE = """
                             <span style="font-size: 16px;">🗑️</span>
                             Clear
                         </button>
+                        <button class="btn btn-warning" onclick="testSerialMonitor()" style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">🔧</span>
+                            Test
+                        </button>
+                        <button class="btn btn-secondary" onclick="forceShowData()" style="display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 16px;">💪</span>
+                            Force Show
+                        </button>
                     </div>
                 </div>
 
@@ -1414,10 +1430,11 @@ HTML_TEMPLATE = """
                 </h3>
 
                 <div class="log-container" id="serial-monitor-output" style="font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace; font-size: 12px; line-height: 1.4; max-height: 600px;">
-                    <div style="text-align: center; color: var(--text-muted); padding: 40px;">
+                    <div id="serial-monitor-placeholder" style="text-align: center; color: var(--text-muted); padding: 40px;">
                         <div style="font-size: 48px; margin-bottom: 15px;">📟</div>
-                        <div>Serial monitor stopped. Click "Start Monitor" to begin receiving data.</div>
+                        <div id="serial-status-text">Serial monitor stopped. Click "Start Monitor" to begin receiving data.</div>
                         <div style="margin-top: 10px; font-size: 14px; opacity: 0.7;">Raw data from Arduino Mega will appear here in real-time.</div>
+                        <div id="debug-info" style="margin-top: 20px; font-size: 12px; color: var(--accent-blue);"></div>
                     </div>
                 </div>
 
@@ -1463,8 +1480,10 @@ HTML_TEMPLATE = """
 
             // Start serial monitor when Serial Monitor tab is activated
             if (tabName === 'serialmonitor') {
+                console.log('Serial Monitor tab activated - starting monitor...');
                 // Small delay to ensure tab content is visible
                 setTimeout(() => {
+                    console.log('Calling startSerialMonitor()...');
                     startSerialMonitor();
                 }, 100);
             }
@@ -1723,6 +1742,9 @@ HTML_TEMPLATE = """
             errorsDetected: 0,
             lastDataRate: 0
         };
+
+        // Add a simple status indicator
+        let statusUpdateCount = 0;
 
         // Movement Sets
         async function executeMovementSet(setName) {
@@ -2305,6 +2327,77 @@ HTML_TEMPLATE = """
             }
         }
 
+        // Mega connection management
+        async function updateMegaStatus() {
+            try {
+                const response = await fetch('/api/mega/status');
+                const data = await response.json();
+
+                if (data.success) {
+                    const status = data.status;
+                    const dot = document.getElementById('mega-connection-dot');
+                    const statusText = document.getElementById('mega-status');
+                    const portText = document.getElementById('mega-port');
+                    const reconnectBtn = document.getElementById('mega-reconnect-btn');
+
+                    // Update connection status
+                    if (status.connected) {
+                        dot.style.backgroundColor = '#10b981'; // Green
+                        statusText.textContent = 'Connected';
+                        statusText.style.color = '#10b981';
+                        portText.textContent = status.port || '--';
+                        reconnectBtn.style.display = 'none';
+                    } else {
+                        dot.style.backgroundColor = '#ef4444'; // Red
+                        statusText.textContent = 'Disconnected';
+                        statusText.style.color = '#ef4444';
+                        portText.textContent = '--';
+                        reconnectBtn.style.display = 'inline-block';
+                    }
+
+                    // Show reconnection attempts if applicable
+                    if (!status.connected && status.reconnect_attempts > 0) {
+                        statusText.textContent = `Reconnecting (${status.reconnect_attempts})`;
+                    }
+                }
+            } catch (error) {
+                console.error('Failed to update Mega status:', error);
+                // Fallback status
+                document.getElementById('mega-connection-dot').style.backgroundColor = '#f59e0b'; // Yellow
+                document.getElementById('mega-status').textContent = 'Status Check Failed';
+                document.getElementById('mega-status').style.color = '#f59e0b';
+                document.getElementById('mega-port').textContent = '--';
+            }
+        }
+
+        async function reconnectMega() {
+            const reconnectBtn = document.getElementById('mega-reconnect-btn');
+            const originalText = reconnectBtn.innerHTML;
+
+            // Show loading state
+            reconnectBtn.innerHTML = '⟳';
+            reconnectBtn.disabled = true;
+
+            try {
+                const response = await fetch('/api/mega/reconnect', { method: 'POST' });
+                const data = await response.json();
+
+                if (data.success) {
+                    showStatus('success', 'Mega reconnection initiated');
+                    // Update status after a short delay
+                    setTimeout(updateMegaStatus, 2000);
+                } else {
+                    showStatus('error', 'Mega reconnection failed: ' + (data.error || 'Unknown error'));
+                }
+            } catch (error) {
+                showStatus('error', 'Failed to initiate reconnection: ' + error.message);
+            } finally {
+                // Restore button
+                reconnectBtn.innerHTML = originalText;
+                reconnectBtn.disabled = false;
+            }
+        }
+
         // Serial Monitor Functions
         async function startSerialMonitor() {
             if (serialMonitorActive) return;
@@ -2324,6 +2417,18 @@ HTML_TEMPLATE = """
                 stopBtn.style.display = 'flex';
                 statusIndicator.style.backgroundColor = '#10b981';
                 statusText.textContent = 'Monitoring';
+
+                // Update status text
+                const statusTextEl = document.getElementById('serial-status-text');
+                if (statusTextEl) {
+                    statusTextEl.textContent = 'Serial monitor active - receiving data...';
+                }
+
+                // Update debug info
+                const debugInfo = document.getElementById('debug-info');
+                if (debugInfo) {
+                    debugInfo.textContent = 'Monitor started at ' + new Date().toLocaleTimeString();
+                }
             }
 
             // Clear previous data
@@ -2338,17 +2443,37 @@ HTML_TEMPLATE = """
             showStatus('success', 'Serial monitor started');
         }
 
-        async function stopSerialMonitor() {
+        async         function stopSerialMonitor() {
+            console.log('Stopping Serial Monitor...');
             if (!serialMonitorActive) return;
 
             serialMonitorActive = false;
             clearInterval(serialMonitorInterval);
 
             // Update UI
-            document.getElementById('monitor-start-btn').style.display = 'flex';
-            document.getElementById('monitor-stop-btn').style.display = 'none';
-            document.getElementById('monitor-connection-status').style.backgroundColor = 'var(--text-muted)';
-            document.getElementById('monitor-connection-text').textContent = 'Disconnected';
+            const startBtn = document.getElementById('monitor-start-btn');
+            const stopBtn = document.getElementById('monitor-stop-btn');
+            const statusIndicator = document.getElementById('monitor-connection-status');
+            const statusText = document.getElementById('monitor-connection-text');
+
+            if (startBtn && stopBtn && statusIndicator && statusText) {
+                startBtn.style.display = 'flex';
+                stopBtn.style.display = 'none';
+                statusIndicator.style.backgroundColor = 'var(--text-muted)';
+                statusText.textContent = 'Disconnected';
+
+                // Reset status text
+                const statusTextEl = document.getElementById('serial-status-text');
+                if (statusTextEl) {
+                    statusTextEl.textContent = 'Serial monitor stopped. Click "Start Monitor" to begin receiving data.';
+                }
+
+                // Update debug info
+                const debugInfo = document.getElementById('debug-info');
+                if (debugInfo) {
+                    debugInfo.textContent = 'Monitor stopped at ' + new Date().toLocaleTimeString();
+                }
+            }
 
             // Add final message
             addToSerialMonitor('[INFO] Serial monitor stopped', 'info');
@@ -2357,13 +2482,91 @@ HTML_TEMPLATE = """
             showStatus('info', 'Serial monitor stopped');
         }
 
-        function clearSerialMonitor() {
+        // Test function to manually add data to Serial Monitor
+        function testSerialMonitor() {
+            console.log('Testing Serial Monitor display...');
+
+            // First, try direct DOM manipulation to verify element exists
             const output = document.getElementById('serial-monitor-output');
-            output.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 40px;"><div style="font-size: 48px; margin-bottom: 15px;">📟</div><div>Serial data will appear here...</div></div>';
+            console.log('Direct DOM test - output element:', output);
+            if (output) {
+                console.log('Output element innerHTML before:', output.innerHTML.substring(0, 100) + '...');
+            }
+
+            // Test with simple text addition
+            addToSerialMonitor('[TEST] Serial Monitor test message 1', 'data');
+            addToSerialMonitor('[TEST] Serial Monitor test message 2', 'info');
+            addToSerialMonitor('[TEST] Serial Monitor test message 3', 'warning');
+            addToSerialMonitor('[TEST] Serial Monitor test message 4', 'error');
+
+            // Update debug info
+            const debugInfo = document.getElementById('debug-info');
+            if (debugInfo) {
+                debugInfo.textContent = 'Test data added at ' + new Date().toLocaleTimeString();
+            }
+
+            // Check final state
+            if (output) {
+                console.log('Output element innerHTML after:', output.innerHTML.substring(0, 200) + '...');
+                console.log('Output has', output.children.length, 'children');
+            }
+
+            showStatus('success', 'Test data added to Serial Monitor');
+        }
+
+        // Force show data by directly injecting HTML
+        function forceShowData() {
+            console.log('Force showing data...');
+            const output = document.getElementById('serial-monitor-output');
+            if (!output) {
+                console.error('Cannot find serial-monitor-output element!');
+                alert('Cannot find output element!');
+                return;
+            }
+
+            // Hide placeholder
+            const placeholder = document.getElementById('serial-monitor-placeholder');
+            if (placeholder) {
+                placeholder.style.display = 'none';
+            }
+
+            // Clear and add test content directly with HIGH CONTRAST
+            output.innerHTML = `
+                <div style="color: #ffffff !important; background: #374151 !important; padding: 4px 8px !important; margin: 2px 0 !important; border-radius: 4px !important; border-bottom: 1px solid #333 !important; font-family: 'JetBrains Mono', monospace !important; font-size: 13px !important;">
+                    <span style="color: #cccccc !important; font-size: 11px !important;">[${new Date().toLocaleTimeString()}]</span>
+                    <span>[FORCE] This is test data injected directly - HIGH CONTRAST</span>
+                </div>
+                <div style="color: #ffffff !important; background: #2563eb !important; padding: 4px 8px !important; margin: 2px 0 !important; border-radius: 4px !important; border-bottom: 1px solid #333 !important; font-family: 'JetBrains Mono', monospace !important; font-size: 13px !important;">
+                    <span style="color: #cccccc !important; font-size: 11px !important;">[${new Date().toLocaleTimeString()}]</span>
+                    <span>[FORCE] Serial Monitor is working with visible colors!</span>
+                </div>
+                <div style="color: #000000 !important; background: #f59e0b !important; padding: 4px 8px !important; margin: 2px 0 !important; border-radius: 4px !important; border-bottom: 1px solid #333 !important; font-family: 'JetBrains Mono', monospace !important; font-size: 13px !important;">
+                    <span style="color: #333333 !important; font-size: 11px !important;">[${new Date().toLocaleTimeString()}]</span>
+                    <span>[FORCE] Test message 3 - Orange background with black text</span>
+                </div>
+            `;
+
+            console.log('Force injected HTML content');
+            showStatus('success', 'Data force-injected into Serial Monitor');
+        }
+
+        function clearSerialMonitor() {
+            console.log('Clearing Serial Monitor...');
+            const output = document.getElementById('serial-monitor-output');
+            if (output) {
+                output.innerHTML = '<div id="serial-monitor-placeholder" style="text-align: center; color: var(--text-muted); padding: 40px;"><div style="font-size: 48px; margin-bottom: 15px;">📟</div><div id="serial-status-text">Serial monitor cleared. Click "Start Monitor" to begin receiving data.</div><div style="margin-top: 10px; font-size: 14px; opacity: 0.7;">Raw data from Arduino Mega will appear here in real-time.</div><div id="debug-info" style="margin-top: 20px; font-size: 12px; color: var(--accent-blue);"></div></div>';
+            }
             serialStats.totalBytes = 0;
             serialStats.linesReceived = 0;
             serialStats.errorsDetected = 0;
+            statusUpdateCount = 0;
             updateMonitorStats();
+
+            // Reset status badge
+            const statusBadge = document.getElementById('data-rate-badge');
+            if (statusBadge) {
+                statusBadge.textContent = '0 B/s';
+            }
         }
 
         async function fetchSerialData() {
@@ -2390,8 +2593,19 @@ HTML_TEMPLATE = """
 
                     updateMonitorStats();
                     updateDataRate();
+
+                    // Update status indicator
+                    statusUpdateCount++;
+                    const statusBadge = document.getElementById('data-rate-badge');
+                    if (statusBadge) {
+                        statusBadge.textContent = `${statusUpdateCount} updates`;
+                    }
+                } else {
+                    // No data received - show this
+                    addToSerialMonitor('[INFO] No new serial data available', 'info');
                 }
             } catch (error) {
+                console.error('Serial monitor fetch error:', error);
                 // Silent fail - Mega might not be connected
                 if (serialMonitorActive) {
                     addToSerialMonitor('[WARNING] Failed to fetch serial data: ' + error.message, 'warning');
@@ -2400,16 +2614,37 @@ HTML_TEMPLATE = """
         }
 
         function addToSerialMonitor(text, type = 'data') {
+            console.log('addToSerialMonitor called with:', text.substring(0, 50) + '...', 'type:', type);
             const output = document.getElementById('serial-monitor-output');
-            if (!output) return;
+            console.log('Found output element:', !!output, 'element:', output);
+            if (!output) {
+                console.error('serial-monitor-output element not found!');
+                return;
+            }
+
+            // Force scroll to bottom for new messages
+            const shouldScroll = output.scrollTop + output.clientHeight >= output.scrollHeight - 10;
 
             const autoscroll = document.getElementById('monitor-autoscroll').checked;
             const showTimestamps = document.getElementById('monitor-timestamps').checked;
 
-            // Create message element
+            // Create message element with HIGH CONTRAST styling
             const messageDiv = document.createElement('div');
-            messageDiv.style.marginBottom = '2px';
-            messageDiv.style.fontFamily = 'inherit';
+            messageDiv.style.cssText = `
+                margin-bottom: 2px !important;
+                font-family: 'JetBrains Mono', 'Fira Code', 'Courier New', monospace !important;
+                font-size: 13px !important;
+                line-height: 1.4 !important;
+                padding: 4px 8px !important;
+                border-radius: 4px !important;
+                border-bottom: 1px solid #333 !important;
+                white-space: pre-wrap !important;
+                word-break: break-all !important;
+                display: block !important;
+                visibility: visible !important;
+                opacity: 1 !important;
+                min-height: 20px !important;
+            `;
 
             let timestamp = '';
             if (showTimestamps) {
@@ -2417,33 +2652,58 @@ HTML_TEMPLATE = """
                 timestamp = `[${now.toLocaleTimeString()}] `;
             }
 
-            // Color code based on type
+            // HIGH CONTRAST color coding with background colors
+            let textColor = '#ffffff'; // White text
+            let bgColor = 'transparent';
+
             switch (type) {
                 case 'error':
-                    messageDiv.style.color = '#ef4444';
+                    textColor = '#ffffff';
+                    bgColor = '#dc2626'; // Red background
                     break;
                 case 'warning':
-                    messageDiv.style.color = '#f59e0b';
+                    textColor = '#000000';
+                    bgColor = '#f59e0b'; // Orange background
                     break;
                 case 'info':
-                    messageDiv.style.color = '#3b82f6';
+                    textColor = '#ffffff';
+                    bgColor = '#2563eb'; // Blue background
                     break;
                 case 'success':
-                    messageDiv.style.color = '#10b981';
+                    textColor = '#ffffff';
+                    bgColor = '#16a34a'; // Green background
                     break;
                 default:
-                    messageDiv.style.color = 'var(--text-primary)';
+                    textColor = '#ffffff';
+                    bgColor = '#374151'; // Gray background
             }
 
+            messageDiv.style.color = textColor + ' !important';
+            messageDiv.style.backgroundColor = bgColor + ' !important';
             messageDiv.textContent = timestamp + text;
 
-            // Add to output
-            if (output.lastChild && output.lastChild.tagName === 'DIV' &&
-                output.lastChild.textContent.includes('Serial data will appear here')) {
+            // Hide placeholder if it exists
+            const placeholder = document.getElementById('serial-monitor-placeholder');
+            if (placeholder) {
+                console.log('Hiding placeholder');
+                placeholder.style.display = 'none';
+            }
+
+            // Clear initial content if this is the first real message
+            if (output.children.length === 1 && output.firstChild.id === 'serial-monitor-placeholder') {
+                console.log('Clearing placeholder content');
                 output.innerHTML = '';
             }
 
+            console.log('Appending message div to output');
             output.appendChild(messageDiv);
+
+            // Auto-scroll to bottom if user was already at bottom
+            if (shouldScroll) {
+                output.scrollTop = output.scrollHeight;
+            }
+
+            console.log('Message added successfully, output now has', output.children.length, 'children');
 
             // Auto-scroll if enabled
             if (autoscroll) {
@@ -2495,12 +2755,18 @@ HTML_TEMPLATE = """
                 loadMap();
             }
 
+            // Initial status updates
+            updateMegaStatus();
+
             // Auto-refresh sensors every 5 seconds
             setInterval(refreshSensors, 5000);
 
             // Update robot position on map and dashboard every 2 seconds
             // setInterval(updateRobotPositionOnMap, 2000); // TODO: Define this function
             setInterval(updateDashboardPosition, 2000);
+
+            // Update Mega status every 10 seconds
+            setInterval(updateMegaStatus, 10000);
 
             // Keyboard shortcuts for serial commands
             document.getElementById('serial-command').addEventListener('keypress', function(e) {
@@ -2518,6 +2784,7 @@ class FlaskApp:
     """Main Flask application for robot control"""
 
     def __init__(self, mega_interface=None, sensor_manager=None, ros2_interface=None, simulation_mode=False, main_app=None):
+        logger.info("Initializing Flask application...")
         self.app = Flask(__name__)
         self.mega = mega_interface
         self.sensors = sensor_manager
@@ -2525,8 +2792,17 @@ class FlaskApp:
         self.simulation_mode = simulation_mode
         self.main_app = main_app  # Reference to main app for IMU access
 
+        logger.info(f"Mega interface: {type(mega_interface)}")
+        logger.info(f"Sensor manager: {type(sensor_manager)}")
+        logger.info(f"ROS2 interface: {type(ros2_interface)}")
+
         # Setup routes
-        self._setup_routes()
+        try:
+            self._setup_routes()
+            logger.info("Routes setup completed")
+        except Exception as e:
+            logger.error(f"Failed to setup routes: {e}")
+            raise
 
         logger.info("Flask application initialized")
 
@@ -2639,6 +2915,14 @@ class FlaskApp:
         @self.app.route('/api/serial/monitor', methods=['GET'])
         def get_serial_monitor_data():
             return self._get_serial_monitor_data()
+
+        @self.app.route('/api/mega/status', methods=['GET'])
+        def get_mega_status():
+            return self._get_mega_status()
+
+        @self.app.route('/api/mega/reconnect', methods=['POST'])
+        def reconnect_mega():
+            return self._reconnect_mega()
 
         # End of route setup
         pass
@@ -3365,42 +3649,42 @@ class FlaskApp:
         return map_html
 
     def _get_serial_monitor_data(self):
-        """Get raw serial data from Mega for monitoring"""
+        """Get raw serial data from Mega for monitoring with enhanced status"""
         try:
             data_lines = []
 
-            if self.mega and self.mega.mega_connected:
-                # Try to read available serial data without blocking
-                if hasattr(self.mega, 'mega_serial') and self.mega.mega_serial and self.mega.mega_serial.in_waiting > 0:
-                    # Read all available data
-                    raw_data = self.mega.mega_serial.read(self.mega.mega_serial.in_waiting)
+            if self.mega:
+                # Use the enhanced read method
+                data_lines = self.mega.read_available_data(max_lines=50)
 
-                    # Decode and split into lines
-                    try:
-                        decoded_data = raw_data.decode('utf-8', errors='ignore')
-                        lines = decoded_data.split('\n')
-
-                        for line in lines:
-                            line = line.strip()
-                            if line:  # Only add non-empty lines
-                                data_lines.append(line)
-                                logger.debug(f'Serial monitor data: {line}')
-                    except UnicodeDecodeError:
-                        # If decoding fails, show as hex
-                        hex_data = raw_data.hex()
-                        data_lines.append(f'[HEX] {hex_data}')
-                        logger.debug(f'Serial monitor raw data: {hex_data}')
-                else:
-                    # No data available - this is normal
-                    pass
+                # Add connection status messages
+                if not self.mega.mega_connected:
+                    if len(data_lines) == 0:  # Only add if no data
+                        data_lines.append('[WARNING] Arduino Mega not connected')
+                        if self.mega.auto_reconnect:
+                            reconnect_info = self.mega.get_connection_status()
+                            attempts = reconnect_info.get('reconnect_attempts', 0)
+                            max_attempts = getattr(self.mega, 'max_reconnect_attempts', 5)
+                            data_lines.append(f'[INFO] Auto-reconnecting... ({attempts}/{max_attempts})')
             else:
-                # Mega not connected
-                data_lines.append('[WARNING] Arduino Mega not connected')
+                data_lines.append('[ERROR] Mega interface not initialized')
+
+            # Get connection status
+            connection_status = self.mega.get_connection_status() if self.mega else {}
 
             return jsonify({
                 'success': True,
                 'data': data_lines,
-                'timestamp': time.time()
+                'timestamp': time.time(),
+                'connection': {
+                    'connected': connection_status.get('connected', False),
+                    'port': connection_status.get('port'),
+                    'auto_reconnect': connection_status.get('auto_reconnect', False),
+                    'reconnect_attempts': connection_status.get('reconnect_attempts', 0),
+                    'last_activity': connection_status.get('last_activity', 0),
+                    'healthy': self.mega.is_healthy() if self.mega else False
+                },
+                'stats': connection_status.get('stats', {})
             })
 
         except Exception as e:
@@ -3409,6 +3693,63 @@ class FlaskApp:
                 'success': False,
                 'error': str(e),
                 'data': [],
+                'timestamp': time.time(),
+                'connection': {
+                    'connected': False,
+                    'healthy': False
+                },
+                'stats': {}
+            }), 500
+
+    def _get_mega_status(self):
+        """Get detailed Mega connection status"""
+        try:
+            if not self.mega:
+                return jsonify({
+                    'success': False,
+                    'error': 'Mega interface not initialized',
+                    'status': {}
+                }), 503
+
+            status = self.mega.get_connection_status()
+            return jsonify({
+                'success': True,
+                'status': status,
+                'timestamp': time.time()
+            })
+
+        except Exception as e:
+            logger.error(f'Mega status error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'status': {},
+                'timestamp': time.time()
+            }), 500
+
+    def _reconnect_mega(self):
+        """Force Mega reconnection"""
+        try:
+            if not self.mega:
+                return jsonify({
+                    'success': False,
+                    'error': 'Mega interface not initialized'
+                }), 503
+
+            logger.info('Forcing Mega reconnection via API')
+            success = self.mega.force_reconnect()
+
+            return jsonify({
+                'success': success,
+                'message': 'Reconnection ' + ('successful' if success else 'failed'),
+                'timestamp': time.time()
+            })
+
+        except Exception as e:
+            logger.error(f'Mega reconnection error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
                 'timestamp': time.time()
             }), 500
 

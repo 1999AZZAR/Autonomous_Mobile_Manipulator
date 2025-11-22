@@ -32,7 +32,6 @@ if ROS2_AVAILABLE:
         ROS2_AVAILABLE = False
 else:
     ROS2Interface = None
-from ros2_interface import ROS2Interface
 
 # Setup logging
 logging.basicConfig(
@@ -180,13 +179,17 @@ class AutonomousMobileManipulator:
                 logger.info("ROS2 thread not started (ROS2 not available)")
 
             # Start Flask web interface (blocking)
+            logger.info("Starting Flask web interface...")
             self.flask_app.run()
 
         except KeyboardInterrupt:
-            logger.info("Shutting down...")
+            logger.info("Received interrupt signal, shutting down...")
         except Exception as e:
             logger.error(f"Error running application: {str(e)}")
+            import traceback
+            traceback.print_exc()
         finally:
+            logger.info("Application shutdown initiated")
             self.cleanup()
 
     def _run_ros2(self):
