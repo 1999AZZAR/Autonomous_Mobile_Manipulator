@@ -14,17 +14,16 @@ It integrates advanced robotics capabilities, including navigation, manipulation
 
 ### Key Features
 
-- **Mobile Manipulation:** Combines a mobile base with a servo-based manipulator system for pick-and-place tasks in a dynamic environment.
-- **Autonomous Navigation:** Utilizes the ROS2 Navigation Stack (Nav2) for path planning, obstacle avoidance, and autonomous patrol missions.
-- **Advanced Manipulation:** Servo-based manipulation with 4-component picker system (gripper, tilt, neck, base) for precise object handling.
-- **Simulation & Reality:** Supports both realistic Gazebo simulation and real-world hardware deployment with a unified launch system.
-- **Flexible Control Interfaces:** Offers multiple points of control and integration:
-    - **Web UI (Primary Interface):** Complete robot control and monitoring with path planning, real-time sensor data, and system management.
-    - **REST API:** HTTP interface for all robot functions, used by both Web UI and N8N.
-    - **N8N Workflow Automation (Optional):** Low-code platform for complex automation sequences and scheduled tasks.
-    - **WebSockets:** For real-time data streaming and interactive control.
-    - **MQTT Bridge:** For integration with IoT ecosystems and devices.
-- **Containerized Deployment:** Uses Docker and Docker Compose for consistent, reproducible, and isolated development and production environments.
+- **Mobile Manipulation:** Combines 3-wheel omnidirectional base with servo-based picker system for object handling tasks.
+- **Autonomous Navigation:** Custom path planning algorithms with obstacle avoidance and waypoint navigation.
+- **Sensor Fusion:** Integrated sensor suite with IR distance, ultrasonic, LIDAR, IMU, and line sensors.
+- **Distributed Architecture:** Raspberry Pi for high-level control + Arduino Mega for real-time motor control.
+- **Flexible Control Interfaces:**
+    - **Web UI (Primary Interface):** Complete robot control with path planning, real-time sensor monitoring, and system management.
+    - **REST API:** HTTP interface for all robot functions with JSON responses.
+    - **WebSocket Support:** Real-time data streaming for live monitoring.
+    - **Serial Communication:** Robust Arduino Mega interface with automatic reconnection.
+- **Hardware Control:** Direct GPIO control with simulation mode for development.
 
 ### Technology Stack
 
@@ -118,7 +117,7 @@ The N8N workflow engine at http://localhost:5678 adds automation capabilities:
 - **Event-Driven Logic:** Sensor threshold responses and conditional behaviors
 - **Complex Workflows:** Multi-step sequences with decision trees
 - **External Integration:** Connect to databases, APIs, and external services
-- **38 Pre-built Workflows:** Ready-to-use automation patterns
+- **Pre-configured Workflows:** 38+ robot control workflows included
 
 **Use N8N for:**
 - Autonomous operation
@@ -212,15 +211,15 @@ See `docs/SYSTEM_ARCHITECTURE.md` for detailed decision matrices and use case re
 
 The system consists of two main components:
 
-### ROS 2 Container
+### Python Control System
 
-- **Robot control**: Hardware interface and low-level control
-- **Navigation**: Path planning and obstacle avoidance
-- **Manipulation**: Advanced 4-component picker system control
-- **Container management**: 4-container load/unload operations
-- **REST API server**: Comprehensive HTTP API (5000) with 20+ endpoints
-- **WebSocket server**: Real-time communication (8765)
-- **ROS 2 services**: Modular automation services (patrol, pick-place, obstacle avoidance)
+- **Robot coordination**: Main application managing all components
+- **Hardware interface**: Serial communication with Arduino Mega
+- **Sensor management**: Data collection and processing from all sensors
+- **Path planning**: Grid-based navigation algorithms
+- **REST API server**: Comprehensive HTTP API (8000) with 20+ endpoints
+- **WebSocket support**: Real-time data streaming
+- **GPIO control**: Direct hardware control for RPi components
 
 ### Professional Web Interface
 #### WebRobotInterface Auto-Initialization
@@ -265,63 +264,56 @@ interface.cleanup()  # ROS 2 shutdown automatically
 
 ## API Capabilities Overview
 
-The Autonomous Mobile Manipulator provides a comprehensive API ecosystem supporting full robotic automation:
+The Autonomous Mobile Manipulator provides a comprehensive REST API for complete robot control:
 
-### **Robot Control APIs (6 endpoints)**
+### **Core Control APIs**
 
-- **Basic Movement**: Forward/backward, turning, strafing, emergency stop
-- **Mode Management**: AUTONOMOUS, MANUAL, EMERGENCY, MAINTENANCE modes
-- **Status Monitoring**: Real-time robot state, safety systems, diagnostics
+- **Movement Control:**
+  - `POST /api/robot/move` - Directional movement (forward, backward, strafe)
+  - `POST /api/robot/turn` - Rotation control (left, right)
+  - `POST /api/robot/stop` - Emergency stop
 
-### **Advanced Manipulation APIs (4 endpoints)**
+- **Speed Control:**
+  - `POST /api/robot/speed` - Set movement speed multiplier
+  - `POST /api/robot/turbo` - Toggle fast/slow response mode
 
-- **Picker System**: 4-component gripper control (open/close, tilt, neck, base height)
-- **Precision Control**: Angle and position control with validation
-- **Force Management**: Configurable gripper force for different objects
+- **Individual Wheel Control:**
+  - `POST /api/robot/wheels/<wheel_id>` - Direct wheel speed control
+  - `POST /api/robot/wheels/stop` - Stop all individual wheel control
 
-### **Container Management APIs (4 endpoints)**
+### **Manipulation APIs**
 
-- **Load/Unload Operations**: Individual container control
-- **Multi-container Support**: Left/right, front/back positioning
-- **State Management**: Load status tracking and validation
+- **Gripper Control:**
+  - `POST /api/robot/picker/gripper` - Open/close gripper
+  - `POST /api/robot/picker/gripper_tilt` - Control gripper tilt angle
 
-### **Automation APIs (3 endpoints)**
+### **Monitoring & Diagnostics**
 
-- **Pick & Place**: Complete manipulation sequences with object handling
-- **Autonomous Patrol**: Multi-waypoint navigation with cycle control
-- **Obstacle Avoidance**: Intelligent navigation with dynamic path planning
+- **System Status:**
+  - `GET /health` - Basic health check
+  - `GET /api/status` - Comprehensive system status
+  - `GET /api/mega/status` - Arduino Mega connection status
+  - `POST /api/mega/reconnect` - Force reconnection to Arduino
 
-### **Safety & Emergency APIs (1 endpoint)**
+- **Sensor Data:**
+  - `GET /api/robot/sensors` - All sensor readings
+  - `GET /api/robot/sensors/diagnostics` - Sensor health diagnostics
 
-- **Emergency Stop**: Immediate halt with reason logging
-- **Safety Monitoring**: Collision detection and system health
-- **Force Stop**: Override capabilities for critical situations
+### **Advanced Features**
 
-### **Sensor Data APIs (1 endpoint)**
+- **Serial Communication:**
+  - `POST /api/serial/send` - Direct serial commands to Arduino
+  - `GET /api/serial/monitor` - Serial communication monitoring
 
-- **Comprehensive Sensing**: Ultrasonic, IR, line sensor, IMU, battery monitoring
-- **Real-time Data**: Live sensor readings with health status
-- **Multi-sensor Fusion**: Integrated sensor data processing
+- **Emergency Systems:**
+  - `POST /api/robot/emergency-stop` - Emergency stop with reason
 
-### **Task Management APIs (2 endpoints)**
+- **Navigation (Development):**
+  - `POST /api/robot/waypoints/navigate` - Waypoint-based navigation
+  - `GET /api/map/canvas` - Navigation map data
+  - `GET /api/robot/position` - Current position tracking
 
-- **Task Monitoring**: Active task tracking with progress and status
-- **Task Control**: Cancel running tasks with reason logging
-- **Lifecycle Management**: Complete task state management
-
-### **Navigation APIs (1 endpoint)**
-
-- **Localization Status**: Real-time position and confidence tracking
-- **Path Planning**: Current path and navigation state monitoring
-- **Map Integration**: Map availability and navigation performance metrics
-
-### **Integration APIs (3 webhooks)**
-
-- **n8n Workflow Integration**: Direct workflow triggers
-- **Webhook Support**: HTTP callbacks for external systems
-- **Event-driven Automation**: Real-time response capabilities
-
-**Total: 25 API endpoints** providing complete robotic control, sensing, and automation capabilities.
+**Total: 20+ API endpoints** providing complete robotic control and monitoring capabilities.
 
 ## Quick Start
 
@@ -533,7 +525,7 @@ All workflows use HTTP API calls to the robot's comprehensive REST interface at 
 
 ## API Documentation
 
-The robot provides a comprehensive REST API on port 5000 for external control, featuring both direct control and advanced automation capabilities.
+The robot provides a comprehensive REST API on port 8000 for external control and monitoring.
 
 ### System Health & Status
 
@@ -854,21 +846,18 @@ All API endpoints return JSON responses with consistent structure:
 ### PC/Development Deployment
 
 ```bash
-# One-time setup
-./setup --pc
+# Install Python dependencies
+pip3 install flask pyserial lgpio gpiozero
 
-# Start the system
-./start --sim
+# Run in simulation mode (recommended for development)
+python3 main.py --simulation
 
-# Verify deployment
-./start --status
+# Run with Arduino Mega hardware
+python3 main.py --hardware
 
-# Import and manage n8n workflows
-./workflow_management_tools.sh import-enhanced  # Import enhanced control workflows
-./workflow_management_tools.sh status           # Check N8N status
-./workflow_management_tools.sh list             # List available workflows
-
-# Complete workflow management guide: docs/workflows/WORKFLOW_MANAGEMENT_README.md
+# Access interfaces
+# Web UI: http://localhost:8000
+# API: http://localhost:8000/api/*
 ```
 
 ### Raspberry Pi Production Deployment
