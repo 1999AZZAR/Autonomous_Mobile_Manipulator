@@ -9,6 +9,7 @@ import time
 import threading
 import argparse
 import logging
+import math
 from config import DEFAULT_SIMULATION_MODE
 from app import FlaskApp
 from mega_interface import MegaInterface
@@ -49,8 +50,8 @@ class AutonomousMobileManipulator:
         logger.info(f"Starting Autonomous Mobile Manipulator (simulation_mode={self.simulation_mode})")
 
         # Initialize components
-        self.sensor_manager = SensorManager(simulation_mode=self.simulation_mode)
         self.mega_interface = MegaInterface()
+        self.sensor_manager = SensorManager(simulation_mode=self.simulation_mode, mega_interface=self.mega_interface)
 
         # Initialize navigation state for IMU-based waypoint navigation
         self.current_position = [0.0, 0.0, 0.0]  # [x, y, z] in ENU coordinates (meters)
@@ -65,12 +66,17 @@ class AutonomousMobileManipulator:
         self.movement_sequence = MovementSequence()
         self.waypoint_navigator = WaypointNavigator(self.path_planner)
 
-        # Initialize ROS2 interface if available
+        # Initialize ROS2 interface if available (non-blocking)
         if ROS2_AVAILABLE:
-            self.ros2_interface = ROS2Interface(sensor_manager=self.sensor_manager)
-            # Initialize ROS2 services
-            self.ros2_interface.initialize_actuator_services()
-            self.ros2_interface.initialize_actuator_clients()
+            try:
+                self.ros2_interface = ROS2Interface(sensor_manager=self.sensor_manager)
+                # Initialize ROS2 services in background thread to avoid blocking
+                ros2_init_thread = threading.Thread(target=self._initialize_ros2_services, daemon=True)
+                ros2_init_thread.start()
+                logger.info("ROS2 interface created - services initializing in background")
+            except Exception as e:
+                logger.warning(f"ROS2 interface failed to initialize: {str(e)}")
+                self.ros2_interface = None
         else:
             self.ros2_interface = None
             logger.info("ROS2 interface disabled (ROS2 not available)")
@@ -86,9 +92,9 @@ class AutonomousMobileManipulator:
         logger.info("Path planning components initialized")
 
         # Start IMU position tracking for coordinate-based navigation
-        if ROS2_AVAILABLE and not self.simulation_mode:
-            threading.Thread(target=self._imu_position_tracking, daemon=True).start()
-            logger.info("IMU position tracking started for waypoint navigation")
+        # Start IMU position tracking for waypoint navigation (works with simulated IMU data)
+        threading.Thread(target=self._imu_position_tracking, daemon=True).start()
+        logger.info("IMU position tracking started for waypoint navigation")
 
         logger.info("All components initialized successfully")
 
@@ -96,67 +102,112 @@ class AutonomousMobileManipulator:
         """Track robot position using IMU data for coordinate-based navigation"""
         logger.info("Starting IMU-based position tracking")
 
+        # Initialize position tracking variables
+        position_initialized = False
+        last_valid_time = time.time()
+        consecutive_errors = 0
+
         while True:
             try:
+                current_time = time.time()
+                imu_data = None
+
+                # Try to get IMU data from ROS2
                 if self.ros2_interface and hasattr(self.ros2_interface, 'imu_data'):
                     imu_data = self.ros2_interface.imu_data
 
-                    if imu_data:
-                        current_time = time.time()
-                        dt = current_time - self.last_imu_time
+                # Fallback to simulated IMU data if ROS2 not available or no data
+                if not imu_data:
+                    # Simulate IMU data for testing waypoint navigation
+                    # Only rotate slowly when not initialized to avoid confusion
+                    if not position_initialized:
+                        yaw_value = 0.0
+                    else:
+                        # Very slow rotation for simulation (1° per second)
+                        yaw_value = (current_time - last_valid_time) * 0.01745  # 1°/s in radians
 
-                        # Extract orientation (yaw for heading)
-                        if 'orientation' in imu_data:
-                            # Convert quaternion to euler angles (simplified - using yaw)
-                            # In practice, you'd use proper quaternion to euler conversion
-                            yaw = imu_data['orientation'].get('z', 0.0) * 180.0 / 3.14159  # Convert to degrees
-                            self.current_orientation[2] = yaw  # yaw/heading
+                    imu_data = {
+                        'orientation': {
+                            'x': 0.0,  # roll
+                            'y': 0.0,  # pitch
+                            'z': yaw_value
+                        },
+                        'angular_velocity': {'x': 0.0, 'y': 0.0, 'z': 0.0},  # No rotation in sim
+                        'linear_acceleration': {'x': 0.0, 'y': 0.0, 'z': 9.81}
+                    }
 
-                        # Extract angular velocity for heading correction
-                        if 'angular_velocity' in imu_data:
-                            # Simple integration for heading (dead reckoning)
-                            omega_z = imu_data['angular_velocity'].get('z', 0.0)
-                            self.current_orientation[2] += omega_z * dt * 180.0 / 3.14159
+                if imu_data:
+                    dt = current_time - self.last_imu_time
 
-                            # Keep heading in -180 to 180 range
-                            while self.current_orientation[2] > 180:
-                                self.current_orientation[2] -= 360
-                            while self.current_orientation[2] < -180:
-                                self.current_orientation[2] += 360
+                    # Skip if dt is too large (system was paused or error occurred)
+                    if dt > 1.0:
+                        logger.debug(f"Large time gap ({dt:.1f}s), resetting IMU tracking")
+                        dt = 0.1  # Use reasonable default
+                        self.last_imu_time = current_time - dt
 
-                        # Estimate velocity from IMU acceleration (very simplified)
-                        if 'linear_acceleration' in imu_data and dt > 0:
-                            # Remove gravity (assuming Z is up)
-                            accel_x = imu_data['linear_acceleration'].get('x', 0.0)
-                            accel_y = imu_data['linear_acceleration'].get('y', 0.0)
+                    # Extract orientation (yaw for heading)
+                    if 'orientation' in imu_data and 'z' in imu_data['orientation']:
+                        # Handle both quaternion (z component) and direct yaw values
+                        yaw_rad = imu_data['orientation']['z']
 
-                            # Update velocity estimate
-                            self.velocity_estimate[0] += accel_x * dt
-                            self.velocity_estimate[1] += accel_y * dt
+                        # If value seems to be in degrees, convert to radians
+                        if abs(yaw_rad) > 2 * 3.14159:  # Likely degrees
+                            yaw_rad = yaw_rad * 3.14159 / 180.0
 
-                            # Apply damping to prevent drift
-                            self.velocity_estimate[0] *= 0.95
-                            self.velocity_estimate[1] *= 0.95
+                        self.current_orientation[2] = yaw_rad * 180.0 / 3.14159  # Convert to degrees
 
-                            # Update position using dead reckoning
-                            heading_rad = self.current_orientation[2] * 3.14159 / 180.0
-                            self.current_position[0] += (self.velocity_estimate[0] * math.cos(heading_rad) -
-                                                        self.velocity_estimate[1] * math.sin(heading_rad)) * dt
-                            self.current_position[1] += (self.velocity_estimate[0] * math.sin(heading_rad) +
-                                                        self.velocity_estimate[1] * math.cos(heading_rad)) * dt
+                        # Keep heading in -180 to 180 range
+                        while self.current_orientation[2] > 180:
+                            self.current_orientation[2] -= 360
+                        while self.current_orientation[2] < -180:
+                            self.current_orientation[2] += 360
 
-                        self.last_imu_time = current_time
+                    # Extract angular velocity for heading correction (more accurate than just orientation)
+                    if 'angular_velocity' in imu_data and dt > 0:
+                        omega_z_deg = imu_data['angular_velocity'].get('z', 0.0) * 180.0 / 3.14159  # Convert to deg/s
+                        # Only apply angular velocity correction if it's reasonable (< 90°/s)
+                        if abs(omega_z_deg) < 90:
+                            self.current_orientation[2] += omega_z_deg * dt
+
+                    # Position estimation using wheel odometry (much more accurate than IMU acceleration)
+                    # For now, we'll use a simple model assuming constant velocity during movement
+                    # In a real system, you'd integrate wheel encoder data
+                    if dt > 0 and position_initialized:
+                        # Estimate movement based on commanded actions (simplified)
+                        # This should be replaced with actual wheel encoder feedback
+                        pass  # For now, position stays the same until waypoint navigation provides feedback
+
+                    # Mark as initialized after first successful reading
+                    if not position_initialized:
+                        position_initialized = True
                         self.position_initialized = True
+                        logger.info("IMU position tracking initialized")
 
-                        # Debug logging (reduced frequency)
-                        if int(current_time) % 5 == 0:  # Every 5 seconds
-                            logger.debug(f"IMU Position: ({self.current_position[0]:.2f}, {self.current_position[1]:.2f}) "
-                                       f"Heading: {self.current_orientation[2]:.1f}°")
+                    self.last_imu_time = current_time
+                    last_valid_time = current_time
+                    consecutive_errors = 0
+
+                    # Debug logging (reduced frequency)
+                    if int(current_time) % 10 == 0:  # Every 10 seconds
+                        logger.debug(".2f"
+                                   ".1f")
+
+                else:
+                    consecutive_errors += 1
+                    if consecutive_errors > 10:
+                        logger.warning("No IMU data available for 10+ iterations")
+                        consecutive_errors = 0
 
                 time.sleep(0.1)  # 10Hz update rate
 
             except Exception as e:
+                consecutive_errors += 1
                 logger.error(f"IMU position tracking error: {str(e)}")
+                if consecutive_errors > 5:
+                    logger.warning("Multiple IMU tracking errors, resetting position tracking")
+                    position_initialized = False
+                    consecutive_errors = 0
+                time.sleep(0.5)  # Back off on errors
                 time.sleep(1.0)
 
     def get_current_position(self):
@@ -166,6 +217,21 @@ class AutonomousMobileManipulator:
             'orientation': self.current_orientation.copy(),
             'initialized': self.position_initialized
         }
+
+    def _initialize_ros2_services(self):
+        """Initialize ROS2 services in background thread"""
+        try:
+            logger.info("Initializing ROS2 actuator services...")
+            self.ros2_interface.initialize_actuator_services()
+            logger.info("ROS2 actuator services initialized")
+
+            logger.info("Initializing ROS2 actuator clients...")
+            self.ros2_interface.initialize_actuator_clients()
+            logger.info("ROS2 actuator clients initialized")
+
+        except Exception as e:
+            logger.error(f"ROS2 services initialization failed: {str(e)}")
+            logger.info("Continuing without ROS2 features")
 
     def run(self):
         """Run the complete system"""
@@ -219,6 +285,18 @@ class AutonomousMobileManipulator:
             logger.error(f"Error cleaning up sensor manager: {str(e)}")
 
         logger.info("Cleanup completed")
+
+    def reset_position(self):
+        """Reset robot position to origin for waypoint navigation"""
+        try:
+            self.current_position = [0.0, 0.0, 0.0]
+            self.current_orientation = [0.0, 0.0, 0.0]  # roll, pitch, yaw
+            self.velocity_estimate = [0.0, 0.0, 0.0]
+            self.last_imu_time = time.time()
+            self.position_initialized = True
+            logger.info("Robot position reset to origin (0,0,0)")
+        except Exception as e:
+            logger.error(f"Error resetting position: {str(e)}")
 
 def main():
     """Main entry point"""

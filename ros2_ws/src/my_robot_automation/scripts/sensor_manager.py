@@ -13,8 +13,9 @@ logger = logging.getLogger(__name__)
 class SensorManager:
     """Manages all sensor data and readings"""
 
-    def __init__(self, simulation_mode=False):
+    def __init__(self, simulation_mode=False, mega_interface=None):
         self.simulation_mode = simulation_mode
+        self.mega_interface = mega_interface
         self.gpio = GPIOController(simulation_mode)
 
         # Initialize sensor data structure
@@ -59,6 +60,35 @@ class SensorManager:
         if self.simulation_mode:
             return self._get_simulated_sensor_data()
 
+        # Try to read from Mega first
+        if self.mega_interface and self.mega_interface.mega_connected:
+            mega_data = self._read_sensors_from_mega()
+            if mega_data:
+                return mega_data
+
+        # Fallback to simulation if Mega not available
+        logger.warning("Mega not available, using simulated sensor data")
+        return self._get_simulated_sensor_data()
+
+    def _read_sensors_from_mega(self):
+        """Read sensor data from Arduino Mega"""
+        try:
+            mega_sensor_data = self.mega_interface.read_sensor_data()
+            if mega_sensor_data:
+                logger.info("Successfully read sensor data from Mega")
+                # Add IMU data (still simulated for now)
+                mega_sensor_data['imu'] = self._get_simulated_imu_data()
+                return mega_sensor_data
+            else:
+                logger.warning("Failed to read sensor data from Mega, using simulated data")
+                return self._get_simulated_sensor_data()
+
+        except Exception as e:
+            logger.error(f"Error reading sensors from Mega: {str(e)}")
+            return self._get_simulated_sensor_data()
+
+    def read_all_sensors_old(self):
+        """Read all available sensors and return structured data"""
         sensor_data = {}
 
         try:

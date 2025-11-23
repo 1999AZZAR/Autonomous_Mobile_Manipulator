@@ -154,13 +154,38 @@ class ROS2Interface(Node):
 
             # Wait for services to be available
             self.get_logger().info('Waiting for ROS2 actuator services...')
-            self.control_gripper_client.wait_for_service(timeout_sec=ROS2_ACTUATOR_SERVICE_TIMEOUT)
-            self.set_gripper_tilt_client.wait_for_service(timeout_sec=ROS2_ACTUATOR_SERVICE_TIMEOUT)
-            self.move_robot_client.wait_for_service(timeout_sec=ROS2_ACTUATOR_SERVICE_TIMEOUT)
-            self.control_container_client.wait_for_service(timeout_sec=ROS2_ACTUATOR_SERVICE_TIMEOUT)
 
-            self.actuator_clients_created = True
-            self.get_logger().info('ROS2 actuator service clients initialized')
+            # Try to wait for services but don't fail if they're not available
+            services_ready = []
+            try:
+                self.control_gripper_client.wait_for_service(timeout_sec=ROS2_ACTUATOR_SERVICE_TIMEOUT)
+                services_ready.append('gripper')
+            except:
+                self.get_logger().warning('Gripper service not available')
+
+            try:
+                self.set_gripper_tilt_client.wait_for_service(timeout_sec=ROS2_ACTUATOR_SERVICE_TIMEOUT)
+                services_ready.append('tilt')
+            except:
+                self.get_logger().warning('Gripper tilt service not available')
+
+            try:
+                self.move_robot_client.wait_for_service(timeout_sec=ROS2_ACTUATOR_SERVICE_TIMEOUT)
+                services_ready.append('move')
+            except:
+                self.get_logger().warning('Move robot service not available')
+
+            try:
+                self.control_container_client.wait_for_service(timeout_sec=ROS2_ACTUATOR_SERVICE_TIMEOUT)
+                services_ready.append('container')
+            except:
+                self.get_logger().warning('Container service not available')
+
+            if services_ready:
+                self.actuator_clients_created = True
+                self.get_logger().info(f'ROS2 actuator service clients initialized: {", ".join(services_ready)}')
+            else:
+                self.get_logger().warning('No ROS2 actuator services available - continuing without ROS2 features')
 
         except Exception as e:
             self.get_logger().error(f'Failed to initialize actuator clients: {str(e)}')

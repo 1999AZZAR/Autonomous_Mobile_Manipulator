@@ -6,6 +6,7 @@ Web interface for Autonomous Mobile Manipulator control
 import time
 import threading
 import logging
+import math
 from flask import Flask, request, jsonify, render_template_string
 from config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG, DEFAULT_SIMULATION_MODE
 from mega_interface import MegaInterface
@@ -858,6 +859,10 @@ HTML_TEMPLATE = """
                 <button class="btn btn-primary" onclick="executeMovementSet('figure8')">∞ Figure-8</button>
                 <button class="btn btn-primary" onclick="executeMovementSet('circle')">⭕ Circle</button>
                 <button class="btn btn-success" onclick="executeMovementSet('return_home')">🏠 Return Home</button>
+                <button class="btn btn-warning" onclick="executeMovementSet('object_search')">🔍 Object Search</button>
+                <button class="btn btn-warning" onclick="executeMovementSet('warehouse_inspect')">🏭 Warehouse Inspect</button>
+                <button class="btn btn-warning" onclick="executeMovementSet('shelf_scan')">📚 Shelf Scan</button>
+                <button class="btn btn-danger" onclick="executeMovementSet('emergency_response')">🚨 Emergency Response</button>
                 <button class="btn btn-danger" onclick="stopSequence()">⏹️ Stop Sequence</button>
             </div>
 
@@ -890,6 +895,15 @@ HTML_TEMPLATE = """
                     <button class="btn btn-warning" onclick="addToSequence('0')">🔟 Speed 100%</button>
                     <button class="btn btn-success" onclick="addToSequence('u')">⬆️ Lift Up</button>
                     <button class="btn btn-danger" onclick="addToSequence('d')">⬇️ Lift Down</button>
+                </div>
+
+                <div class="button-grid">
+                    <!-- Manipulation Commands -->
+                    <button class="btn btn-primary" onclick="addToSequence('no')">👐 Gripper Open</button>
+                    <button class="btn btn-primary" onclick="addToSequence('nc')">✊ Gripper Close</button>
+                    <button class="btn btn-info" onclick="addToSequence('mu')">📹 Tilt Up</button>
+                    <button class="btn btn-info" onclick="addToSequence('md')">📹 Tilt Down</button>
+                    <button class="btn btn-info" onclick="addToSequence('mc')">📹 Tilt Center</button>
                 </div>
             </div>
 
@@ -935,6 +949,10 @@ HTML_TEMPLATE = """
                     <button class="btn btn-info" onclick="loadWaypointExample('figure8')">∞ Figure-8 Path</button>
                     <button class="btn btn-info" onclick="loadWaypointExample('inspection')">🔍 Room Inspection</button>
                     <button class="btn btn-info" onclick="loadWaypointExample('delivery')">📦 Delivery Route</button>
+                    <button class="btn btn-warning" onclick="loadWaypointExample('pick_and_place')">🤖 Pick & Place Mission</button>
+                    <button class="btn btn-warning" onclick="loadWaypointExample('shelf_service')">🏪 Shelf Service Route</button>
+                    <button class="btn btn-warning" onclick="loadWaypointExample('warehouse_scan')">📊 Warehouse Scan</button>
+                    <button class="btn btn-success" onclick="loadWaypointExample('object_retrieval')">🔍 Object Retrieval</button>
                 </div>
             </div>
 
@@ -954,7 +972,8 @@ HTML_TEMPLATE = """
                     <input type="number" id="waypoint-z" step="0.1" placeholder="Up coordinate" value="0">
                 </div>
                 <button class="btn btn-primary" onclick="addWaypoint()">📍 Add Waypoint</button>
-                <button class="btn btn-success" onclick="navigateWaypoints()">🧭 Navigate Waypoints</button>
+                <button class="btn btn-success" onclick="navigateWaypoints()">▶️ Execute Waypoints</button>
+                <button class="btn btn-info" onclick="previewWaypoints()">👁️ Preview Route</button>
                 <button class="btn btn-danger" onclick="clearWaypoints()">🗑️ Clear Waypoints</button>
             </div>
 
@@ -1467,11 +1486,13 @@ HTML_TEMPLATE = """
         let currentTab = 'dashboard';
 
         function showTab(tabName) {
+            console.log('showTab called with:', tabName);
             document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
             document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
             document.getElementById(tabName).classList.remove('hidden');
             event.target.classList.add('active');
             currentTab = tabName;
+            console.log('Tab switched to:', tabName);
 
             // Load map when Path Planning tab is activated
             if (tabName === 'pathplanning') {
@@ -1513,19 +1534,47 @@ HTML_TEMPLATE = """
         }
 
         // API Functions
-        async function apiCall(endpoint, data = {}) {
+        async function apiCall(endpoint, data = {}, options = {}) {
+            const controller = new AbortController();
+            const timeoutMs = options.timeout || 5000; // 5 second default timeout for commands
+            const priority = options.priority || 'high'; // Commands get high priority
+
+            const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
             try {
                 const response = await fetch(endpoint, {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(data)
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Priority': priority
+                    },
+                    body: JSON.stringify(data),
+                    signal: controller.signal
                 });
+                clearTimeout(timeoutId);
+
                 const result = await response.json();
-                showStatus(result.success ? 'success' : 'error', result.message || result.error);
+
+                // Only show status for commands, not for sensor refreshes
+                if (options.showStatus !== false) {
+                    showStatus(result.success ? 'success' : 'error', result.message || result.error);
+                }
+
                 return result;
             } catch (error) {
-                showStatus('error', 'Network error: ' + error.message);
-                return { success: false, error: error.message };
+                clearTimeout(timeoutId);
+
+                let errorMessage = error.message;
+                if (error.name === 'AbortError') {
+                    errorMessage = `Request timeout after ${timeoutMs}ms`;
+                }
+
+                // Only show status for commands, not for sensor refreshes
+                if (options.showStatus !== false) {
+                    showStatus('error', `Command failed: ${errorMessage}`);
+                }
+
+                return { success: false, error: errorMessage };
             }
         }
 
@@ -1654,30 +1703,116 @@ HTML_TEMPLATE = """
         }
 
         // Sensor monitoring
-        async function refreshSensors() {
-            try {
-                const response = await fetch('/api/robot/sensors');
-                const data = await response.json();
+        // Sensor refresh reliability controls
+        let sensorErrorCount = 0;
+        let lastSensorErrorTime = 0;
+        let sensorBackoffDelay = 1000; // Start with 1 second
+        const MAX_SENSOR_BACKOFF = 5000; // Max 5 seconds (much more reasonable)
+        const SENSOR_ERROR_THRESHOLD = 10; // Allow 10 errors before backoff (more tolerant)
+        let sensorRefreshInterval;
 
-                if (data.success) {
-                    updateSensorDisplay(data.data);
+        async function refreshSensors() {
+            // Visual indicator that refresh is happening
+            const refreshBtn = document.querySelector('.btn-info[onclick*="refreshSensors"]');
+            if (refreshBtn) {
+                refreshBtn.style.opacity = '0.7';
+                refreshBtn.innerHTML = '<span style="font-size: 16px;">🔄</span> Refreshing...';
+            }
+
+            try {
+
+                // Use fetch directly for GET request (sensors should be GET, not POST)
+                const response = await fetch('/api/robot/sensors', {
+                    method: 'GET',
+                    headers: { 'Priority': 'low' },
+                    signal: AbortSignal.timeout(3000) // 3 second timeout (increased for reliability)
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+
+                const result = await response.json();
+
+                if (result.success) {
+                    updateSensorDisplay(result.data);
+                    // Reset error tracking on success - clear all error state
+                    sensorErrorCount = 0;
+                    sensorBackoffDelay = 1000;
+                    lastSensorErrorTime = 0; // Reset error timestamp
+                    // Reset to normal 1-second interval if we were in backoff
+                    if (sensorRefreshInterval) {
+                        clearInterval(sensorRefreshInterval);
+                        sensorRefreshInterval = setInterval(refreshSensors, 1000);
+                    }
+                    console.log('Sensor refresh successful - back to normal 1s intervals');
                 } else {
-                    showStatus('error', 'Failed to refresh sensors');
+                    handleSensorError('API returned error: ' + (result.error || 'Unknown error'));
                 }
             } catch (error) {
-                showStatus('error', 'Network error refreshing sensors');
+                if (error.name === 'TimeoutError') {
+                    console.warn('Sensor refresh timeout after 3s - API may be slow');
+                    handleSensorError('Sensor refresh timeout');
+                } else {
+                    console.error('Sensor refresh network error:', error.message);
+                    handleSensorError('Network error: ' + error.message);
+                }
+            } finally {
+                // Reset button appearance
+                if (refreshBtn) {
+                    refreshBtn.style.opacity = '1';
+                    refreshBtn.innerHTML = '<span style="font-size: 16px;">🔄</span> Refresh All';
+                }
+            }
+        }
+
+        function handleSensorError(errorMessage) {
+            sensorErrorCount++;
+            const now = Date.now();
+
+            // Much more lenient backoff strategy
+            if (sensorErrorCount >= SENSOR_ERROR_THRESHOLD) {
+                // Linear backoff instead of exponential (add 500ms per error)
+                sensorBackoffDelay = Math.min(1000 + (sensorErrorCount - SENSOR_ERROR_THRESHOLD) * 500, MAX_SENSOR_BACKOFF);
+
+                // Only show error message if it's been more than 5 seconds since last error
+                if (now - lastSensorErrorTime > 5000) {
+                    showStatus('warning', `Sensor refresh slow (${sensorErrorCount} issues) - ${sensorBackoffDelay/1000}s intervals`);
+                    lastSensorErrorTime = now;
+                }
+
+                // Switch to backoff interval
+                clearInterval(sensorRefreshInterval);
+                sensorRefreshInterval = setInterval(refreshSensors, sensorBackoffDelay);
+            } else {
+                // For first few errors, just log but don't show to user
+                console.warn(`Sensor refresh error (${sensorErrorCount}): ${errorMessage}`);
             }
         }
 
         function updateSensorDisplay(sensorData) {
             console.log('Updating sensor display with data:', sensorData);
 
-            // Update IR sensors - sensorData has keys like 'ir_left_front'
+            // Check if sensor containers exist
             const irContainer = document.getElementById('ir-sensors');
+            const usContainer = document.getElementById('ultrasonic-sensors');
+
+            if (!irContainer) {
+                console.error('IR sensors container not found!');
+                return;
+            }
+            if (!usContainer) {
+                console.error('Ultrasonic sensors container not found!');
+                return;
+            }
+
+            console.log('Sensor containers found, updating display...');
+
+            // Update IR sensors - sensorData.laser_sensors has the structured data
             irContainer.innerHTML = '';
             ['left_front', 'left_back', 'right_front', 'right_back', 'back_left', 'back_right'].forEach(sensor => {
-                const key = `ir_${sensor}`;
-                const value = sensorData[key] !== null && sensorData[key] !== undefined ? sensorData[key] : 'N/A';
+                const laserData = sensorData.laser_sensors || {};
+                const value = laserData[sensor] !== null && laserData[sensor] !== undefined ? laserData[sensor] : 'N/A';
                 const card = document.createElement('div');
                 card.className = 'sensor-card';
                 card.innerHTML = `
@@ -1687,12 +1822,11 @@ HTML_TEMPLATE = """
                 irContainer.appendChild(card);
             });
 
-            // Update ultrasonic sensors - sensorData has keys like 'ultrasonic_front_left'
-            const usContainer = document.getElementById('ultrasonic-sensors');
+            // Update ultrasonic sensors - sensorData.ultrasonic_sensors has the structured data
             usContainer.innerHTML = '';
             ['front_left', 'front_right'].forEach(sensor => {
-                const key = `ultrasonic_${sensor}`;
-                const value = sensorData[key] !== null && sensorData[key] !== undefined ? sensorData[key] : 'N/A';
+                const ultrasonicData = sensorData.ultrasonic_sensors || {};
+                const value = ultrasonicData[sensor] !== null && ultrasonicData[sensor] !== undefined ? ultrasonicData[sensor] : 'N/A';
                 const card = document.createElement('div');
                 card.className = 'sensor-card';
                 card.innerHTML = `
@@ -1785,6 +1919,18 @@ HTML_TEMPLATE = """
                 ],
                 'return_home': [
                     'b', 'b', 's'  // Simple return pattern
+                ],
+                'object_search': [
+                    '7', 'no', 'md', 'f', 'f', 'mu', 'nc', 'u', 'b', 'b', 'd', 'no', 's'  // Speed 70%, gripper open, tilt down, search forward, tilt up, close gripper, lift, backup, lower, open gripper, stop
+                ],
+                'warehouse_inspect': [
+                    '8', 'mu', 'f', 'mc', 'r', 'f', 'md', 'l', 'f', 'mu', 'b', 's'  // Speed 80%, tilt up, forward, center, right turn, forward, tilt down, left turn, forward, tilt up, back, stop
+                ],
+                'shelf_scan': [
+                    '9', 'no', 'f', 'u', 'md', 'f', 'mu', 'r', 'd', 'no', 'b', 'nc', 'u', 's'  // Speed 90%, gripper open, forward, lift, tilt down, forward, tilt up, right turn, lower, gripper open, back, close gripper, lift, stop
+                ],
+                'emergency_response': [
+                    '0', 'c', 'w', 'f', 'b', 'f', 'b', 's'  // Speed 100%, spin, counter-spin, emergency forward, brake, forward, brake, stop
                 ]
             };
 
@@ -1962,7 +2108,49 @@ HTML_TEMPLATE = """
 
             waypoints.forEach((wp, index) => {
                 const item = document.createElement('div');
-                item.innerHTML = `WP${wp.id}: E=${wp.x.toFixed(1)}, N=${wp.y.toFixed(1)}, U=${wp.z.toFixed(1)}`;
+                item.style.marginBottom = '8px';
+                item.style.padding = '8px';
+                item.style.border = '1px solid #374151';
+                item.style.borderRadius = '4px';
+                item.style.backgroundColor = wp.action ? '#1f2937' : '#111827';
+
+                let actionIcon = '';
+                let actionText = '';
+
+                if (wp.action) {
+                    if (wp.action.startsWith('speed_')) {
+                        const speed = wp.action.split('_')[1];
+                        actionIcon = '⚡';
+                        actionText = `Speed ${speed}%`;
+                    } else if (wp.action === 'gripper_open') {
+                        actionIcon = '👐';
+                        actionText = 'Gripper Open';
+                    } else if (wp.action === 'gripper_close') {
+                        actionIcon = '✊';
+                        actionText = 'Gripper Close';
+                    } else if (wp.action === 'lifter_up') {
+                        actionIcon = '⬆️';
+                        actionText = 'Lifter Up';
+                    } else if (wp.action === 'lifter_down') {
+                        actionIcon = '⬇️';
+                        actionText = 'Lifter Down';
+                    } else if (wp.action.startsWith('tilt_')) {
+                        const direction = wp.action.split('_')[1];
+                        actionIcon = '📹';
+                        actionText = `Tilt ${direction.charAt(0).toUpperCase() + direction.slice(1)}`;
+                    }
+                }
+
+                const coords = `E=${wp.x.toFixed(1)}, N=${wp.y.toFixed(1)}, U=${wp.z.toFixed(1)}`;
+                const description = wp.description || '';
+
+                item.innerHTML = `
+                    <div style="font-weight: bold; color: #60a5fa;">
+                        WP${wp.id}: ${coords}
+                        ${actionIcon ? ` ${actionIcon} ${actionText}` : ''}
+                    </div>
+                    ${description ? `<div style="font-size: 12px; color: #9ca3af; margin-top: 4px;">${description}</div>` : ''}
+                `;
                 container.appendChild(item);
             });
         }
@@ -1973,36 +2161,27 @@ HTML_TEMPLATE = """
                 return;
             }
 
-            showStatus('info', 'Starting waypoint navigation...');
+            showStatus('info', 'Starting advanced waypoint navigation with actions...');
 
-            // Simple waypoint navigation - move between points
-            // In a real implementation, this would use proper path planning
-            for (let i = 1; i < waypoints.length; i++) {
-                const current = waypoints[i - 1];
-                const next = waypoints[i];
+            try {
+                // Send waypoints to backend for IMU-based navigation with actions
+                const result = await apiCall('/api/robot/waypoints/navigate', {
+                    waypoints: waypoints.map(wp => ({
+                        x: wp.x,
+                        y: wp.y,
+                        z: wp.z,
+                        action: wp.action
+                    }))
+                });
 
-                // Calculate simple movement (simplified - would need proper navigation)
-                const dx = next.x - current.x;
-                const dy = next.y - current.y;
-
-                // Determine primary direction
-                let primaryCommand = 'f'; // Default forward
-                if (Math.abs(dx) > Math.abs(dy)) {
-                    primaryCommand = dx > 0 ? 'r' : 'l'; // Right or left
+                if (result.success) {
+                    showStatus('success', result.message || 'Waypoint navigation started successfully');
                 } else {
-                    primaryCommand = dy > 0 ? 'f' : 'b'; // Forward or backward
+                    showStatus('error', result.error || 'Failed to start waypoint navigation');
                 }
-
-                // Execute movement (simplified)
-                await apiCall('/api/serial/send', { command: primaryCommand });
-                await new Promise(resolve => setTimeout(resolve, 2000)); // Move for 2 seconds
-                await apiCall('/api/serial/send', { command: 's' }); // Stop
-
-                showStatus('info', `Reached waypoint ${i}`);
-                await new Promise(resolve => setTimeout(resolve, 1000)); // Pause at waypoint
+            } catch (error) {
+                showStatus('error', 'Failed to execute waypoint navigation: ' + error.message);
             }
-
-            showStatus('success', 'Waypoint navigation completed');
         }
 
         function clearWaypoints() {
@@ -2010,6 +2189,38 @@ HTML_TEMPLATE = """
             updateWaypointDisplay();
             updateMapVisualization();
             showStatus('info', 'Waypoints cleared');
+        }
+
+        function previewWaypoints() {
+            if (waypoints.length < 2) {
+                showStatus('error', 'Need at least 2 waypoints to preview route');
+                return;
+            }
+
+            showStatus('info', `Previewing route with ${waypoints.length} waypoints`);
+
+            // Calculate total distance
+            let totalDistance = 0;
+            for (let i = 1; i < waypoints.length; i++) {
+                const dx = waypoints[i].x - waypoints[i-1].x;
+                const dy = waypoints[i].y - waypoints[i-1].y;
+                const distance = Math.sqrt(dx*dx + dy*dy);
+                totalDistance += distance;
+            }
+
+            // Show route preview info
+            const previewInfo = `
+                <strong>Route Preview:</strong><br>
+                • ${waypoints.length} waypoints<br>
+                • Total distance: ${totalDistance.toFixed(1)}m<br>
+                • Estimated time: ${(totalDistance / 0.3).toFixed(0)}s<br>
+                • Click "Execute Waypoints" to start navigation
+            `;
+
+            // Update map visualization with route preview
+            updateMapVisualization(true); // true = preview mode
+
+            showStatus('info', `Route preview: ${waypoints.length} waypoints, ${totalDistance.toFixed(1)}m total distance`);
         }
 
         // Waypoint Examples
@@ -2064,6 +2275,55 @@ HTML_TEMPLATE = """
                     { x: 2, y: 4, z: 0 },      // Stop 3
                     { x: 4, y: 3, z: 0 },      // Stop 4
                     { x: 0, y: 0, z: 0 }       // Return Home
+                ],
+                'pick_and_place': [
+                    { x: 0, y: 0, z: 0, action: 'speed_80', description: 'Start - Set speed to 80%' },
+                    { x: 1.5, y: 0, z: 0, action: 'gripper_open', description: 'Approach pickup location' },
+                    { x: 1.5, y: 0, z: 0, action: 'lifter_down', description: 'Lower lifter to pickup height' },
+                    { x: 1.5, y: 0, z: 0, action: 'gripper_close', description: 'Close gripper on object' },
+                    { x: 1.5, y: 0, z: 0, action: 'lifter_up', description: 'Lift object safely' },
+                    { x: -1.5, y: 2, z: 0, action: 'speed_70', description: 'Navigate to delivery location' },
+                    { x: -1.5, y: 2, z: 0, action: 'lifter_down', description: 'Lower to delivery height' },
+                    { x: -1.5, y: 2, z: 0, action: 'gripper_open', description: 'Release object' },
+                    { x: -1.5, y: 2, z: 0, action: 'lifter_up', description: 'Raise lifter clear' },
+                    { x: 0, y: 0, z: 0, action: 'speed_90', description: 'Return to origin' }
+                ],
+                'shelf_service': [
+                    { x: 0, y: 0, z: 0, action: 'speed_85', description: 'Start shelf service mission' },
+                    { x: 0, y: 1.5, z: 0, action: 'gripper_open', description: 'Approach bottom shelf' },
+                    { x: 0, y: 1.5, z: 0, action: 'lifter_down', description: 'Lower to bottom shelf level' },
+                    { x: 0, y: 1.5, z: 0, action: 'gripper_close', description: 'Pick item from bottom shelf' },
+                    { x: 0, y: 1.5, z: 0, action: 'lifter_up', description: 'Lift item clear of shelf' },
+                    { x: 0, y: 3, z: 0, action: 'speed_75', description: 'Move to top shelf' },
+                    { x: 0, y: 3, z: 0, action: 'lifter_down', description: 'Lower to top shelf level' },
+                    { x: 0, y: 3, z: 0, action: 'gripper_open', description: 'Place item on top shelf' },
+                    { x: 0, y: 3, z: 0, action: 'lifter_up', description: 'Raise lifter clear' },
+                    { x: 0, y: 0, z: 0, action: 'speed_100', description: 'Return to service station' }
+                ],
+                'warehouse_scan': [
+                    { x: 0, y: 0, z: 0, action: 'speed_90', description: 'Start warehouse scan - high speed navigation' },
+                    { x: 3, y: 0, z: 0, action: 'tilt_up', description: 'Scan aisle 1 - forward' },
+                    { x: 3, y: 4, z: 0, action: 'speed_80', description: 'Turn to aisle 2' },
+                    { x: 0, y: 4, z: 0, action: 'tilt_center', description: 'Scan aisle 2 - left' },
+                    { x: 0, y: 8, z: 0, action: 'speed_85', description: 'Continue to aisle 3' },
+                    { x: 3, y: 8, z: 0, action: 'tilt_down', description: 'Scan aisle 3 - right' },
+                    { x: 3, y: 12, z: 0, action: 'speed_95', description: 'Final aisle scan' },
+                    { x: 0, y: 12, z: 0, action: 'tilt_center', description: 'Complete scan pattern' },
+                    { x: 0, y: 0, z: 0, action: 'speed_100', description: 'Return to base at full speed' }
+                ],
+                'object_retrieval': [
+                    { x: 0, y: 0, z: 0, action: 'speed_100', description: 'Emergency object retrieval - maximum speed' },
+                    { x: 2, y: 1, z: 0, action: 'gripper_open', description: 'Approach suspected object location' },
+                    { x: 2, y: 1, z: 0, action: 'lifter_down', description: 'Lower lifter for object detection' },
+                    { x: 2, y: 1, z: 0, action: 'tilt_down', description: 'Use camera for object verification' },
+                    { x: 2, y: 1, z: 0, action: 'gripper_close', description: 'Secure object with gripper' },
+                    { x: 2, y: 1, z: 0, action: 'lifter_up', description: 'Lift object safely' },
+                    { x: 2, y: 1, z: 0, action: 'tilt_center', description: 'Center camera for navigation' },
+                    { x: -2, y: -1, z: 0, action: 'speed_90', description: 'Navigate to safe delivery zone' },
+                    { x: -2, y: -1, z: 0, action: 'lifter_down', description: 'Lower to delivery height' },
+                    { x: -2, y: -1, z: 0, action: 'gripper_open', description: 'Release object safely' },
+                    { x: -2, y: -1, z: 0, action: 'lifter_up', description: 'Raise lifter clear' },
+                    { x: 0, y: 0, z: 0, action: 'speed_95', description: 'Return to standby position' }
                 ]
             };
 
@@ -2072,6 +2332,8 @@ HTML_TEMPLATE = """
                 x: wp.x,
                 y: wp.y,
                 z: wp.z,
+                action: wp.action,
+                description: wp.description,
                 id: index + 1
             }));
             updateWaypointDisplay();
@@ -2085,7 +2347,11 @@ HTML_TEMPLATE = """
                     'circle': '8-point circle approximation - smooth curved path',
                     'figure8': 'Figure-8 pattern - tests complex path following',
                     'inspection': 'Systematic room coverage - like lawn mower for indoor spaces',
-                    'delivery': 'Multi-stop delivery route with return to origin'
+                    'delivery': 'Multi-stop delivery route with return to origin',
+                    'pick_and_place': 'Complete pick-and-place operation with gripper and lifter control',
+                    'shelf_service': 'Multi-level shelf service with item retrieval and placement',
+                    'warehouse_scan': 'Comprehensive warehouse scanning with camera positioning',
+                    'object_retrieval': 'Emergency object retrieval with maximum speed and precision'
                 };
 
                 updateExampleInfo(descriptions[example] || 'Example loaded successfully');
@@ -2241,7 +2507,7 @@ HTML_TEMPLATE = """
             }
         }
 
-        function updateMapVisualization() {
+        function updateMapVisualization(previewMode = false) {
             initializeMapCanvas();
             if (!mapContext) return;
 
@@ -2252,7 +2518,7 @@ HTML_TEMPLATE = """
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
             // Draw simple grid
-            ctx.strokeStyle = '#374151';
+            ctx.strokeStyle = previewMode ? '#6b7280' : '#374151';
             ctx.lineWidth = 1;
             const gridSize = 50;
 
@@ -2282,15 +2548,50 @@ HTML_TEMPLATE = """
             ctx.lineTo(centerX, centerY + 10);
             ctx.stroke();
 
+            // Draw route lines in preview mode
+            if (previewMode && waypoints.length > 1) {
+                ctx.strokeStyle = '#f59e0b';
+                ctx.lineWidth = 3;
+                ctx.setLineDash([5, 5]);
+                ctx.beginPath();
+
+                const firstWp = waypoints[0];
+                const firstX = centerX + (firstWp.x * mapScale);
+                const firstY = centerY - (firstWp.y * mapScale);
+                ctx.moveTo(firstX, firstY);
+
+                for (let i = 1; i < waypoints.length; i++) {
+                    const wp = waypoints[i];
+                    const wpX = centerX + (wp.x * mapScale);
+                    const wpY = centerY - (wp.y * mapScale);
+                    ctx.lineTo(wpX, wpY);
+                }
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
             // Draw waypoints
             waypoints.forEach((wp, index) => {
                 const wpX = centerX + (wp.x * mapScale);
                 const wpY = centerY - (wp.y * mapScale);
 
-                ctx.fillStyle = '#3b82f6';
+                // Different colors for preview mode
+                if (previewMode) {
+                    ctx.fillStyle = '#f59e0b'; // Amber for preview
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 2;
+                } else {
+                    ctx.fillStyle = '#3b82f6'; // Blue for normal
+                    ctx.strokeStyle = '#ffffff';
+                    ctx.lineWidth = 1;
+                }
+
                 ctx.beginPath();
-                ctx.arc(wpX, wpY, 6, 0, 2 * Math.PI);
+                ctx.arc(wpX, wpY, previewMode ? 8 : 6, 0, 2 * Math.PI);
                 ctx.fill();
+                if (previewMode) {
+                    ctx.stroke();
+                }
 
                 ctx.fillStyle = '#ffffff';
                 ctx.font = '10px Arial';
@@ -2756,8 +3057,31 @@ HTML_TEMPLATE = """
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
+            // Ensure functions are available
+            if (typeof showTab === 'undefined') {
+                console.error('showTab function not loaded!');
+                window.showTab = function(tabName) {
+                    console.log('Fallback showTab called with:', tabName);
+                    // Basic fallback implementation
+                    document.querySelectorAll('.tab-content').forEach(tab => tab.classList.add('hidden'));
+                    document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+                    const targetTab = document.getElementById(tabName);
+                    if (targetTab) {
+                        targetTab.classList.remove('hidden');
+                        event.target.classList.add('active');
+                    }
+                };
+            }
+
             updateSpeedDisplay();
             updateWheelSpeedDisplay();
+
+            // Test sensor display on page load
+            console.log('Page loaded, testing sensor display...');
+            setTimeout(() => {
+                console.log('Testing sensor refresh...');
+                refreshSensors();
+            }, 1000);
             updateGripperTiltDisplay();
             updateSequenceDisplay();
             updateSavedSequences();
@@ -2772,8 +3096,11 @@ HTML_TEMPLATE = """
             // Initial status updates
             updateMegaStatus();
 
-            // Auto-refresh sensors every 5 seconds
-            setInterval(refreshSensors, 5000);
+            // Initial sensor refresh on page load
+            refreshSensors();
+
+            // Auto-refresh sensors with reliability controls
+            sensorRefreshInterval = setInterval(refreshSensors, 1000);
 
             // Update robot position on map and dashboard every 2 seconds
             // setInterval(updateRobotPositionOnMap, 2000); // TODO: Define this function
@@ -2805,6 +3132,7 @@ class FlaskApp:
         self.ros2 = ros2_interface
         self.simulation_mode = simulation_mode
         self.main_app = main_app  # Reference to main app for IMU access
+        self.safety_bypass = False  # Safety bypass for testing (default: False)
 
         logger.info(f"Mega interface: {type(mega_interface)}")
         logger.info(f"Sensor manager: {type(sensor_manager)}")
@@ -2917,6 +3245,24 @@ class FlaskApp:
         @self.app.route('/api/robot/waypoints/navigate', methods=['POST'])
         def navigate_waypoints():
             return self._navigate_waypoints()
+
+        @self.app.route('/api/robot/safety/bypass', methods=['POST'])
+        def toggle_safety_bypass():
+            return self._toggle_safety_bypass()
+
+        @self.app.route('/api/debug/sensor-test', methods=['GET'])
+        def sensor_test():
+            """Debug endpoint to test sensor functionality"""
+            if not self.sensors:
+                return jsonify({'error': 'No sensor manager available'}), 500
+
+            sensor_data = self.sensors.read_all_sensors()
+            return jsonify({
+                'timestamp': time.time(),
+                'sensor_data': sensor_data,
+                'mega_connected': self.mega.mega_connected if self.mega else False,
+                'safety_bypass': self.safety_bypass
+            })
 
         @self.app.route('/api/robot/position', methods=['GET'])
         def get_current_position():
@@ -3367,6 +3713,11 @@ class FlaskApp:
     def _check_movement_safety(self, direction):
         """Check if movement in given direction is safe using sensor data"""
         try:
+            # Safety bypass for testing/debugging
+            if self.safety_bypass:
+                logger.info(f"Safety bypass enabled - allowing {direction} movement")
+                return True
+
             if not self.sensors:
                 logger.warning("No sensor manager available for safety checks")
                 return True  # Allow movement if no sensors available
@@ -3590,12 +3941,29 @@ class FlaskApp:
             if hasattr(self, 'main_app'):
                 main_app = self.main_app
 
+            # Reset position to origin for waypoint navigation
+            if main_app:
+                main_app.reset_position()
+                logger.info("Position reset to origin (0,0,0) for waypoint navigation")
+            else:
+                logger.warning("No main app reference - position tracking may not work correctly")
+
             for i, waypoint in enumerate(waypoints):
+                # Handle waypoint data structure (could be dict with action or tuple)
+                if isinstance(waypoint, dict):
+                    target_x, target_y, target_z = waypoint['x'], waypoint['y'], waypoint.get('z', 0)
+                    action = waypoint.get('action')
+                else:
+                    target_x, target_y, target_z = waypoint[:3]
+                    action = None
+
                 if i == 0:
                     logger.info('Starting from first waypoint (origin)')
-                    continue  # Skip first waypoint (starting point)
+                    # Execute action at starting waypoint if specified
+                    if action:
+                        self._execute_waypoint_action(action)
+                    continue  # Skip navigation for first waypoint
 
-                target_x, target_y, target_z = waypoint
                 logger.info(f'Navigating to waypoint {i + 1}: ({target_x:.1f}, {target_y:.1f}, {target_z:.1f})')
 
                 # Navigate to waypoint using IMU-based position tracking with sensor safety
@@ -3603,6 +3971,9 @@ class FlaskApp:
 
                 if success:
                     logger.info(f'Successfully reached waypoint {i + 1}')
+                    # Execute action at waypoint if specified
+                    if action:
+                        self._execute_waypoint_action(action)
                 else:
                     logger.warning(f'Failed to reach waypoint {i + 1} within timeout or due to obstacles, continuing to next waypoint')
 
@@ -3678,6 +4049,17 @@ class FlaskApp:
                         self.mega.send_command_to_mega('s')
                         time.sleep(0.5)  # Brief pause
 
+                        # Update heading based on turn
+                        if main_app:
+                            actual_turn = turn_angle * (turn_time / (abs(turn_angle) / 45.0))  # Estimate actual turn
+                            main_app.current_orientation[2] += actual_turn
+                            # Keep heading in -180 to 180 range
+                            while main_app.current_orientation[2] > 180:
+                                main_app.current_orientation[2] -= 360
+                            while main_app.current_orientation[2] < -180:
+                                main_app.current_orientation[2] += 360
+                            logger.debug(f'Updated heading: {main_app.current_orientation[2]:.1f}°')
+
                 # Move forward (proportional to remaining distance)
                 if distance > tolerance:
                     # Speed based on distance (slower when close)
@@ -3690,6 +4072,14 @@ class FlaskApp:
                         time.sleep(move_time)
                         self.mega.send_command_to_mega('s')
                         time.sleep(0.5)  # Brief pause
+
+                        # Update position estimate based on movement
+                        if main_app:
+                            heading_rad = main_app.current_orientation[2] * 3.14159 / 180.0
+                            move_distance = min(distance, 0.3 * move_time * speed_factor)  # Estimate actual movement
+                            main_app.current_position[0] += move_distance * math.cos(heading_rad)
+                            main_app.current_position[1] += move_distance * math.sin(heading_rad)
+                            logger.debug(f'Updated position: ({main_app.current_position[0]:.2f}, {main_app.current_position[1]:.2f})')
 
                 time.sleep(0.2)  # Small delay between navigation iterations
 
@@ -3779,6 +4169,17 @@ class FlaskApp:
                         self.mega.send_command_to_mega('s')
                         time.sleep(0.5)  # Brief pause
 
+                        # Update heading based on turn
+                        if main_app:
+                            actual_turn = turn_angle * (turn_time / (abs(turn_angle) / 45.0))  # Estimate actual turn
+                            main_app.current_orientation[2] += actual_turn
+                            # Keep heading in -180 to 180 range
+                            while main_app.current_orientation[2] > 180:
+                                main_app.current_orientation[2] -= 360
+                            while main_app.current_orientation[2] < -180:
+                                main_app.current_orientation[2] += 360
+                            logger.debug(f'Updated heading: {main_app.current_orientation[2]:.1f}°')
+
                 # Move forward (proportional to remaining distance)
                 if distance > tolerance:
                     # Speed based on distance (slower when close)
@@ -3799,6 +4200,22 @@ class FlaskApp:
                         self.mega.send_command_to_mega('s')
                         time.sleep(0.5)  # Brief pause
 
+                        # Update position estimate based on movement
+                        if main_app:
+                            heading_rad = main_app.current_orientation[2] * 3.14159 / 180.0
+                            move_distance = min(distance, 0.3 * move_time * speed_factor)  # Estimate actual movement
+                            main_app.current_position[0] += move_distance * math.cos(heading_rad)
+                            main_app.current_position[1] += move_distance * math.sin(heading_rad)
+                            logger.debug(f'Updated position: ({main_app.current_position[0]:.2f}, {main_app.current_position[1]:.2f})')
+
+                        # Update position estimate based on movement
+                        if main_app:
+                            heading_rad = main_app.current_orientation[2] * 3.14159 / 180.0
+                            move_distance = min(distance, 0.3 * move_time * speed_factor)  # Estimate actual movement
+                            main_app.current_position[0] += move_distance * math.cos(heading_rad)
+                            main_app.current_position[1] += move_distance * math.sin(heading_rad)
+                            logger.debug(f'Updated position: ({main_app.current_position[0]:.2f}, {main_app.current_position[1]:.2f})')
+
                 time.sleep(0.2)  # Small delay between navigation iterations
 
             logger.warning(f'Waypoint navigation timeout after {timeout}s')
@@ -3810,6 +4227,153 @@ class FlaskApp:
             if self.mega:
                 self.mega.send_command_to_mega('s')
             return False
+
+    def _execute_waypoint_action(self, action):
+        """Execute action at waypoint (speed, gripper, lifter, tilt)"""
+        try:
+            logger.info(f'Executing waypoint action: {action}')
+
+            if not self.mega:
+                logger.warning(f'No Mega interface available, skipping action: {action}')
+                return
+
+            if action.startswith('speed_'):
+                # Set motor speed (e.g., speed_80 for 80%)
+                try:
+                    speed = int(action.split('_')[1])
+                    if 50 <= speed <= 100:
+                        # Map speed percentage to Mega command (5=50%, 6=60%, 7=70%, 8=80%, 9=90%, 0=100%)
+                        if speed == 100:
+                            speed_command = '0'
+                        else:
+                            speed_command = str(speed // 10)
+
+                        self.mega.send_command_to_mega(speed_command)
+                        logger.info(f'Motor speed set to {speed}%')
+                        time.sleep(0.5)  # Allow speed change to take effect
+                    else:
+                        logger.warning(f'Invalid speed value: {speed}, must be 50-100')
+                except (ValueError, IndexError) as e:
+                    logger.error(f'Invalid speed action format: {action}')
+
+            elif action == 'gripper_open':
+                self.mega.send_command_to_mega('no')  # Gripper open
+                logger.info('Gripper opened')
+                time.sleep(1.5)  # Allow time for servo movement
+
+            elif action == 'gripper_close':
+                self.mega.send_command_to_mega('nc')  # Gripper close
+                logger.info('Gripper closed')
+                time.sleep(1.5)  # Allow time for servo movement
+
+            elif action == 'gripper_half':
+                self.mega.send_command_to_mega('nh')  # Gripper half-open
+                logger.info('Gripper half-opened')
+                time.sleep(1.5)  # Allow time for servo movement
+
+            elif action == 'lifter_up':
+                self.mega.send_command_to_mega('u')  # Lifter up
+                logger.info('Lifter moving up')
+                time.sleep(4.0)  # Allow time for lifter movement (increased for safety)
+
+            elif action == 'lifter_down':
+                self.mega.send_command_to_mega('d')  # Lifter down
+                logger.info('Lifter moving down')
+                time.sleep(4.0)  # Allow time for lifter movement (increased for safety)
+
+            elif action == 'tilt_up':
+                self.mega.send_command_to_mega('mu')  # Tilt up
+                logger.info('Camera tilted up')
+                time.sleep(1.0)  # Allow time for servo movement
+
+            elif action == 'tilt_down':
+                self.mega.send_command_to_mega('md')  # Tilt down
+                logger.info('Camera tilted down')
+                time.sleep(1.0)  # Allow time for servo movement
+
+            elif action == 'tilt_center':
+                self.mega.send_command_to_mega('mc')  # Tilt center
+                logger.info('Camera centered')
+                time.sleep(1.0)  # Allow time for servo movement
+
+            elif action.startswith('wait_'):
+                # Wait for specified seconds (e.g., wait_2.5 for 2.5 seconds)
+                try:
+                    wait_time = float(action.split('_')[1])
+                    if 0 < wait_time <= 10:  # Max 10 seconds
+                        logger.info(f'Waiting {wait_time}s at waypoint')
+                        time.sleep(wait_time)
+                    else:
+                        logger.warning(f'Invalid wait time: {wait_time}, must be 0-10 seconds')
+                except (ValueError, IndexError) as e:
+                    logger.error(f'Invalid wait action format: {action}')
+
+            elif action.startswith('tilt_angle_'):
+                # Set tilt to specific angle (e.g., tilt_angle_45)
+                try:
+                    angle = int(action.split('_')[2])
+                    if 0 <= angle <= 180:
+                        self.mega.send_command_to_mega(f'ta{angle}')
+                        logger.info(f'Camera tilted to {angle}°')
+                        time.sleep(1.0)
+                    else:
+                        logger.warning(f'Invalid tilt angle: {angle}, must be 0-180')
+                except (ValueError, IndexError) as e:
+                    logger.error(f'Invalid tilt angle action format: {action}')
+
+            elif action.startswith('gripper_angle_'):
+                # Set gripper to specific angle (e.g., gripper_angle_90)
+                try:
+                    angle = int(action.split('_')[2])
+                    if 0 <= angle <= 180:
+                        self.mega.send_command_to_mega(f'ga{angle}')
+                        logger.info(f'Gripper set to {angle}°')
+                        time.sleep(1.0)
+                    else:
+                        logger.warning(f'Invalid gripper angle: {angle}, must be 0-180')
+                except (ValueError, IndexError) as e:
+                    logger.error(f'Invalid gripper angle action format: {action}')
+
+            else:
+                logger.warning(f'Unknown waypoint action: {action}')
+
+        except Exception as e:
+            logger.error(f'Error executing waypoint action {action}: {str(e)}')
+            # Emergency stop on action error
+            if self.mega:
+                try:
+                    self.mega.send_command_to_mega('s')
+                    logger.info('Emergency stop sent due to action error')
+                except:
+                    pass
+
+    def _toggle_safety_bypass(self):
+        """Toggle safety bypass for testing"""
+        try:
+            data = request.get_json()
+            if data and 'enabled' in data:
+                self.safety_bypass = bool(data['enabled'])
+            else:
+                self.safety_bypass = not self.safety_bypass
+
+            status = "ENABLED" if self.safety_bypass else "DISABLED"
+            logger.warning(f"Safety bypass {status} - USE WITH CAUTION!")
+
+            return jsonify({
+                'success': True,
+                'safety_bypass': self.safety_bypass,
+                'message': f'Safety bypass {status}',
+                'warning': 'Safety systems are disabled - robot may collide!',
+                'timestamp': time.time()
+            })
+
+        except Exception as e:
+            logger.error(f'Safety bypass toggle error: {str(e)}')
+            return jsonify({
+                'success': False,
+                'error': str(e),
+                'timestamp': time.time()
+            }), 500
 
     def _get_current_position(self):
         """Get current robot position from IMU tracking"""

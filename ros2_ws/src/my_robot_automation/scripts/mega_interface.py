@@ -462,6 +462,152 @@ class MegaInterface:
         """Disable sensor publishing"""
         return self.send_command_to_mega('spd')
 
+    def read_sensor_data(self):
+        """Read sensor data from Mega using 'sr' command"""
+        try:
+            with self._lock:
+                if not self.mega_connected or not self.mega_serial:
+                    return None
+
+                # Clear any pending data
+                self.mega_serial.reset_input_buffer()
+
+                # Send sensor reading command
+                logger.debug("Sending 'sr' command to Mega")
+                self.mega_serial.write(b'sr\n')
+                self.mega_serial.flush()
+                self.stats['commands_sent'] += 1
+                self.stats['bytes_sent'] += 3
+
+                # Wait for response with timeout
+                start_time = time.time()
+                response_lines = []
+
+                while time.time() - start_time < 0.5:  # Reduced to 0.5 second timeout
+                    if self.mega_serial.in_waiting > 0:
+                        try:
+                            line = self.mega_serial.readline().decode('utf-8', errors='ignore').strip()
+                            if line:
+                                response_lines.append(line)
+                                self.stats['bytes_received'] += len(line)
+
+                                # Check if we have the complete sensor data
+                                if "========================" in line or "Detailed Sensor Readings" in line:
+                                    # Wait minimal time for all data (reduced from 0.1s)
+                                    time.sleep(0.05)
+                                    while self.mega_serial.in_waiting > 0:
+                                        line = self.mega_serial.readline().decode('utf-8', errors='ignore').strip()
+                                        if line:
+                                            response_lines.append(line)
+                                            self.stats['bytes_received'] += len(line)
+                                    break
+
+                        except UnicodeDecodeError:
+                            continue
+
+                    time.sleep(0.005)  # Reduced polling interval
+
+                if response_lines:
+                    self.last_activity_time = time.time()
+                    logger.debug(f"Received {len(response_lines)} lines from Mega in {(time.time() - start_time)*1000:.1f}ms")
+                    return self._parse_sensor_response(response_lines)
+                else:
+                    logger.warning(f"No response received from Mega for sensor reading (timeout after {(time.time() - start_time)*1000:.1f}ms)")
+                    return None
+
+        except Exception as e:
+            logger.error(f"Error reading sensor data from Mega: {str(e)}")
+            self.stats['commands_failed'] += 1
+            return None
+
+    def _parse_sensor_response(self, response_lines):
+        """Parse the sensor response from Mega"""
+        try:
+            sensor_data = {
+                'laser_sensors': {},
+                'ultrasonic_sensors': {},
+                'line_sensors': {}
+            }
+
+            for line in response_lines:
+                line = line.strip()
+
+                # Look for the main SENSORS line with comma-separated values
+                if line.startswith('SENSORS:'):
+                    # Parse the comma-separated sensor values
+                    sensors_part = line[8:]  # Remove 'SENSORS:' prefix
+                    sensor_pairs = sensors_part.split(',')
+
+                    for pair in sensor_pairs:
+                        if ':' in pair:
+                            key, value = pair.split(':', 1)
+                            key = key.strip()
+                            value = value.strip()
+
+                            # Skip non-sensor data
+                            if key.startswith('MTR') or key in ['SYNC', 'VFF', 'MOVING']:
+                                continue
+
+                            # Parse IR sensors
+                            if key.startswith('IR_'):
+                                if key == 'IR_LF':  # Left Front
+                                    if value != 'INV':
+                                        try:
+                                            sensor_data['laser_sensors']['left_front'] = float(value)
+                                        except ValueError:
+                                            pass
+                                elif key == 'IR_LB':  # Left Back
+                                    if value != 'INV':
+                                        try:
+                                            sensor_data['laser_sensors']['left_back'] = float(value)
+                                        except ValueError:
+                                            pass
+                                elif key == 'IR_RF':  # Right Front
+                                    if value != 'INV':
+                                        try:
+                                            sensor_data['laser_sensors']['right_front'] = float(value)
+                                        except ValueError:
+                                            pass
+                                elif key == 'IR_RB':  # Right Back
+                                    if value != 'INV':
+                                        try:
+                                            sensor_data['laser_sensors']['right_back'] = float(value)
+                                        except ValueError:
+                                            pass
+                                elif key == 'IR_BL':  # Back Left
+                                    if value != 'INV':
+                                        try:
+                                            sensor_data['laser_sensors']['back_left'] = float(value)
+                                        except ValueError:
+                                            pass
+                                elif key == 'IR_BR':  # Back Right
+                                    if value != 'INV':
+                                        try:
+                                            sensor_data['laser_sensors']['back_right'] = float(value)
+                                        except ValueError:
+                                            pass
+
+                            # Parse ultrasonic sensors
+                            elif key.startswith('US_'):
+                                if key == 'US_FL':  # Front Left
+                                    try:
+                                        # Convert cm to mm for consistency
+                                        sensor_data['ultrasonic_sensors']['front_left'] = float(value) * 10
+                                    except ValueError:
+                                        pass
+                                elif key == 'US_FR':  # Front Right
+                                    try:
+                                        sensor_data['ultrasonic_sensors']['front_right'] = float(value) * 10
+                                    except ValueError:
+                                        pass
+
+            logger.info(f"Parsed sensor data: {len(sensor_data['laser_sensors'])} IR, {len(sensor_data['ultrasonic_sensors'])} ultrasonic sensors")
+            return sensor_data
+
+        except Exception as e:
+            logger.error(f"Error parsing sensor response: {str(e)}")
+            return None
+
     def set_individual_wheel_speed(self, wheel, speed):
         """Set individual wheel speed (w[wheel][speed])"""
         if not (0 <= wheel <= 3):
