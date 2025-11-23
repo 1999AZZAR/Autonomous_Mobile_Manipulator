@@ -64,30 +64,46 @@ class SensorManager:
         try:
             # Read Sharp IR sensors (GP2Y0A02YK0F)
             # Assuming channels 0-5 for IR sensors
+            laser_sensors = {}
             for i, sensor_name in enumerate(['left_front', 'left_back', 'right_front', 'right_back', 'back_left', 'back_right']):
                 try:
                     distance = self.gpio.read_sharp_sensor(i, f'ir_{sensor_name}')
                     if distance is not None:
-                        sensor_data[f'ir_{sensor_name}'] = distance
+                        laser_sensors[sensor_name] = distance
+                        sensor_data[f'ir_{sensor_name}'] = distance  # Keep flat structure for display
                         self._update_sensor_health(f'ir_{sensor_name}', 'healthy')
                     else:
+                        laser_sensors[sensor_name] = None
                         sensor_data[f'ir_{sensor_name}'] = None
                         self._update_sensor_health(f'ir_{sensor_name}', 'no_data')
                 except Exception as e:
                     logger.error(f'Error reading IR sensor {sensor_name}: {str(e)}')
+                    laser_sensors[sensor_name] = None
                     sensor_data[f'ir_{sensor_name}'] = None
                     self._update_sensor_health(f'ir_{sensor_name}', 'error')
 
             # Ultrasonic sensors would be read here if available
             # For now, use simulated data
-            sensor_data['ultrasonic_front_left'] = 500  # mm
-            sensor_data['ultrasonic_front_right'] = 500  # mm
+            ultrasonic_sensors = {
+                'front_left': 500,  # mm
+                'front_right': 500   # mm
+            }
+            sensor_data['ultrasonic_front_left'] = 500  # Keep flat for display
+            sensor_data['ultrasonic_front_right'] = 500  # Keep flat for display
 
             # IMU data (would come from ROS2 topics)
-            sensor_data['imu'] = self.imu_data if self.imu_data else self._get_simulated_imu_data()
+            imu_data = self.imu_data if self.imu_data else self._get_simulated_imu_data()
+            sensor_data['imu'] = imu_data
 
         except Exception as e:
             logger.error(f'Error reading sensors: {str(e)}')
+            # Set default structured data even on error
+            laser_sensors = {name: None for name in ['left_front', 'left_back', 'right_front', 'right_back', 'back_left', 'back_right']}
+            ultrasonic_sensors = {'front_left': None, 'front_right': None}
+
+        # Always add structured data for path planning and control systems
+        sensor_data['laser_sensors'] = laser_sensors
+        sensor_data['ultrasonic_sensors'] = ultrasonic_sensors
 
         return sensor_data
 
@@ -99,15 +115,39 @@ class SensorManager:
         # Simulate some variation
         sim_time = time.time()
 
+        # Generate flat sensor data
+        ir_left_front = 800 + random.randint(-100, 100)
+        ir_left_back = 750 + random.randint(-100, 100)
+        ir_right_front = 850 + random.randint(-100, 100)
+        ir_right_back = 700 + random.randint(-100, 100)
+        ir_back_left = 600 + random.randint(-100, 100)
+        ir_back_right = 650 + random.randint(-100, 100)
+        ultrasonic_front_left = 500 + random.randint(-50, 50)
+        ultrasonic_front_right = 550 + random.randint(-50, 50)
+
         return {
-            'ir_left_front': 800 + random.randint(-100, 100),
-            'ir_left_back': 750 + random.randint(-100, 100),
-            'ir_right_front': 850 + random.randint(-100, 100),
-            'ir_right_back': 700 + random.randint(-100, 100),
-            'ir_back_left': 600 + random.randint(-100, 100),
-            'ir_back_right': 650 + random.randint(-100, 100),
-            'ultrasonic_front_left': 500 + random.randint(-50, 50),
-            'ultrasonic_front_right': 550 + random.randint(-50, 50),
+            # Flat structure for display
+            'ir_left_front': ir_left_front,
+            'ir_left_back': ir_left_back,
+            'ir_right_front': ir_right_front,
+            'ir_right_back': ir_right_back,
+            'ir_back_left': ir_back_left,
+            'ir_back_right': ir_back_right,
+            'ultrasonic_front_left': ultrasonic_front_left,
+            'ultrasonic_front_right': ultrasonic_front_right,
+            # Structured data for control systems
+            'laser_sensors': {
+                'left_front': ir_left_front,
+                'left_back': ir_left_back,
+                'right_front': ir_right_front,
+                'right_back': ir_right_back,
+                'back_left': ir_back_left,
+                'back_right': ir_back_right
+            },
+            'ultrasonic_sensors': {
+                'front_left': ultrasonic_front_left,
+                'front_right': ultrasonic_front_right
+            },
             'imu': {
                 'orientation': {
                     'x': math.sin(sim_time * 0.1) * 0.1,  # Small roll

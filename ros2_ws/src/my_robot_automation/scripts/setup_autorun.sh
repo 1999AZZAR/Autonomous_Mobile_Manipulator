@@ -53,16 +53,15 @@ create_service_file() {
     cat > "$SERVICE_FILE" << EOF
 [Unit]
 Description=Autonomous Mobile Manipulator Control System
-After=network.target pigpiod.service
-Requires=pigpiod.service
+After=network.target
 Wants=network-online.target
 
 [Service]
 Type=simple
-User=pi
-Group=pi
-WorkingDirectory=$WORKING_DIR
-ExecStart=/usr/bin/python3 $MAIN_SCRIPT --simulation
+User=raspi
+Group=raspi
+WorkingDirectory=/tmp
+ExecStart=/usr/bin/python3 $MAIN_SCRIPT
 ExecReload=/bin/kill -HUP \$MAINPID
 Restart=always
 RestartSec=5
@@ -75,7 +74,7 @@ NoNewPrivileges=yes
 PrivateTmp=yes
 ProtectSystem=strict
 ReadWritePaths=$WORKING_DIR
-ProtectHome=yes
+ProtectHome=read-only
 
 # Environment
 Environment=PYTHONPATH=$WORKING_DIR

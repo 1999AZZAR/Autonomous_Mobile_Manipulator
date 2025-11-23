@@ -1670,11 +1670,14 @@ HTML_TEMPLATE = """
         }
 
         function updateSensorDisplay(sensorData) {
-            // Update IR sensors
+            console.log('Updating sensor display with data:', sensorData);
+
+            // Update IR sensors - sensorData has keys like 'ir_left_front'
             const irContainer = document.getElementById('ir-sensors');
             irContainer.innerHTML = '';
             ['left_front', 'left_back', 'right_front', 'right_back', 'back_left', 'back_right'].forEach(sensor => {
-                const value = sensorData.laser_sensors?.[sensor] || 'N/A';
+                const key = `ir_${sensor}`;
+                const value = sensorData[key] !== null && sensorData[key] !== undefined ? sensorData[key] : 'N/A';
                 const card = document.createElement('div');
                 card.className = 'sensor-card';
                 card.innerHTML = `
@@ -1684,11 +1687,12 @@ HTML_TEMPLATE = """
                 irContainer.appendChild(card);
             });
 
-            // Update ultrasonic sensors
+            // Update ultrasonic sensors - sensorData has keys like 'ultrasonic_front_left'
             const usContainer = document.getElementById('ultrasonic-sensors');
             usContainer.innerHTML = '';
             ['front_left', 'front_right'].forEach(sensor => {
-                const value = sensorData.ultrasonic_sensors?.[sensor] || 'N/A';
+                const key = `ultrasonic_${sensor}`;
+                const value = sensorData[key] !== null && sensorData[key] !== undefined ? sensorData[key] : 'N/A';
                 const card = document.createElement('div');
                 card.className = 'sensor-card';
                 card.innerHTML = `
@@ -1702,6 +1706,7 @@ HTML_TEMPLATE = """
             const imuContainer = document.getElementById('imu-data');
             imuContainer.innerHTML = '';
             if (sensorData.imu) {
+                console.log('IMU data found:', sensorData.imu);
                 const imu = sensorData.imu;
                 ['orientation', 'angular_velocity', 'linear_acceleration'].forEach(type => {
                     if (imu[type]) {
@@ -1716,6 +1721,15 @@ HTML_TEMPLATE = """
                         imuContainer.appendChild(card);
                     }
                 });
+            } else {
+                console.log('No IMU data found in sensorData');
+                const card = document.createElement('div');
+                card.className = 'sensor-card';
+                card.innerHTML = `
+                    <h4>IMU Data</h4>
+                    <div class="sensor-value">No IMU data available</div>
+                `;
+                imuContainer.appendChild(card);
             }
         }
 
@@ -3036,7 +3050,7 @@ class FlaskApp:
             return jsonify({'success': False, 'error': str(e), 'timestamp': time.time()}), 500
 
     def _move_robot(self):
-        """Move robot in specified direction"""
+        """Move robot in specified direction with sensor-based safety checks"""
         try:
             data = request.get_json()
             direction = data.get('direction')
@@ -3045,6 +3059,14 @@ class FlaskApp:
 
             if not direction:
                 return jsonify({'success': False, 'error': 'Direction required', 'timestamp': time.time()}), 400
+
+            # Sensor-based safety check before movement
+            if not self._check_movement_safety(direction):
+                return jsonify({
+                    'success': False,
+                    'error': f'Obstacle detected in {direction} direction. Movement blocked for safety.',
+                    'timestamp': time.time()
+                }), 403
 
             # Try Mega first, then ROS2, then GPIO
             success = False
@@ -3342,6 +3364,76 @@ class FlaskApp:
                 'timestamp': time.time()
             }), 500
 
+    def _check_movement_safety(self, direction):
+        """Check if movement in given direction is safe using sensor data"""
+        try:
+            if not self.sensors:
+                logger.warning("No sensor manager available for safety checks")
+                return True  # Allow movement if no sensors available
+
+            sensor_data = self.sensors.read_all_sensors()
+            laser_sensors = sensor_data.get('laser_sensors', {})
+            ultrasonic_sensors = sensor_data.get('ultrasonic_sensors', {})
+
+            # Safety thresholds (mm)
+            OBSTACLE_THRESHOLD = 300  # 30cm safety distance
+
+            # Check sensors based on movement direction
+            if direction == 'forward':
+                # Check front sensors
+                front_left_ir = laser_sensors.get('left_front', float('inf'))
+                front_right_ir = laser_sensors.get('right_front', float('inf'))
+                front_left_us = ultrasonic_sensors.get('front_left', float('inf'))
+                front_right_us = ultrasonic_sensors.get('front_right', float('inf'))
+
+                obstacles = []
+                if front_left_ir and front_left_ir < OBSTACLE_THRESHOLD:
+                    obstacles.append(f"Left IR: {front_left_ir}mm")
+                if front_right_ir and front_right_ir < OBSTACLE_THRESHOLD:
+                    obstacles.append(f"Right IR: {front_right_ir}mm")
+                if front_left_us and front_left_us < OBSTACLE_THRESHOLD:
+                    obstacles.append(f"Left Ultrasonic: {front_left_us}mm")
+                if front_right_us and front_right_us < OBSTACLE_THRESHOLD:
+                    obstacles.append(f"Right Ultrasonic: {front_right_us}mm")
+
+            elif direction == 'backward':
+                # Check back sensors
+                back_left = laser_sensors.get('back_left', float('inf'))
+                back_right = laser_sensors.get('back_right', float('inf'))
+
+                obstacles = []
+                if back_left and back_left < OBSTACLE_THRESHOLD:
+                    obstacles.append(f"Back Left IR: {back_left}mm")
+                if back_right and back_right < OBSTACLE_THRESHOLD:
+                    obstacles.append(f"Back Right IR: {back_right}mm")
+
+            elif direction in ['left', 'right']:
+                # Check side sensors for lateral movement
+                left_sensors = [laser_sensors.get('left_front', float('inf')),
+                               laser_sensors.get('left_back', float('inf'))]
+                right_sensors = [laser_sensors.get('right_front', float('inf')),
+                                laser_sensors.get('right_back', float('inf'))]
+
+                obstacles = []
+                if direction == 'left':
+                    for i, sensor_val in enumerate(left_sensors):
+                        if sensor_val and sensor_val < OBSTACLE_THRESHOLD:
+                            obstacles.append(f"Left sensor {i+1}: {sensor_val}mm")
+                else:  # right
+                    for i, sensor_val in enumerate(right_sensors):
+                        if sensor_val and sensor_val < OBSTACLE_THRESHOLD:
+                            obstacles.append(f"Right sensor {i+1}: {sensor_val}mm")
+
+            if obstacles:
+                logger.warning(f"Safety check failed for {direction} movement. Obstacles detected: {', '.join(obstacles)}")
+                return False
+
+            return True
+
+        except Exception as e:
+            logger.error(f"Error in movement safety check: {str(e)}")
+            return True  # Allow movement if safety check fails
+
     def _execute_sequence(self):
         """Execute a movement sequence"""
         try:
@@ -3489,9 +3581,9 @@ class FlaskApp:
             }), 500
 
     def _navigate_waypoints_async(self, waypoints):
-        """Navigate waypoints asynchronously using IMU-based dead reckoning"""
+        """Navigate waypoints asynchronously using IMU-based dead reckoning with sensor obstacle avoidance"""
         try:
-            logger.info(f'Starting IMU-based waypoint navigation with {len(waypoints)} waypoints')
+            logger.info(f'Starting sensor-aware IMU-based waypoint navigation with {len(waypoints)} waypoints')
 
             # Access the main app's IMU position tracking
             main_app = None
@@ -3506,13 +3598,13 @@ class FlaskApp:
                 target_x, target_y, target_z = waypoint
                 logger.info(f'Navigating to waypoint {i + 1}: ({target_x:.1f}, {target_y:.1f}, {target_z:.1f})')
 
-                # Navigate to waypoint using IMU-based position tracking
-                success = self._navigate_to_coordinate_imu(target_x, target_y, main_app)
+                # Navigate to waypoint using IMU-based position tracking with sensor safety
+                success = self._navigate_to_coordinate_imu_sensor_safe(target_x, target_y, main_app)
 
                 if success:
                     logger.info(f'Successfully reached waypoint {i + 1}')
                 else:
-                    logger.warning(f'Failed to reach waypoint {i + 1} within timeout, continuing to next waypoint')
+                    logger.warning(f'Failed to reach waypoint {i + 1} within timeout or due to obstacles, continuing to next waypoint')
 
                 # Brief pause at waypoint
                 time.sleep(2)
@@ -3606,6 +3698,117 @@ class FlaskApp:
 
         except Exception as e:
             logger.error(f'IMU coordinate navigation error: {str(e)}')
+            return False
+
+    def _navigate_to_coordinate_imu_sensor_safe(self, target_x, target_y, main_app=None):
+        """Navigate to specific coordinate using IMU dead reckoning with sensor-based obstacle avoidance"""
+        try:
+            timeout = 30.0  # 30 second timeout per waypoint
+            start_time = time.time()
+            tolerance = 0.2  # 20cm tolerance
+
+            while time.time() - start_time < timeout:
+                # Get current position from IMU tracking
+                if main_app and hasattr(main_app, 'get_current_position'):
+                    current_state = main_app.get_current_position()
+                    if not current_state['initialized']:
+                        logger.warning("IMU position not initialized, waiting...")
+                        time.sleep(1)
+                        continue
+
+                    current_pos = current_state['position']
+                    current_heading = current_state['orientation'][2]  # yaw
+                else:
+                    # Fallback to simple position tracking
+                    current_pos = [0.0, 0.0, 0.0]
+                    current_heading = 0.0
+
+                # Calculate distance and bearing to target
+                dx = target_x - current_pos[0]
+                dy = target_y - current_pos[1]
+                distance = math.sqrt(dx*dx + dy*dy)
+
+                logger.debug(f'Current: ({current_pos[0]:.2f}, {current_pos[1]:.2f}) '
+                           f'Heading: {current_heading:.1f}°, '
+                           f'Target: ({target_x:.1f}, {target_y:.1f}), '
+                           f'Distance: {distance:.2f}m')
+
+                # Check if we've reached the waypoint
+                if distance <= tolerance:
+                    logger.info(f'Waypoint reached! Distance: {distance:.2f}m')
+                    if self.mega:
+                        self.mega.send_command_to_mega('s')  # Stop
+                    return True
+
+                # Sensor safety check before movement
+                if not self._check_movement_safety('forward'):
+                    logger.warning("Obstacle detected during navigation - stopping for safety")
+                    if self.mega:
+                        self.mega.send_command_to_mega('s')  # Emergency stop
+                    return False  # Cannot continue navigation
+
+                # Calculate required bearing to target
+                target_bearing = math.degrees(math.atan2(dy, dx))
+
+                # Calculate turn angle
+                turn_angle = target_bearing - current_heading
+
+                # Normalize turn angle to -180 to 180 degrees
+                while turn_angle > 180:
+                    turn_angle -= 360
+                while turn_angle < -180:
+                    turn_angle += 360
+
+                # Execute turn if needed (5 degree tolerance)
+                if abs(turn_angle) > 5:
+                    # Check if turn direction is safe
+                    turn_direction = 'right' if turn_angle > 0 else 'left'
+                    if not self._check_movement_safety(turn_direction):
+                        logger.warning(f"Obstacle detected in {turn_direction} during turn - cannot navigate")
+                        if self.mega:
+                            self.mega.send_command_to_mega('s')
+                        return False
+
+                    turn_command = 'e' if turn_angle > 0 else 'q'  # e=right turn, q=left turn
+                    turn_time = min(abs(turn_angle) / 45.0, 2.0)  # Max 2 seconds turn
+
+                    if self.mega:
+                        logger.debug(f'Turning {turn_angle:.1f}° for {turn_time:.1f}s')
+                        self.mega.send_command_to_mega(turn_command)
+                        time.sleep(turn_time)
+                        self.mega.send_command_to_mega('s')
+                        time.sleep(0.5)  # Brief pause
+
+                # Move forward (proportional to remaining distance)
+                if distance > tolerance:
+                    # Speed based on distance (slower when close)
+                    speed_factor = min(distance / 2.0, 1.0)  # Max speed at 2m distance
+                    move_time = min(distance / 0.3 * speed_factor, 5.0)  # Max 5 seconds
+
+                    # Final safety check before moving
+                    if not self._check_movement_safety('forward'):
+                        logger.warning("Obstacle detected right before movement - stopping")
+                        if self.mega:
+                            self.mega.send_command_to_mega('s')
+                        return False
+
+                    if self.mega:
+                        logger.debug(f'Moving forward for {move_time:.1f}s (distance: {distance:.2f}m)')
+                        self.mega.send_command_to_mega('f')
+                        time.sleep(move_time)
+                        self.mega.send_command_to_mega('s')
+                        time.sleep(0.5)  # Brief pause
+
+                time.sleep(0.2)  # Small delay between navigation iterations
+
+            logger.warning(f'Waypoint navigation timeout after {timeout}s')
+            return False
+
+        except Exception as e:
+            logger.error(f'Sensor-safe IMU waypoint navigation error: {str(e)}')
+            # Emergency stop on error
+            if self.mega:
+                self.mega.send_command_to_mega('s')
             return False
 
     def _get_current_position(self):
