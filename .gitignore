@@ -1,7 +1,7 @@
 # =================================================================================
 # LKS 2025 Autonomous Mobile Manipulator Project - .gitignore
 # =================================================================================
-# This file contains comprehensive ignore patterns for ROS 2, Docker, n8n, and
+# This file contains comprehensive ignore patterns for ROS 2, Docker, and
 # general development artifacts specific to this robotics competition project.
 
 # =================================================================================
@@ -58,31 +58,6 @@ docker-compose.*.yml
 # Docker image layers and metadata
 **/Dockerfile.tmp
 
-# =================================================================================
-# n8n Workflow Data (Track source workflows, ignore runtime data)
-# =================================================================================
-
-# n8n runtime database and logs
-n8n_data/database.sqlite
-n8n_data/n8nEventLog.log
-n8n_data/crash.journal
-
-# n8n binary data and caches
-n8n_data/binaryData/
-n8n_data/.n8n/
-n8n_data/temp/
-
-# n8n SSH keys and authentication
-n8n_data/ssh/
-n8n_data/git/
-
-# n8n configuration files (keep source, ignore generated)
-n8n_data/config
-
-# TRACK THESE: Keep workflow source files and documentation
-# n8n_data/workflows/*.json (tracked - these are source code)
-# n8n_data/workflows/README.md (tracked - documentation)
-# n8n_data/nodes/package.json (tracked - dependencies)
 
 # =================================================================================
 # Python Specific Ignores
@@ -817,11 +792,6 @@ Release/
 # !logs/debug.log
 # !.vscode/settings.json
 
-# Track n8n workflow source files and documentation
-!n8n_data/workflows/
-!n8n_data/workflows/*.json
-!n8n_data/workflows/*.md
-!n8n_data/nodes/package.json
 
 # Track ROS 2 workspace source files
 !ros2_ws/src/

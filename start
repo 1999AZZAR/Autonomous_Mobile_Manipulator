@@ -117,7 +117,7 @@ start_containers() {
                 export ROBOT_MODE="hardware"
                 CONTAINER_NAME="ros2_minimal_hw_container"
             else
-                print_info "Starting in HARDWARE mode (real sensors + n8n)"
+                print_info "Starting in HARDWARE mode (real sensors)"
                 COMPOSE_FILE="docker-compose.prod.yml"
                 export ROBOT_MODE="hardware"
                 CONTAINER_NAME="ros2_hw_container"
@@ -130,7 +130,7 @@ start_containers() {
                 export ROBOT_MODE="simulation"
                 CONTAINER_NAME="ros2_minimal_sim_container"
             else
-                print_info "Starting in SIMULATION mode (simulated sensors + n8n)"
+                print_info "Starting in SIMULATION mode (simulated sensors)"
                 COMPOSE_FILE="docker-compose.dev.yml"
                 export ROBOT_MODE="simulation"
                 CONTAINER_NAME="ros2_sim_container"
@@ -230,14 +230,6 @@ check_service_health() {
         print_warning "Robot API (5000): Not accessible"
     fi
     
-    # Check n8n (only if not in minimal mode)
-    if [ "$MINIMAL_MODE" != true ]; then
-        if curl -s --max-time 5 http://localhost:5678 &> /dev/null; then
-            print_success "n8n Automation (5678): Accessible"
-        else
-            print_warning "n8n Automation (5678): Not running"
-        fi
-    fi
 }
 
 show_access_info() {
@@ -253,15 +245,8 @@ show_access_info() {
     echo "  Remote Access:  http://${ip}:8000"
     echo ""
     echo -e "${BLUE}Additional Services:${NC}"
-    if [ "$MINIMAL_MODE" = true ]; then
-        echo "  Robot API:      http://localhost:5000"
-        echo "  WebSocket:      ws://localhost:8765"
-        echo "  n8n Automation: Not started (minimal mode)"
-    else
-        echo "  Robot API:      http://localhost:5000"
-        echo "  n8n Automation: http://localhost:5678"
-        echo "  WebSocket:      ws://localhost:8765"
-    fi
+    echo "  Robot API:      http://localhost:5000"
+    echo "  WebSocket:      ws://localhost:8765"
     echo ""
     
     if [ "$MODE" = "hw" ] || [ "$MODE" = "hardware" ]; then
@@ -555,7 +540,7 @@ MODES:
     --test              Run system tests and interactive test menu
 
 OPTIONS:
-    --minimal           Start in minimal mode (Web UI + ROS2 only, no n8n)
+    --minimal           Start in minimal mode (Web UI + ROS2 only)
 
 OPERATIONS:
     --status            Show system status
@@ -572,8 +557,8 @@ OPTIONS:
     -h, --help          Show this help
 
 EXAMPLES:
-    ./start --hw                # Start with real hardware + n8n
-    ./start --sim               # Start with simulation + n8n
+    ./start --hw                # Start with real hardware
+    ./start --sim               # Start with simulation
     ./start --hw --minimal      # Start hardware mode (Web UI + ROS2 only)
     ./start --sim --minimal     # Start simulation mode (Web UI + ROS2 only)
     ./start --test              # Run tests

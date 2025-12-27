@@ -28,13 +28,12 @@ It integrates advanced robotics capabilities through a distributed architecture 
 ### Technology Stack
 
 - **Robotics Framework:** ROS 2 (Iron)
-- **Simulation:** Gazebo
+- **Web Framework:** Flask (Python)
+- **Hardware Control:** Arduino Mega (ATmega2560)
+- **Serial Communication:** PySerial with auto-reconnection
 - **Containerization:** Docker, Docker Compose
-- **Navigation:** ROS 2 Navigation Stack (Nav2)
-- **Manipulation:** Servo-based control system
-- **Workflow Automation:** n8n.io
+- **Navigation:** Custom path planning algorithms
 - **Primary Language:** Python 3
-- **Robot Modeling:** URDF, xacro
 
 ### System Capabilities
 
@@ -47,7 +46,7 @@ This project provides a complete production-ready robotics platform featuring:
   - **Raspberry Pi (High-level):** TF-Luna LiDAR, MPU6050 IMU, line sensors (3x), path planning, ROS2 coordination, web interface
 - **ROS 2 Iron** for robust robot control and navigation
 - **Serial communication** between RPi and Arduino Mega for coordinated control
-- **n8n workflow automation** for high-level task orchestration
+- **Web-based control interface** with real-time monitoring and manual control
 - **Docker containerization** for reliable deployment
 - **Hardware control systems** for safety and operational management
 
@@ -93,7 +92,6 @@ The system uses a distributed architecture with clear separation of responsibili
 - TF-Luna LiDAR processing for obstacle detection
 - Line sensor processing for line following
 - Serial communication management with Arduino Mega
-- n8n workflow automation integration
 - Docker container orchestration
 
 **Arduino Mega Responsibilities (Real-time Control):**
@@ -107,63 +105,52 @@ The system uses a distributed architecture with clear separation of responsibili
 - Acceleration limiting and motor synchronization
 
 **Communication Protocol:**
-- Bidirectional serial communication (/dev/ttyACM0, 115200 baud)
-- JSON-based command protocol for motor control commands
-- Real-time sensor data streaming from Arduino to Raspberry Pi
-- Error handling and automatic reconnection
-- Command acknowledgment and status feedback
+- Serial communication at 115200 baud (/dev/ttyACM0, /dev/ttyACM1, etc.)
+- Single-character command protocol (f, b, l, r, q, e, z, x, c, w, t, y, a, j, 5-9, 0, u, d, s, p, 1-4, g, h)
+- Real-time sensor data transmission from Arduino Mega
+- Status messages and diagnostic feedback
+- Automatic reconnection and error recovery
 
 External control systems interact with the `my_robot_automation` package, which translates high-level commands into specific ROS 2 messages, service calls, and action goals.
 
 ### Control Interface Architecture
 
-The system provides two complementary interfaces for different use cases:
+The system provides a unified web-based interface for complete robot control and monitoring:
 
-#### Web UI - Primary Interface (Required)
+#### Web UI - Primary Interface
 The Web UI at http://localhost:8000 provides complete robot control and monitoring capabilities:
 
-- **Direct Control:** All movement, gripper, and container operations
-- **Path Planning:** Visual waypoint manager with pre-built patterns (square, triangle, hexagon)
-- **Real-time Monitoring:** All sensor data from distributed architecture (IR Sharp, HC-SR04, TF-Luna LIDAR, line sensors, IMU, camera)
-- **System Management:** Status monitoring, logs, command history, IMU calibration
-- **Hardware Reference:** Complete GPIO pinout and power distribution information
+- **Movement Control:** Directional movement (forward, backward, strafe, turn) with variable speed
+- **Individual Wheel Control:** Direct control of each omni wheel for testing and calibration
+- **Gripper Control:** Servo-based manipulation (open/close, tilt positioning)
+- **Path Planning:** Visual waypoint navigation with grid-based path planning
+- **Real-time Monitoring:** Live sensor data from all sensors (IR, ultrasonic, LIDAR, IMU, line sensors)
+- **System Diagnostics:** Connection status, sensor health, command history
+- **Manual Testing:** Individual component testing and calibration tools
 
-**Use the Web UI for:**
-- Manual operation and testing
-- Real-time monitoring
-- Quick navigation tasks
-- Emergency interventions
-- Learning and development
+#### REST API
+The Flask-based REST API provides programmatic access to all robot functions:
 
-#### N8N - Automation Interface (Optional but Recommended)
-The N8N workflow engine at http://localhost:5678 adds automation capabilities:
-
-- **Scheduled Operations:** Time-based patrol routes and tasks
-- **Event-Driven Logic:** Sensor threshold responses and conditional behaviors
-- **Complex Workflows:** Multi-step sequences with decision trees
-- **External Integration:** Connect to databases, APIs, and external services
-- **Pre-configured Workflows:** 38+ robot control workflows included
-
-**Use N8N for:**
-- Autonomous operation
-- Repetitive tasks
-- Production automation
-- System integration
-- Advanced logic
+- **Movement Control:** `/api/robot/move`, `/api/robot/turn`, `/api/robot/stop`
+- **Speed Control:** `/api/robot/speed`, `/api/robot/turbo`
+- **Sensor Data:** `/api/robot/sensors`, `/api/status`
+- **Individual Control:** `/api/robot/wheels/<id>`, `/api/robot/picker/*`
+- **System Management:** `/health`, `/api/mega/status`
 
 **Architecture Diagram:**
 ```
-Operator → Web UI (Primary) ─┐
-                              ├─→ REST API → ROS2 → Hardware
-N8N Workflows (Optional) ─────┘
+Operator → Web UI → REST API → Python Control Logic → Serial → Arduino Mega → Motors/Sensors
 ```
 
-**Deployment Options:**
-- **Development/Testing:** Web UI only (simplest setup)
-- **Manual Operation:** Web UI + Hardware (direct control)
-- **Production Automation:** Web UI + N8N + Hardware (full capabilities)
+**Current Deployment Options:**
+- **Development:** Simulation mode (no hardware required)
+- **Testing:** Web UI with Arduino Mega hardware for validation
+- **Production:** Full RPi + Arduino Mega deployment with web interface
 
-See `docs/SYSTEM_ARCHITECTURE.md` for detailed decision matrices and use case recommendations.
+**Future Deployment Options (Planned):**
+- **Automated Production:** Advanced workflow automation integration
+- **Multi-Robot Systems:** Coordinated multi-robot operations
+- **Industrial Automation:** Production line integration
 
 ## Table of Contents
 
@@ -202,6 +189,11 @@ See `docs/SYSTEM_ARCHITECTURE.md` for detailed decision matrices and use case re
   - Back left/right (rear obstacle detection)
 - **HC-SR04 Ultrasonic Sensors**: 2 units for close-range detection
   - Front left/right ultrasonic sensors (0-400cm range)
+- **Line Sensors**: 3 individual sensors for line following
+  - Left, center, and right line detection
+- **Motor Encoders**: Built-in quadrature encoders on all 4 motors
+  - 28 counts per revolution (PG28 motors)
+  - Real-time RPM calculation and PID feedback
 
 **Raspberry Pi (High-level Sensors):**
 - **TF-Luna LIDAR**: Single-point LIDAR sensor (I2C/UART interface, up to 8m range)
@@ -213,13 +205,18 @@ See `docs/SYSTEM_ARCHITECTURE.md` for detailed decision matrices and use case re
 ### Actuators & Manipulation
 
 **Arduino Mega (Real-time Actuators):**
-- **Servo-Based Picker System**:
-  - Gripper servo: Open/close control (0-180°) for object grasping
-  - Gripper tilt servo: Angle adjustment (0-180°) for precise positioning
-- **Motor Control System**:
-  - 3-wheel omnidirectional drive motors with PID velocity control
-  - Emergency stop system with immediate motor shutdown
-  - Acceleration limiting and motor synchronization
+- **YFROBOT v2 Motor Driver Shield**:
+  - 4x PG28 DC motors with built-in encoders (28 CPR)
+  - I2C communication with Arduino Mega
+  - PID velocity control for precise motor speed regulation
+- **Omni Wheel Drive System**:
+  - 3-wheel hexagonal configuration (135° wheel spacing)
+  - Front Right (45°), Front Left (135°), Back (180°) wheel angles
+  - Selective wheel usage based on movement type
+- **Lifter Motor Control**:
+  - Dedicated motor for vertical lifting operations
+  - Encoder feedback with position tracking
+  - Limit switch safety integration
 
 **Raspberry Pi (High-level Control):**
 - Path planning and trajectory generation for manipulation tasks
@@ -230,16 +227,26 @@ See `docs/SYSTEM_ARCHITECTURE.md` for detailed decision matrices and use case re
 ### Control Systems
 
 **Arduino Mega (Real-time Control):**
-- **Motor Control**: PID velocity control for 3 omni-directional wheels
-- **Sensor Fusion**: Real-time processing of 8 proximity sensors (IR + ultrasonic)
-- **Emergency Systems**: Immediate motor shutdown and safety monitoring
-- **Actuator Control**: Precise servo positioning with feedback
-- **Motion Control**: Acceleration limiting and motor synchronization
+- **PID Motor Control**: Individual PID controllers for each of 4 motors
+  - Tunable Kp, Ki, Kd parameters for optimal performance
+  - 10ms sample time for responsive control
+  - Anti-windup protection and output limiting
+- **Omni Kinematics**: Inverse kinematics for hexagonal 3-wheel robot
+  - Selective wheel usage (2-3 wheels based on movement type)
+  - Movement thresholds to prevent unwanted wheel activation
+  - Speed normalization and acceleration limiting
+- **Serial Command Interface**: Extensive command set for robot control
+  - Single-character commands for immediate response
+  - Speed multipliers (50%-100%) for fine control
+  - Built-in test patterns and calibration routines
+- **Safety Systems**: Emergency stop and motor protection
+  - Immediate motor shutdown on command
+  - Encoder monitoring and stall detection
 
 **Raspberry Pi (High-level Control):**
 - **ROS2 Navigation**: Path planning with obstacle avoidance
 - **Web Interface**: REST API and web-based robot control
-- **Workflow Automation**: n8n integration for complex task sequences
+- **API Automation**: REST API for programmatic robot control
 - **Sensor Integration**: IMU and LIDAR processing for localization
 - **Path Planning**: Grid-based navigation with waypoint following
 
@@ -289,14 +296,14 @@ interface.cleanup()  # ROS 2 shutdown automatically
 - **Professional UI/UX**: Responsive design with intuitive controls
 - **API integration**: Frontend for all ROS2 REST API endpoints
 
-### n8n Workflow Engine
+### Future Automation Integration
 
-- **Workflow automation**: High-level task orchestration
-- **HTTP API integration**: Direct control via REST endpoints
-- **Visual workflow designer**: Drag-and-drop automation
-- **Webhook integration**: Real-time workflow triggers
-- **Scheduled automation**: Patrol, monitoring, and maintenance tasks
-- **Pre-configured workflows**: 33+ robot control workflows
+- **Workflow Automation**: Planned low-code automation platform (n8n)
+- **HTTP API Foundation**: REST endpoints ready for automation integration
+- **Programmatic Control**: Direct API access for custom automation
+- **Sequence Execution**: Movement pattern automation via API
+- **Event-Driven Control**: Sensor-based automation triggers
+- **Multi-System Integration**: Ready for external automation platforms
 
 ## API Capabilities Overview
 
@@ -304,18 +311,23 @@ The Autonomous Mobile Manipulator provides a comprehensive REST API for complete
 
 ### **Core Control APIs**
 
-- **Movement Control:**
-  - `POST /api/robot/move` - Directional movement (forward, backward, strafe)
-  - `POST /api/robot/turn` - Rotation control (left, right)
-  - `POST /api/robot/stop` - Emergency stop
+- **Arduino Mega Serial Commands:**
+  - `POST /api/serial/send` - Send commands directly to Arduino Mega
+  - Supported commands: f, b, l, r, q, e, z, x, c, w, t, y, a, j, 5-9, 0, u, d, s, p, 1-4, g, h
+
+- **Movement Commands:**
+  - Forward: `f`, Backward: `b`, Left: `l`, Right: `r`
+  - Diagonal: Forward-Left: `q`, Forward-Right: `e`, Backward-Left: `z`, Backward-Right: `x`
+  - Rotation: Clockwise: `c`, Counter-clockwise: `w`
+  - Turns: Left turn: `t`, Right turn: `y`
+  - Arcs: Left arc: `a`, Right arc: `j`
 
 - **Speed Control:**
-  - `POST /api/robot/speed` - Set movement speed multiplier
-  - `POST /api/robot/turbo` - Toggle fast/slow response mode
+  - Speed levels: 5(50%), 6(60%), 7(70%), 8(80%), 9(90%), 0(100%)
+  - Send speed command before movement commands
 
-- **Individual Wheel Control:**
-  - `POST /api/robot/wheels/<wheel_id>` - Direct wheel speed control
-  - `POST /api/robot/wheels/stop` - Stop all individual wheel control
+- **Lifter Control:**
+  - Lift up: `u`, Lift down: `d`, Stop: `s`
 
 ### **Manipulation APIs**
 
@@ -437,16 +449,15 @@ The setup script will:
   - IMU calibration
   - Hardware pinout reference
 
-**Automation Interface (Optional but Recommended):**
-- **N8N Workflow Automation**: http://localhost:5678
-  - Automated patrol routes
-  - Scheduled operations
-  - Complex decision logic
-  - External system integration
-  - 38 pre-built workflows included
+**REST API Access:**
+- **API Endpoints**: http://localhost:8000/api/*
+  - Programmatic robot control
+  - Sensor data access
+  - System diagnostics
+  - Individual component control
 
 **Developer Access:**
-- **REST API**: http://127.0.0.1:5000 (Backend for Web UI and N8N)
+- **REST API**: http://127.0.0.1:8000/api/* (Backend for Web UI and automation)
 - **ROS 2 Container**: `docker exec -it ros2_sim_container bash`
 
 Note: Use `127.0.0.1` instead of `localhost` for API calls to ensure IPv4 connectivity.
@@ -502,8 +513,6 @@ lks_robot_project/
 │   ├── hardware/                  # Hardware specifications
 │   ├── installation/              # Installation guides
 │   └── troubleshooting/           # Troubleshooting guides
-├── n8n_data/                     # n8n workflow data
-│   └── workflows/                # Workflow definitions
 │       ├── robot_simple_test.json
 │       ├── robot_pick_place.json
 │       ├── robot_mobile_pick_place.json
@@ -525,40 +534,95 @@ lks_robot_project/
         └── my_robot_navigation/  # Navigation control
 ```
 
-## Workflow Automation
+## Arduino Mega Command System
 
-The system includes comprehensive n8n workflows matching the actual robot hardware configuration:
+The Raspberry Pi communicates with the Arduino Mega via serial commands. The Arduino Mega implements a comprehensive command-based control system:
 
-### Combination Workflows
+### Movement Commands
 
-- **Robot Simple Test**: Comprehensive system test of all robot capabilities
-- **Robot Emergency Stop**: Emergency safety system and monitoring
-- **Robot Pick and Place**: Basic servo-based pick and place automation
-- **Mobile Pick and Place**: Complete mobile manipulation with navigation
-- **Inspection Patrol**: Autonomous security and inspection patrols
-- **Material Transport**: Container-to-container material transport
-- **Search and Retrieve**: Sensor-based object detection and retrieval
-- **Emergency Response**: Comprehensive safety and emergency response
-- **System Calibration**: Complete system testing and calibration
-- **Production Line**: Manufacturing automation with multiple stations
-- **Object Recognition**: Computer vision for object detection
-- **Obstacle Avoidance**: Reactive obstacle avoidance behavior
-- **Path Planning**: Advanced path planning with sensor integration
+**Basic Directions (8-directional movement):**
+- `f`/`F` - Forward
+- `b`/`B` - Backward
+- `l`/`L` - Left (strafe)
+- `r`/`R` - Right (strafe)
 
-### Individual Control Workflows
+**Diagonal Movements:**
+- `q`/`Q` - Forward-Left
+- `e`/`E` - Forward-Right
+- `z`/`Z` - Backward-Left
+- `x`/`X` - Backward-Right
 
-- **Control Omni Wheels**: Direct control of 3 omni wheels (Back, Front Left, Front Right)
-- **Control Picker System**: Complete control of 4-component picker system
-  - Gripper control (servo)
-  - Gripper tilt adjustment (servo)
-  - Gripper neck positioning (servo continuous)
-  - Gripper base height (motor)
-- **Control Container System**: Management of 4-container load system
-- **Control Hardware Controls**: Emergency, start/stop, and mode controls
-- **Control Servo**: Individual servo positioning (legacy)
-- **Get Robot Status**: Comprehensive status monitoring and reporting
+**Rotation & Turning:**
+- `c`/`C` - Rotate Clockwise (spin in place)
+- `w`/`W` - Rotate Counter-Clockwise (spin in place)
+- `t`/`T` - Turn Left (forward + left rotation)
+- `y`/`Y` - Turn Right (forward + right rotation)
 
-All workflows use HTTP API calls to the robot's comprehensive REST interface at `http://127.0.0.1:5000`, which coordinates between ROS2 high-level planning and Arduino Mega real-time execution for complete robotic automation.
+**Arc Movements:**
+- `a`/`A` - Arc Left (gentle left curve)
+- `j`/`J` - Arc Right (gentle right curve)
+
+### Speed Control
+
+- `5` - 50% speed
+- `6` - 60% speed
+- `7` - 70% speed
+- `8` - 80% speed
+- `9` - 90% speed
+- `0` - 100% speed (full speed)
+
+### Lifter Control
+
+- `u`/`U` - Lift Up
+- `d`/`D` - Lift Down
+
+### System Commands
+
+- `s`/`S` - Emergency Stop (all motors)
+- `p`/`P` - Print Status (RPM, PID values)
+- `1-4` - Test individual motors (Motor 1-4)
+- `g`/`G` - Full calibration sequence
+- `h`/`H` - Figure-8 test pattern
+
+### Command Usage Examples
+
+```bash
+# Move forward
+curl -X POST http://localhost:8000/api/serial/send \
+  -H "Content-Type: application/json" \
+  -d '{"command": "f"}'
+
+# Set speed to 80% then move forward
+curl -X POST http://localhost:8000/api/serial/send -d '{"command": "8"}'
+curl -X POST http://localhost:8000/api/serial/send -d '{"command": "f"}'
+
+# Emergency stop
+curl -X POST http://localhost:8000/api/serial/send -d '{"command": "s"}'
+
+# Lifter operation
+curl -X POST http://localhost:8000/api/serial/send -d '{"command": "u"}'
+```
+
+## Automation Features
+
+The system provides basic automation capabilities through the REST API and web interface. Advanced workflow automation is planned for future implementation:
+
+### Current Automation Features
+
+- **Arduino Mega Command Sequences**: Programmed movement patterns via serial commands
+- **Speed Control Integration**: Variable speed control with command sequences
+- **Emergency Protocols**: Automated safety responses and system recovery
+- **Serial Command Automation**: Web interface for sending Arduino Mega commands
+
+### Planned Automation Features (Future)
+
+- **Workflow Automation**: Low-code automation platform for complex task sequences
+- **Scheduled Operations**: Time-based autonomous operations
+- **Event-Driven Automation**: Sensor-based conditional behaviors
+- **Multi-Robot Coordination**: Distributed robot task management
+- **Production Line Automation**: Manufacturing process orchestration
+
+The REST API provides the foundation for future automation integration, with all robot functions accessible via HTTP endpoints for external automation systems.
 
 ## API Documentation
 
@@ -747,26 +811,34 @@ curl -X POST http://127.0.0.1:5000/api/robot/emergency-stop \
   -d '{"activate": false, "reason": "Emergency resolved"}'
 ```
 
-### n8n Webhook Integration
+### Automation Integration (Future)
+
+The REST API is designed for easy integration with external automation systems:
 
 ```bash
-# Robot control webhook (for n8n workflows)
-curl -X POST http://127.0.0.1:5000/webhook/robot-control \
+# Programmatic movement control
+curl -X POST http://localhost:8000/api/robot/move \
   -H "Content-Type: application/json" \
-  -d '{"command": "forward"}'
+  -d '{"direction": "forward", "speed": 0.5}'
 
-# Emergency stop webhook
-curl -X POST http://127.0.0.1:5000/webhook/emergency-stop \
+# Arduino Mega command examples
+# Move forward
+curl -X POST http://localhost:8000/api/serial/send \
   -H "Content-Type: application/json" \
-  -d '{"activate": true, "reason": "Workflow emergency"}'
+  -d '{"command": "f"}'
 
-# Pick and place webhook
-curl -X POST http://127.0.0.1:5000/webhook/robot/pick_place \
+# Set speed to 80% and move forward
+curl -X POST http://localhost:8000/api/serial/send \
   -H "Content-Type: application/json" \
-  -d '{
-    "pickup_location": {"position": {"x": 1.0, "y": 0.0, "z": 0.0}},
-    "place_location": {"position": {"x": -1.0, "y": 0.0, "z": 0.0}}
-  }'
+  -d '{"command": "8"}'
+curl -X POST http://localhost:8000/api/serial/send \
+  -H "Content-Type: application/json" \
+  -d '{"command": "f"}'
+
+# Lift operation
+curl -X POST http://localhost:8000/api/serial/send \
+  -H "Content-Type: application/json" \
+  -d '{"command": "u"}'
 ```
 
 ### Status Monitoring
@@ -824,13 +896,15 @@ ros2 launch my_robot_bringup robot.launch.py
 - **Container Development**: All ROS2 packages are available within the Docker containers. Edit files on your host (they're volume-mounted) and execute within the container.
 - **IDE Integration**: Use VS Code with Docker container integration for seamless development experience.
 
-### Workflow Development
+### API Integration Development
 
-1. Access n8n at http://localhost:5678
-2. Import workflows from `n8n_data/workflows/`
-3. Modify workflows using the visual editor
-4. Test workflows with manual triggers
-5. Export updated workflows back to files
+The REST API enables programmatic control for custom automation:
+
+1. **REST API Access**: Use HTTP endpoints for robot control
+2. **Python Integration**: Direct API calls from Python applications
+3. **Sequence Creation**: Build movement sequences via API calls
+4. **Sensor Monitoring**: Real-time sensor data access
+5. **Future Automation**: Foundation for advanced workflow systems
 
 ### API Development
 
@@ -847,9 +921,10 @@ The robot API is implemented in `ros2_ws/src/my_robot_automation/scripts/app.py`
 | `/api/robot/tasks/{task_id}/cancel` | POST   | Cancel running task              | `reason`                                       |
 | `/api/robot/navigation/status`      | GET    | Get navigation status            | `include_map`, `include_path`                |
 | `/api/robot/mode`                   | POST   | Set robot operating mode         | `mode`, `reason`, `force`                  |
-| `/api/robot/move`                   | POST   | Basic movement control           | `direction`, `speed`                         |
-| `/api/robot/turn`                   | POST   | Rotation control                 | `direction`, `speed`                         |
-| `/api/robot/stop`                   | POST   | Stop all movement                | None                                             |
+| `/api/serial/send`                  | POST   | Send Arduino Mega commands       | `command` (f,b,l,r,q,e,z,x,c,w,t,y,a,j,5-9,0,u,d,s,p,1-4,g,h) |
+| `/api/serial/monitor`               | GET    | Serial communication monitor     | None                                             |
+| `/api/mega/status`                  | GET    | Arduino Mega connection status   | None                                             |
+| `/api/mega/reconnect`               | POST   | Force Mega reconnection          | None                                             |
 | `/api/robot/picker/gripper`         | POST   | Control gripper open/close       | `command` ("open"/"close")                     |
 | `/api/robot/picker/gripper_tilt`    | POST   | Control gripper tilt angle       | `angle` (0-180°)                              |
 | `/api/robot/picker/gripper_neck`    | POST   | Control gripper neck position    | `position` (-1.0 to 1.0)                       |
@@ -859,9 +934,10 @@ The robot API is implemented in `ros2_ws/src/my_robot_automation/scripts/app.py`
 | `/api/robot/patrol`                 | POST   | Execute autonomous patrol        | `waypoints`, `patrol_speed`, ...             |
 | `/api/robot/obstacle-avoidance`     | POST   | Navigate with obstacle avoidance | `target_location`, `avoidance_distance`, ... |
 | `/api/robot/emergency-stop`         | POST   | Emergency stop control           | `activate`, `reason`, `force`              |
-| `/webhook/robot-control`            | POST   | n8n workflow integration         | `command`                                      |
-| `/webhook/emergency-stop`           | POST   | n8n emergency stop webhook       | `activate`, `reason`                         |
-| `/webhook/robot/pick_place`         | POST   | n8n pick and place webhook       | `pickup_location`, `place_location`          |
+| `/api/robot/sequences/execute`      | POST   | Execute movement sequence        | `sequence` (array)                             |
+| `/api/robot/sequences/save`         | POST   | Save movement sequence           | `name`, `sequence`                             |
+| `/api/robot/sequences/load/<name>`  | GET    | Load saved sequence              | None                                            |
+| `/api/robot/sequences/list`         | GET    | List saved sequences             | None                                            |
 
 *Container IDs: `left_front`, `left_back`, `right_front`, `right_back`*
 
@@ -923,8 +999,7 @@ sudo reboot
 
 # Access the robot
 # Web UI: http://raspberrypi:8000
-# n8n: http://raspberrypi:5678
-# API: http://raspberrypi:5000
+# API: http://raspberrypi:8000/api/*
 ```
 
 #### Manual Raspberry Pi Setup Steps
@@ -958,7 +1033,7 @@ Comprehensive documentation is available:
 
 - **[Control Systems Documentation](docs/software/CONTROL_SYSTEMS.md)** - Complete PID control, motion control, navigation, and safety systems
 - **[Software Configuration Guide](docs/software/README.md)** - Comprehensive software setup, ROS2 configuration, and system architecture
-- **[Workflow Management Guide](docs/workflows/WORKFLOW_MANAGEMENT_README.md)** - Complete n8n workflow automation guide
+- **[API Documentation](docs/api/README.md)** - Complete REST API reference and integration guide
 
 #### **API & Development**
 
@@ -980,22 +1055,27 @@ Comprehensive documentation is available:
 - **[Workflow Cleanup Report](docs/workflow/WORKFLOW_CLEANUP_REPORT.md)** - Workflow management and corrections
 - **[Connection Fix Report](docs/workflow/CONNECTION_FIX_REPORT.md)** - IPv4/IPv6 connectivity resolution
 
-#### **n8n Workflow Automation**
+#### **REST API Automation**
 
-The system includes **38 pre-configured n8n workflows** covering:
+The system provides comprehensive REST API automation covering:
 
-**Combination Workflows:**
+**Core Control APIs:**
+- Movement control (directional, speed, emergency stop)
+- Individual wheel control and calibration
+- Sensor data access and diagnostics
+- System status monitoring
 
-- Robot Simple Test, Emergency Stop, Pick & Place, Mobile Pick & Place
-- Inspection Patrol, Material Transport, Search & Retrieve, Emergency Response
-- System Calibration, Production Line, Object Recognition, Obstacle Avoidance
-- Path Planning with sensor integration
+**Advanced Features:**
+- Waypoint navigation and path planning
+- Movement sequence creation and execution
+- Real-time sensor fusion and monitoring
+- Serial communication diagnostics
 
-**Individual Control Workflows:**
-
-- Control Omni Wheels (3-wheel system), Control Picker System (4 components)
-- Control Container System (4 containers), Hardware Controls, Sensor Monitoring
-- All workflows use HTTP API calls to `http://127.0.0.1:5000` for full ROS2 integration
+**Integration Ready:**
+- HTTP-based API for easy automation integration
+- JSON responses for programmatic control
+- WebSocket support for real-time updates
+- Foundation for future workflow automation systems
 
 #### **Control System Features**
 

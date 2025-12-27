@@ -12,7 +12,7 @@ Complete documentation for the Autonomous Mobile Manipulator distributed system 
 
 - **[SYSTEM_ARCHITECTURE.md](./SYSTEM_ARCHITECTURE.md)**
   - Complete system architecture overview
-  - Web UI vs N8N decision matrices
+  - Web interface and API documentation
   - Deployment configurations
   - Operational modes
   - Communication flows
@@ -71,13 +71,22 @@ REST API and service documentation
 
 ---
 
-### 🔄 Workflow Documentation
+### 🔌 Arduino Mega Integration
 
-#### [workflows/](./workflows/)
-Workflow management and usage
+#### [../for_the_mega/](../for_the_mega/)
+Arduino Mega control system and documentation
 
-- **[Workflow Management Guide](./workflows/WORKFLOW_MANAGEMENT_README.md)**: Complete N8N workflow management tools
-- **38 Pre-built Workflows**: Ready-to-use automation patterns for robot control
+- **[Arduino Mega README](../for_the_mega/README.md)**: Complete Arduino Mega system documentation
+- **[Command Reference](../for_the_mega/COMMANDS.md)**: Detailed command system and usage
+- **[PID Control Guide](../for_the_mega/PID_CONTROL.md)**: Motor control and tuning information
+- **[Hardware Pinout](../for_the_mega/PINOUT.md)**: Arduino Mega pin assignments
+
+#### [api/](./api/)
+REST API and automation integration
+
+- **[API Documentation](./api/README.md)**: Complete REST API reference and endpoints
+- **[API Verification Report](./api/API_VERIFICATION_REPORT.md)**: API testing and validation results
+- **Serial Command API**: Direct Arduino Mega command interface
 
 ---
 
@@ -214,7 +223,7 @@ LabVIEW system integration (if applicable)
 
 ### Automation
 
-- **N8N Workflows**: [workflow/](./workflow/) and [workflows/](./workflows/)
+- **API Automation**: [api/](./api/)
 - **Path Planning**: [software/web-interface/WEB_INTERFACE_PATH_PLANNING.md](./software/web-interface/WEB_INTERFACE_PATH_PLANNING.md)
 - **Autonomous Operations**: [software/CONTROL_SYSTEMS.md](./software/CONTROL_SYSTEMS.md)
 
