@@ -17,7 +17,7 @@ This only needs to be done once, or after system changes.
 
 ## Start the System
 
-**Hardware Mode (Real Sensors on Raspberry Pi):**
+**Hardware Mode (Real Sensors - RPi + Arduino Mega):**
 ```bash
 ./start --hw
 ```

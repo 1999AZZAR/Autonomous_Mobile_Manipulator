@@ -4,13 +4,13 @@ A complete hexagonal-shaped autonomous mobile manipulator system built with ROS 
 
 ## System Overview
 
-The Autonomous Mobile Manipulator is a comprehensive and containerized ROS2-based platform for a versatile mobile manipulator, designed for simulation in Gazebo and deployment on real hardware, with a focus on modularity, flexibility, and ease of use.
+The Autonomous Mobile Manipulator is a distributed robotics platform combining ROS2 high-level control on Raspberry Pi with real-time sensor/actuator management on Arduino Mega, designed for both simulation and real hardware deployment with a focus on reliable distributed control.
 
 ### Project Description
 
-This document provides a high-level overview of the Autonomous Mobile Manipulator, a comprehensive and containerized ROS2-based platform for a versatile mobile manipulator. The project is designed for simulation in Gazebo and deployment on real hardware, with a focus on modularity, flexibility, and ease of use.
+This document provides a high-level overview of the Autonomous Mobile Manipulator, a distributed robotics platform combining ROS2 high-level control on Raspberry Pi with real-time sensor/actuator control on Arduino Mega. The system is designed for both simulation and real hardware deployment, featuring a clear separation between high-level coordination and real-time control.
 
-It integrates advanced robotics capabilities, including navigation, manipulation, and automation, all orchestrated through a variety of modern interfaces.
+It integrates advanced robotics capabilities through a distributed architecture where the Raspberry Pi handles ROS2 navigation, web interfaces, and path planning, while the Arduino Mega manages real-time motor control, sensor acquisition, and actuator positioning.
 
 ### Key Features
 
@@ -41,11 +41,10 @@ It integrates advanced robotics capabilities, including navigation, manipulation
 This project provides a complete production-ready robotics platform featuring:
 
 - **Hexagonal robot design** with 3-wheel omnidirectional movement system
-- **Advanced manipulation** with 4-component picker system for precise object handling
-- **Container load management** with 4-container system for material transport
-- **Distributed sensor architecture:**
-  - **Arduino Mega:** IR Sharp distance sensors (6x), HC-SR04 ultrasonic sensors (2x), motor control
-  - **Raspberry Pi:** TF-Luna LiDAR, USB camera, MPU6050 IMU, line sensors (3x)
+- **Advanced manipulation** with servo-based picker system for precise object handling
+- **Distributed sensor architecture** with real-time sensor fusion:
+  - **Arduino Mega (Real-time):** IR Sharp distance sensors (6x), HC-SR04 ultrasonic sensors (2x), motor control, servo actuators, emergency stop, PID motor control
+  - **Raspberry Pi (High-level):** TF-Luna LiDAR, MPU6050 IMU, line sensors (3x), path planning, ROS2 coordination, web interface
 - **ROS 2 Iron** for robust robot control and navigation
 - **Serial communication** between RPi and Arduino Mega for coordinated control
 - **n8n workflow automation** for high-level task orchestration
@@ -54,39 +53,65 @@ This project provides a complete production-ready robotics platform featuring:
 
 ### Software Architecture
 
-The architecture is centered around a ROS 2 workspace (`ros2_ws`) containing several modular packages.
+The architecture combines ROS 2 high-level control with Arduino Mega real-time control through a modular, distributed design.
 
-- **`my_robot_description`:** Defines the robot's physical structure (URDF) and configuration for controllers.
-- **`my_robot_bringup`:** Contains launch files to start the robot in various modes (simulation, real hardware, visualization).
-- **`my_robot_navigation`:** Manages the Nav2 stack, including configuration for localization, planning, and obstacle avoidance.
-- **`my_robot_manipulation`:** Servo-based manipulation control (currently minimal implementation).
-- **`my_robot_automation`:** The core automation package. It acts as a bridge between ROS 2 and external systems, hosting the REST, WebSocket, and MQTT servers, and implementing servo-based manipulation, navigation, and automation services.
+#### ROS 2 Workspace (`ros2_ws`)
+
+**Core ROS2 Packages:**
+- **`my_robot_description`:** Robot physical structure (URDF) and controller configuration
+- **`my_robot_bringup`:** Launch files for simulation/hardware deployment modes
+- **`my_robot_navigation`:** Nav2 stack configuration for path planning and obstacle avoidance
+- **`my_robot_manipulation`:** High-level manipulation coordination (ROS2 services)
+- **`my_robot_automation`:** Bridge between ROS2 and external systems
+
+#### Distributed Control Architecture
+
+**Raspberry Pi Software Stack:**
+- **Flask Web Interface**: REST API and web-based control (`scripts/app.py`)
+- **ROS2 Interface**: ROS2 node coordination (`scripts/ros2_interface.py`)
+- **Mega Serial Interface**: Bidirectional communication with Arduino Mega (`scripts/mega_interface.py`)
+- **Sensor Manager**: High-level sensor processing (`scripts/sensor_manager.py`)
+- **GPIO Controller**: Direct hardware control for RPi sensors (`scripts/gpio_controller.py`)
+- **Path Planning**: Navigation algorithms (`scripts/path_planning.py`)
+
+**Arduino Mega Software (Separate Repository):**
+- **Motor Control**: Real-time PID control for 3 omnidirectional wheels
+- **Sensor Acquisition**: IR sensors (6x), ultrasonic sensors (2x)
+- **Actuator Control**: Servo positioning for gripper manipulation
+- **Safety Systems**: Emergency stop and motor protection
+- **Serial Communication**: JSON-based command protocol
 
 #### Distributed Hardware Architecture
 
-The system uses a distributed architecture with coordinated control between Raspberry Pi and Arduino Mega:
+The system uses a distributed architecture with clear separation of responsibilities:
 
-**Raspberry Pi 4 Responsibilities:**
-- High-level ROS 2 control and navigation
-- IMU sensor (MPU6050) for orientation tracking
-- TF-Luna LiDAR for obstacle detection
-- USB camera for vision tasks
-- Line sensors for line following
-- Serial communication with Arduino Mega
-- Web interfaces and automation workflows
+**Raspberry Pi 4 Responsibilities (High-level Control):**
+- ROS 2 Iron framework and navigation stack coordination
+- Web interface (Flask) and REST API server
+- Path planning and waypoint navigation algorithms
+- IMU sensor processing (MPU6050) for orientation tracking
+- TF-Luna LiDAR processing for obstacle detection
+- Line sensor processing for line following
+- Serial communication management with Arduino Mega
+- n8n workflow automation integration
+- Docker container orchestration
 
-**Arduino Mega Responsibilities:**
-- Motor control for 3-wheel omnidirectional drive
-- IR Sharp distance sensors (6x wall alignment)
-- HC-SR04 ultrasonic sensors (2x front obstacle detection)
-- Gripper servo control (open/close, tilt)
-- Emergency stop handling
-- Real-time motor kinematics and odometry
+**Arduino Mega Responsibilities (Real-time Control):**
+- Real-time motor control for 3-wheel omnidirectional drive with PID velocity control
+- IR Sharp distance sensors (6x) for wall alignment and obstacle detection
+- HC-SR04 ultrasonic sensors (2x) for close-range obstacle detection
+- Servo actuator control for gripper manipulation (open/close, tilt)
+- Emergency stop handling with immediate motor shutdown
+- Motor position tracking and odometry calculation
+- Real-time sensor data acquisition and filtering
+- Acceleration limiting and motor synchronization
 
-**Communication:**
-- Serial USB connection (/dev/ttyACM0) for command exchange
-- ROS 2 topics for sensor data sharing
-- Coordinated control through mega_serial_interface node
+**Communication Protocol:**
+- Bidirectional serial communication (/dev/ttyACM0, 115200 baud)
+- JSON-based command protocol for motor control commands
+- Real-time sensor data streaming from Arduino to Raspberry Pi
+- Error handling and automatic reconnection
+- Command acknowledgment and status feedback
 
 External control systems interact with the `my_robot_automation` package, which translates high-level commands into specific ROS 2 messages, service calls, and action goals.
 
@@ -170,42 +195,53 @@ See `docs/SYSTEM_ARCHITECTURE.md` for detailed decision matrices and use case re
 
 ### Sensors
 
-- **Laser distance sensors**: 6 units for wall alignment and obstacle detection
-  - 2 on left side (left front, left back)
-  - 2 on right side (right front, right back)
-  - 2 on back (back left, back right)
-- **Ultrasonic sensors** (HC-SR04): 2 units for front obstacle detection
-  - Front left ultrasonic sensor
-  - Front right ultrasonic sensor
-- **Line sensors**: 3 individual sensors assembled side by side
-  - Left, center, and right sensors for line following and alignment
-- **TF-Luna LIDAR**: Single-point LIDAR sensor with I2C/UART interface
-- **IMU sensor** (MPU6050): For orientation and motion sensing
-- **USB Camera**: Gripper-mounted camera for object recognition
+**Arduino Mega (Real-time Sensors):**
+- **IR Sharp Distance Sensors**: 6 units (GP2Y0A02YK0F, 20-150cm range)
+  - Left front/back (wall alignment, obstacle detection)
+  - Right front/back (wall alignment, obstacle detection)
+  - Back left/right (rear obstacle detection)
+- **HC-SR04 Ultrasonic Sensors**: 2 units for close-range detection
+  - Front left/right ultrasonic sensors (0-400cm range)
+
+**Raspberry Pi (High-level Sensors):**
+- **TF-Luna LIDAR**: Single-point LIDAR sensor (I2C/UART interface, up to 8m range)
+- **MPU6050 IMU**: 6-axis IMU for orientation tracking and motion sensing
+- **Line Sensors**: 3 individual sensors for line following and alignment
+  - Left, center, and right sensors with analog threshold detection
+- **USB Camera**: Gripper-mounted camera for vision tasks (optional)
 
 ### Actuators & Manipulation
 
-- **Picker System** (4 components):
-  - Gripper (servo): Open/close control for object grasping
-  - Gripper tilt (servo): Angle adjustment for precise positioning
-  - Gripper neck (servo continuous): Forward/backward movement
-  - Gripper base (motor): Up/down height control for lifting/lowering
-- **Container Load System** (4 containers):
-  - 2 on left side (left front, left back)
-  - 2 on right side (right front, right back)
+**Arduino Mega (Real-time Actuators):**
+- **Servo-Based Picker System**:
+  - Gripper servo: Open/close control (0-180°) for object grasping
+  - Gripper tilt servo: Angle adjustment (0-180°) for precise positioning
+- **Motor Control System**:
+  - 3-wheel omnidirectional drive motors with PID velocity control
+  - Emergency stop system with immediate motor shutdown
+  - Acceleration limiting and motor synchronization
+
+**Raspberry Pi (High-level Control):**
+- Path planning and trajectory generation for manipulation tasks
+- ROS2 service coordination for complex manipulation sequences
+- Web interface for manual servo positioning
+- Automation workflow integration for pick-and-place operations
 
 ### Control Systems
 
-- **Hardware Controls**:
-  - Emergency stop system
-  - Start/stop control
-  - Mode selection (train/run)
-- **Advanced Control Mechanisms**:
-  - Path planning with map data training
-  - Obstacle avoidance algorithms
-  - Line follower with PID control
-  - Object pick and place automation
-  - Object recognition and analysis
+**Arduino Mega (Real-time Control):**
+- **Motor Control**: PID velocity control for 3 omni-directional wheels
+- **Sensor Fusion**: Real-time processing of 8 proximity sensors (IR + ultrasonic)
+- **Emergency Systems**: Immediate motor shutdown and safety monitoring
+- **Actuator Control**: Precise servo positioning with feedback
+- **Motion Control**: Acceleration limiting and motor synchronization
+
+**Raspberry Pi (High-level Control):**
+- **ROS2 Navigation**: Path planning with obstacle avoidance
+- **Web Interface**: REST API and web-based robot control
+- **Workflow Automation**: n8n integration for complex task sequences
+- **Sensor Integration**: IMU and LIDAR processing for localization
+- **Path Planning**: Grid-based navigation with waypoint following
 
 ## System Architecture
 
@@ -371,9 +407,10 @@ The setup script will:
 
 #### Hardware Mode (`--hw`)
 
-- **Purpose**: Production operation with real sensors
-- **Platform**: Raspberry Pi with physical hardware
-- **Sensors**: MPU6050 IMU, Sharp IR sensors, line sensors
+- **Purpose**: Production operation with real sensors and actuators
+- **Platform**: Raspberry Pi + Arduino Mega distributed system
+- **Sensors**: Arduino Mega (IR + ultrasonic) + RPi (IMU, LIDAR, line sensors)
+- **Actuators**: Arduino Mega (motors, servos) + RPi (GPIO control)
 - **Usage**: `./start --hw`
 
 #### Simulation Mode (`--sim`)
@@ -521,7 +558,7 @@ The system includes comprehensive n8n workflows matching the actual robot hardwa
 - **Control Servo**: Individual servo positioning (legacy)
 - **Get Robot Status**: Comprehensive status monitoring and reporting
 
-All workflows use HTTP API calls to the robot's comprehensive REST interface at `http://127.0.0.1:5000`, providing full integration between n8n automation and ROS2 robotic control.
+All workflows use HTTP API calls to the robot's comprehensive REST interface at `http://127.0.0.1:5000`, which coordinates between ROS2 high-level planning and Arduino Mega real-time execution for complete robotic automation.
 
 ## API Documentation
 
@@ -797,7 +834,7 @@ ros2 launch my_robot_bringup robot.launch.py
 
 ### API Development
 
-The robot API is implemented in `ros2_ws/src/my_robot_automation/scripts/rest_api_server.py` and provides comprehensive REST endpoints for robot control and automation.
+The robot API is implemented in `ros2_ws/src/my_robot_automation/scripts/app.py` and provides comprehensive REST endpoints that coordinate between ROS2 high-level control and Arduino Mega real-time execution.
 
 #### Complete API Endpoint Reference
 

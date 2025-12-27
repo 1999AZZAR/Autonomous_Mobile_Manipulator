@@ -1,6 +1,6 @@
 # Documentation Index
 
-Complete documentation for the Autonomous Mobile Manipulator system.
+Complete documentation for the Autonomous Mobile Manipulator distributed system (Raspberry Pi + Arduino Mega).
 
 ## 🚀 Quick Reference
 
@@ -42,12 +42,12 @@ Complete Web UI documentation (Primary Control Interface)
 - **Updates History**: Feature additions and improvements
 
 #### [software/ros2/](./software/ros2/)
-ROS2 implementation and optimization
+ROS2 high-level control and Arduino Mega integration
 
-- **Performance Optimization**: Complete tuning guide
-- **QoS Configuration**: Quality of Service profiles
-- **CycloneDDS Settings**: DDS optimization
-- **Monitoring & Watchdog**: Reliability systems
+- **Distributed Architecture**: ROS2 + Arduino Mega coordination
+- **Performance Optimization**: Tuning for real-time sensor/actuator control
+- **Serial Communication**: Bidirectional Mega interface protocols
+- **Sensor Integration**: Multi-sensor fusion and data processing
 - **Performance Testing**: Test procedures and benchmarks
 
 #### [software/](./software/)
@@ -99,9 +99,9 @@ Physical hardware specifications and assembly (Pi-Mega distributed architecture)
 ### 🚀 Deployment Documentation
 
 #### [deployment/](./deployment/)
-Production deployment guides
+Production deployment guides for distributed system
 
-- **[raspberry_pi_setup.md](./deployment/raspberry_pi_setup.md)**: Complete Pi 5 setup guide
+- **[raspberry_pi_setup.md](./deployment/raspberry_pi_setup.md)**: Complete Pi 5 + Arduino Mega setup guide
 - **[ROS2_RELIABILITY_README.md](./deployment/ROS2_RELIABILITY_README.md)**: ROS2 reliability and watchdog systems
 - **Docker Configuration**: Container deployment
 - **Network Setup**: Connectivity configuration
