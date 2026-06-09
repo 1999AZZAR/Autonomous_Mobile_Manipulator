@@ -6,7 +6,7 @@ import os
 
 # Flask configuration
 FLASK_HOST = '0.0.0.0'
-FLASK_PORT = 8000
+FLASK_PORT = int(os.environ.get('FLASK_PORT', '8000'))
 FLASK_DEBUG = False
 
 # Serial communication settings

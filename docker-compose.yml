@@ -10,8 +10,8 @@ services:
       bash -c "
       source /opt/ros/jazzy/setup.bash &&
       cd /root/ros2_ws &&
-      echo 'Installing Python dependencies...' &&
-      pip3 install --break-system-packages -r src/my_robot_automation/requirements.txt 2>/dev/null || true &&
+      echo 'Checking Python dependencies...' &&
+      pip3 install --break-system-packages -r src/my_robot_automation/requirements.txt &&
       echo 'Building robot packages...' &&
       timeout 300 colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation --event-handlers console_direct+ &&
       if [ $? -eq 0 ]; then
@@ -20,14 +20,14 @@ services:
         echo 'Starting Robot Control System...' &&
         python3 /root/ros2_ws/src/my_robot_automation/scripts/main.py --simulation &
         sleep 3 &&
-        echo 'Services started. Web UI + API: http://localhost:8000' &&
+        echo 'Services started. Web UI + API: http://localhost:8001' &&
         tail -f /dev/null
       else
         echo 'Build failed - starting with existing packages' &&
         source install/setup.bash &&
         python3 /root/ros2_ws/src/my_robot_automation/scripts/main.py --simulation &
         sleep 3 &&
-        echo 'Services started. Web UI + API: http://localhost:8000' &&
+        echo 'Services started. Web UI + API: http://localhost:8001' &&
         tail -f /dev/null
       fi
       "
@@ -41,9 +41,10 @@ services:
       - QT_X11_NO_MITSHM=1
       - LIBGL_ALWAYS_INDIRECT=1
       - GAZEBO_MODEL_PATH=/root/ros2_ws/src/my_robot_description/models
-      - PYTHONPATH=/root/ros2_ws/install/my_robot_automation/lib/python3.12/site-packages:$PYTHONPATH
+      - PYTHONPATH=/root/ros2_ws/install/my_robot_automation/lib/python3.12/site-packages
+      - FLASK_PORT=8001
     privileged: true
     network_mode: "host"
     ports:
-      - "8000:8000" # Web UI and REST API
+      - "8001:8001" # Web UI and REST API
       - "8765:8765" # WebSocket server
