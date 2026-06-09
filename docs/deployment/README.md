@@ -403,23 +403,6 @@ sudo systemctl restart docker
 # Start services
 ```
 
-### Remote Monitoring Setup
-
-#### Monitoring Dashboard
-
-```bash
-# Install monitoring tools
-sudo apt install prometheus grafana -y
-
-# Configure Prometheus for robot metrics
-# Configure Grafana dashboards for visualization
-
-# Set up alerting for critical events
-# Emergency stop notifications
-# Battery level warnings
-# System health alerts
-```
-
 #### Remote Access
 
 ```bash
@@ -884,11 +867,6 @@ When updating deployment procedures:
 - [Docker Security Best Practices](https://docs.docker.com/engine/security/)
 - [ROS 2 Security Guide](https://docs.ros.org/en/iron/Concepts/Intermediate/About-Security.html)
 - [Ubuntu Server Security](https://ubuntu.com/server/docs/security)
-
-### Monitoring Tools
-- [Prometheus](https://prometheus.io/) - System monitoring
-- [Grafana](https://grafana.com/) - Visualization dashboard
-- [ELK Stack](https://www.elastic.co/elastic-stack/) - Log analysis
 
 ### Community Resources
 - [ROS Production Users](https://discourse.ros.org/c/production-users/)

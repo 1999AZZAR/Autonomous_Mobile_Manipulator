@@ -630,37 +630,7 @@ chmod 700 scripts/*.sh
 gpg --encrypt --recipient username config/secrets.yaml
 ```
 
-## Monitoring Configuration
-
-### System Monitoring
-
-#### Prometheus Metrics
-
-```yaml
-# Prometheus configuration for ROS 2 monitoring
-global:
-  scrape_interval: 15s
-
-scrape_configs:
-  - job_name: 'ros2_nodes'
-    static_configs:
-      - targets: ['ros2_sim_container:9090']
-
-  - job_name: 'n8n_workflows'
-    static_configs:
-      - targets: ['n8n_container:9100']
-```
-
-#### Grafana Dashboards
-
-**Key Metrics to Monitor**:
-- CPU and memory usage per container
-- ROS 2 topic publication rates
-- Network latency and throughput
-- Error rates and response times
-- Battery level and power consumption
-
-### Log Configuration
+## Log Configuration
 
 #### Structured Logging
 
