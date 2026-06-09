@@ -111,30 +111,16 @@ start_containers() {
     # Determine compose file and settings based on mode
     case "$MODE" in
         hw|hardware)
-            if [ "$MINIMAL_MODE" = true ]; then
-                print_info "Starting in HARDWARE mode (minimal - Web UI + ROS2 only)"
-                COMPOSE_FILE="docker-compose.minimal.yml"
-                export ROBOT_MODE="hardware"
-                CONTAINER_NAME="ros2_minimal_hw_container"
-            else
-                print_info "Starting in HARDWARE mode (real sensors)"
-                COMPOSE_FILE="docker-compose.prod.yml"
-                export ROBOT_MODE="hardware"
-                CONTAINER_NAME="ros2_hw_container"
-            fi
+            print_info "Starting in HARDWARE mode (real sensors)"
+            COMPOSE_FILE="docker-compose.yml"
+            export ROBOT_MODE="hardware"
+            CONTAINER_NAME="ros2_sim_container"
             ;;
         sim|simulation)
-            if [ "$MINIMAL_MODE" = true ]; then
-                print_info "Starting in SIMULATION mode (minimal - Web UI + ROS2 only)"
-                COMPOSE_FILE="docker-compose.minimal.yml"
-                export ROBOT_MODE="simulation"
-                CONTAINER_NAME="ros2_minimal_sim_container"
-            else
-                print_info "Starting in SIMULATION mode (simulated sensors)"
-                COMPOSE_FILE="docker-compose.dev.yml"
-                export ROBOT_MODE="simulation"
-                CONTAINER_NAME="ros2_sim_container"
-            fi
+            print_info "Starting in SIMULATION mode (simulated sensors)"
+            COMPOSE_FILE="docker-compose.yml"
+            export ROBOT_MODE="simulation"
+            CONTAINER_NAME="ros2_sim_container"
             ;;
         *)
             print_error "Invalid mode: $MODE"

@@ -1,44 +1,38 @@
 services:
-  # The ROS 2 and Gazebo Simulation Service
+  # The ROS 2 Simulation Service
   ros2-sim:
     build:
-      context: ./ros2_ws  # Tells Docker Compose to use the Dockerfile in the ./ros2_ws folder
+      context: ./ros2_ws
+      dockerfile: Dockerfile
     container_name: ros2_sim_container
-    # Launch ROS2 automation services only (no Gazebo for faster testing)
+    # Launch ROS2 automation services
     command: >
       bash -c "
       source /opt/ros/jazzy/setup.bash &&
       cd /root/ros2_ws &&
       echo 'Installing Python dependencies...' &&
-      pip3 install --break-system-packages requests smbus2 mpu6050-raspberrypi spidev flask 2>/dev/null || true &&
+      pip3 install --break-system-packages -r src/my_robot_automation/requirements.txt 2>/dev/null || true &&
       echo 'Building robot packages...' &&
       timeout 300 colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation --event-handlers console_direct+ &&
       if [ $? -eq 0 ]; then
         source install/setup.bash &&
         echo 'Packages built successfully' &&
-        echo 'Starting ROS2 REST API server...' &&
-        python3 /root/ros2_ws/src/my_robot_automation/scripts/rest_api_server.py &
+        echo 'Starting Robot Control System...' &&
+        python3 /root/ros2_ws/src/my_robot_automation/scripts/main.py --simulation &
         sleep 3 &&
-        echo 'Starting Web Interface...' &&
-        python3 /root/ros2_ws/src/my_robot_automation/scripts/web_robot_interface.py &
-        sleep 2 &&
-        echo 'Services started. Web UI: http://localhost:8000, API: http://localhost:5000' &&
+        echo 'Services started. Web UI + API: http://localhost:8000' &&
         tail -f /dev/null
       else
         echo 'Build failed - starting with existing packages' &&
         source install/setup.bash &&
-        python3 /root/ros2_ws/src/my_robot_automation/scripts/rest_api_server.py &
+        python3 /root/ros2_ws/src/my_robot_automation/scripts/main.py --simulation &
         sleep 3 &&
-        python3 /root/ros2_ws/src/my_robot_automation/scripts/web_robot_interface.py &
-        sleep 2 &&
-        echo 'Services started. Web UI: http://localhost:8000, API: http://localhost:5000' &&
+        echo 'Services started. Web UI + API: http://localhost:8000' &&
         tail -f /dev/null
       fi
       "
-    # Share the source code folder so you can edit code on your PC and it updates inside the container
     volumes:
       - ./ros2_ws/src:/root/ros2_ws/src
-    # Network settings to allow Gazebo GUI to display on your PC
     environment:
       - DISPLAY=${DISPLAY:-:0}
       - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
@@ -47,12 +41,9 @@ services:
       - QT_X11_NO_MITSHM=1
       - LIBGL_ALWAYS_INDIRECT=1
       - GAZEBO_MODEL_PATH=/root/ros2_ws/src/my_robot_description/models
-      - PYTHONPATH=/root/ros2_ws/install/my_robot_automation/lib/python3.10/site-packages:$PYTHONPATH
-    # Allows the container to access your host machine's graphics hardware
+      - PYTHONPATH=/root/ros2_ws/install/my_robot_automation/lib/python3.12/site-packages:$PYTHONPATH
     privileged: true
-    network_mode: "host" # Simplifies GUI forwarding for Gazebo/RViz
+    network_mode: "host"
     ports:
-      - "5000:5000" # Advanced REST API server port
-      - "8000:8000" # Professional web interface port
-      - "8765:8765" # WebSocket server port
-
+      - "8000:8000" # Web UI and REST API
+      - "8765:8765" # WebSocket server

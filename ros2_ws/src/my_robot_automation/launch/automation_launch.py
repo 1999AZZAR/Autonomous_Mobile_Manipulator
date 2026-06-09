@@ -3,24 +3,19 @@
 import os
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription, ExecuteProcess
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 from launch.conditions import IfCondition
 
 def generate_launch_description():
-    # Get package directories
-    pkg_my_robot_automation = get_package_share_directory('my_robot_automation')
     pkg_my_robot_bringup = get_package_share_directory('my_robot_bringup')
-    
+
     # Launch arguments
-    use_sim_time = LaunchConfiguration('use_sim_time', default='false')  # Default to hardware mode
-    enable_rest_api = LaunchConfiguration('enable_rest_api', default='true')
-    enable_websocket = LaunchConfiguration('enable_websocket', default='true')
-    enable_n8n_bridge = LaunchConfiguration('enable_n8n_bridge', default='true')
+    use_sim_time = LaunchConfiguration('use_sim_time', default='false')
     enable_mega_communication = LaunchConfiguration('enable_mega_communication', default='true')
-    
+
     # Robot launch
     robot_launch = IncludeLaunchDescription(
         PythonLaunchDescriptionSource(
@@ -30,105 +25,19 @@ def generate_launch_description():
             'use_sim_time': use_sim_time
         }.items()
     )
-    
-    # Automation server
-    automation_server = Node(
-        package='my_robot_automation',
-        executable='robot_automation_server.py',
-        name='robot_automation_server',
+
+    # Main application (Flask web UI + REST API + sensor management)
+    main_app = ExecuteProcess(
+        cmd=['python3', 'src/my_robot_automation/scripts/main.py'],
         output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }]
+        condition=IfCondition(enable_mega_communication)
     )
 
-    # Individual service servers
-    pick_place_server = Node(
+    # ROS2 interface node (optional, only if ROS2 is available)
+    ros2_interface_node = Node(
         package='my_robot_automation',
-        executable='pick_place_server.py',
-        name='pick_place_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }]
-    )
-
-    patrol_server = Node(
-        package='my_robot_automation',
-        executable='patrol_server.py',
-        name='patrol_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }]
-    )
-
-    obstacle_avoidance_server = Node(
-        package='my_robot_automation',
-        executable='obstacle_avoidance_server.py',
-        name='obstacle_avoidance_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }]
-    )
-
-    emergency_stop_server = Node(
-        package='my_robot_automation',
-        executable='emergency_stop_server.py',
-        name='emergency_stop_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }]
-    )
-
-    robot_status_server = Node(
-        package='my_robot_automation',
-        executable='robot_status_server.py',
-        name='robot_status_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }]
-    )
-
-    # New sensor and management servers
-    sensor_data_server = Node(
-        package='my_robot_automation',
-        executable='sensor_data_server.py',
-        name='sensor_data_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }]
-    )
-
-    task_management_server = Node(
-        package='my_robot_automation',
-        executable='task_management_server.py',
-        name='task_management_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }]
-    )
-
-    navigation_status_server = Node(
-        package='my_robot_automation',
-        executable='navigation_status_server.py',
-        name='navigation_status_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }]
-    )
-
-    # Mega communication nodes (hardware interface)
-    mega_serial_interface = Node(
-        package='my_robot_automation',
-        executable='mega_serial_interface.py',
-        name='mega_serial_interface',
+        executable='ros2_interface.py',
+        name='ros2_interface',
         output='screen',
         parameters=[{
             'use_sim_time': use_sim_time
@@ -136,99 +45,11 @@ def generate_launch_description():
         condition=IfCondition(enable_mega_communication)
     )
 
-    actuator_control_server = Node(
-        package='my_robot_automation',
-        executable='actuator_control_server.py',
-        name='actuator_control_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }],
-        condition=IfCondition(enable_mega_communication)
-    )
-
-    # REST API server
-    rest_api_server = Node(
-        package='my_robot_automation',
-        executable='rest_api_server.py',
-        name='rest_api_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }],
-        condition=IfCondition(enable_rest_api),
-        remappings=[
-            ('/rest_api_server', '/rest_api_server_alt')  # Avoid conflicts
-        ]
-    )
-
-    # WebSocket server
-    websocket_server = Node(
-        package='my_robot_automation',
-        executable='websocket_server.py',
-        name='websocket_server',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }],
-        condition=IfCondition(enable_websocket)
-    )
-
-    # n8n-ROS2 bridge
-    n8n_bridge = Node(
-        package='my_robot_automation',
-        executable='n8n_ros2_bridge.py',
-        name='n8n_ros2_bridge',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }],
-        condition=IfCondition(enable_n8n_bridge)
-    )
-
-    # Professional web interface (frontend for REST API)
-    web_robot_interface = Node(
-        package='my_robot_automation',
-        executable='web_robot_interface.py',
-        name='web_robot_interface',
-        output='screen',
-        parameters=[{
-            'use_sim_time': use_sim_time
-        }],
-        condition=IfCondition(enable_rest_api)
-    )
-    
     return LaunchDescription([
-        # Launch arguments
         DeclareLaunchArgument('use_sim_time', default_value='false'),
-        DeclareLaunchArgument('enable_rest_api', default_value='true'),
-        DeclareLaunchArgument('enable_websocket', default_value='true'),
-        DeclareLaunchArgument('enable_n8n_bridge', default_value='true'),
         DeclareLaunchArgument('enable_mega_communication', default_value='true'),
 
-        # Launch robot system
         robot_launch,
-
-        # Launch automation services
-        automation_server,
-
-        # Launch individual service servers
-        pick_place_server,
-        patrol_server,
-        obstacle_avoidance_server,
-        emergency_stop_server,
-        robot_status_server,
-        sensor_data_server,
-        task_management_server,
-        navigation_status_server,
-
-        # Launch Mega communication nodes
-        mega_serial_interface,
-        actuator_control_server,
-
-        # Launch API and communication services
-        rest_api_server,
-        websocket_server,
-        n8n_bridge,
-        web_robot_interface,
+        main_app,
+        ros2_interface_node,
     ])

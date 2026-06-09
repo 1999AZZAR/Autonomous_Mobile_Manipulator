@@ -189,8 +189,7 @@ class AutonomousMobileManipulator:
 
                     # Debug logging (reduced frequency)
                     if int(current_time) % 10 == 0:  # Every 10 seconds
-                        logger.debug(".2f"
-                                   ".1f")
+                        logger.debug(f"Position: {self.current_position}, Heading: {self.current_orientation[2]:.1f}deg")
 
                 else:
                     consecutive_errors += 1
@@ -208,7 +207,6 @@ class AutonomousMobileManipulator:
                     position_initialized = False
                     consecutive_errors = 0
                 time.sleep(0.5)  # Back off on errors
-                time.sleep(1.0)
 
     def get_current_position(self):
         """Get current robot position and orientation"""

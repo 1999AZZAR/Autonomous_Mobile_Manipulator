@@ -16,9 +16,6 @@ find_package(geometry_msgs REQUIRED)
 find_package(sensor_msgs REQUIRED)
 find_package(nav_msgs REQUIRED)
 find_package(trajectory_msgs REQUIRED)
-# find_package(control_msgs REQUIRED)  # Not needed for actuator control
-# find_package(nav2_msgs REQUIRED)  # Not needed for actuator control
-# find_package(nav2_util REQUIRED)  # Not needed for actuator control
 find_package(tf2_ros REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(builtin_interfaces REQUIRED)
@@ -57,28 +54,16 @@ rosidl_generate_interfaces(${PROJECT_NAME}
   DEPENDENCIES std_msgs geometry_msgs sensor_msgs nav_msgs builtin_interfaces
 )
 
-# Install Python executables
+# Install Python executables (only scripts that exist)
 install(PROGRAMS
-  scripts/robot_automation_server.py
-  scripts/pick_place_server.py
-  scripts/patrol_server.py
-  scripts/obstacle_avoidance_server.py
-  scripts/emergency_stop_server.py
-  scripts/robot_status_server.py
-  scripts/rest_api_server.py
-  scripts/websocket_server.py
-  scripts/mqtt_bridge.py
-  scripts/n8n_ros2_bridge.py
-  scripts/real_robot_sensor_actuator.py
-  scripts/robot_controller.py
-  scripts/web_robot_interface.py
-  scripts/sensor_data_server.py
-  scripts/task_management_server.py
-  scripts/navigation_status_server.py
-  scripts/sensor_simulator.py
-  scripts/tf_luna_sensor.py
-  scripts/mega_serial_interface.py
-  scripts/actuator_control_server.py
+  scripts/main.py
+  scripts/app.py
+  scripts/config.py
+  scripts/mega_interface.py
+  scripts/sensor_manager.py
+  scripts/gpio_controller.py
+  scripts/ros2_interface.py
+  scripts/path_planning.py
   DESTINATION lib/${PROJECT_NAME}
 )
 
