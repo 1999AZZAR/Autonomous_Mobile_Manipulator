@@ -752,7 +752,6 @@ sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow ssh
 sudo ufw allow 5000  # Robot API
-sudo ufw allow 5678  # n8n interface
 sudo ufw allow 8765  # WebSocket
 sudo ufw allow 11311 # ROS master (if needed)
 
@@ -802,24 +801,6 @@ services:
         echo 'Starting LKS Robot services...' &&
         ros2 launch my_robot_automation automation_launch.py
       "
-
-  n8n:
-    image: arm64v8/n8n:latest
-    container_name: lks_n8n
-    restart: unless-stopped
-    ports:
-      - "5678:5678"
-    environment:
-      - N8N_HOST=0.0.0.0
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-      - N8N_BASIC_AUTH_ACTIVE=false
-      - GENERIC_TIMEZONE=Asia/Jakarta
-      - N8N_ENCRYPTION_KEY=your-encryption-key-here
-    volumes:
-      - ./n8n_data:/home/node/.n8n
-    depends_on:
-      - ros2-sim
 EOF
 ```
 
@@ -828,7 +809,6 @@ EOF
 ```bash
 # Pull ARM64 compatible images
 docker pull arm64v8/ros:iron
-docker pull arm64v8/n8n:latest
 
 # Build ROS 2 image for ARM64
 docker compose -f docker-compose.prod.yml build --no-cache
@@ -943,7 +923,6 @@ sudo systemctl status lks-robot
 ```bash
 # Configure Docker containers to restart automatically
 docker update --restart unless-stopped lks_robot
-docker update --restart unless-stopped lks_n8n
 
 # Create health check script
 tee ~/health_check.sh > /dev/null <<EOF
@@ -958,19 +937,9 @@ if ! docker ps | grep -q lks_robot; then
     exit 1
 fi
 
-if ! docker ps | grep -q lks_n8n; then
-    echo "ERROR: n8n container not running"
-    exit 1
-fi
-
 # Check API endpoints
 if ! curl -s --max-time 5 http://localhost:5000/health > /dev/null; then
     echo "ERROR: Robot API not responding"
-    exit 1
-fi
-
-if ! curl -s --max-time 5 http://localhost:5678 > /dev/null; then
-    echo "ERROR: n8n interface not responding"
     exit 1
 fi
 
@@ -1032,9 +1001,6 @@ curl -s http://localhost:5000/health
 curl -s http://localhost:5000/api/robot/status
 curl -s http://localhost:5000/api/robot/sensors
 curl -s http://localhost:5000/api/robot/tasks
-
-# Test n8n interface
-curl -s -I http://localhost:5678
 ```
 
 ### 12.3 ROS 2 Testing
@@ -1149,12 +1115,11 @@ docker compose -f docker-compose.prod.yml stop
 # Backup configuration files
 tar -czf $BACKUP_DIR/${BACKUP_NAME}_config.tar.gz \
     ~/Autonomous_Mobile_Manipulator/docker-compose.prod.yml \
-    ~/Autonomous_Mobile_Manipulator/n8n_data \
     /etc/systemd/system/lks-robot.service \
     /etc/docker/daemon.json
 
 # Backup Docker volumes
-docker run --rm -v lks_robot_n8n_data:/data -v $BACKUP_DIR:/backup \
+docker run --rm -v lks_robot_data:/data -v $BACKUP_DIR:/backup \
     alpine tar czf /backup/${BACKUP_NAME}_volumes.tar.gz -C / data
 
 # Restart services
@@ -1196,7 +1161,7 @@ docker compose -f docker-compose.prod.yml down
 tar -xzf $BACKUP_DIR/${BACKUP_NAME}_config.tar.gz -C /
 
 # Restore Docker volumes
-docker run --rm -v lks_robot_n8n_data:/data -v $BACKUP_DIR:/backup \
+docker run --rm -v lks_robot_data:/data -v $BACKUP_DIR:/backup \
     alpine sh -c "cd /backup && tar xzf ${BACKUP_NAME}_volumes.tar.gz -C / && mv /data/* /data_backup/ 2>/dev/null; true"
 
 # Restart services

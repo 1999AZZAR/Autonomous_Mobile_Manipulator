@@ -93,9 +93,6 @@ docker compose version
 
 # Check ROS 2 environment (in container)
 docker exec ros2_sim_container bash -c "source /opt/ros/iron/setup.bash && ros2 --help"
-
-# Verify n8n web interface
-curl -I http://localhost:5678
 ```
 
 ### Hardware Connectivity
@@ -140,10 +137,6 @@ services:
     volumes:
       - ./ros2_ws/src:/root/ros2_ws/src
       - /tmp/.X11-unix:/tmp/.X11-unix:rw
-
-  n8n:
-    ports:
-      - "5678:5678"
 ```
 
 #### 3. Launch Development Environment
@@ -156,7 +149,6 @@ docker compose up --build -d
 docker compose ps
 
 # Access development interfaces
-# n8n: http://localhost:5678
 # ROS 2: docker exec -it ros2_sim_container bash
 ```
 
@@ -270,20 +262,6 @@ services:
         source /opt/ros/iron/setup.bash &&
         ros2 launch my_robot_bringup robot.launch.py
       "
-
-  n8n:
-    image: docker.io/n8nio/n8n:latest
-    container_name: n8n_robot
-    restart: unless-stopped
-    ports:
-      - "5678:5678"
-    environment:
-      - GENERIC_TIMEZONE=Asia/Jakarta
-      - N8N_HOST=0.0.0.0
-      - N8N_PORT=5678
-      - N8N_PROTOCOL=http
-    volumes:
-      - ./n8n_data:/home/node/.n8n
 ```
 
 #### 4. Production Deployment
@@ -291,9 +269,6 @@ services:
 ```bash
 # On Raspberry Pi
 cd Autonomous_Mobile_Manipulator
-
-# Pull n8n image (smaller than building ROS 2)
-docker compose -f docker-compose.prod.yml pull n8n
 
 # Build ROS 2 image for ARM64
 docker compose -f docker-compose.prod.yml build --no-cache ros2-sim
@@ -303,9 +278,6 @@ docker compose -f docker-compose.prod.yml up -d
 
 # Verify deployment
 docker compose -f docker-compose.prod.yml ps
-
-# Test robot functionality
-curl http://localhost:5678  # Should return n8n interface
 ```
 
 ### Production Optimization
@@ -438,12 +410,6 @@ if ! docker exec ros2_sim_container ros2 node list | grep -q "my_robot"; then
     exit 1
 fi
 
-# Check API endpoints
-if ! curl -s http://localhost:5678 > /dev/null; then
-    echo "ERROR: n8n API not accessible"
-    exit 1
-fi
-
 # Check sensor data
 if ! docker exec ros2_sim_container ros2 topic echo /scan --once > /dev/null 2>&1; then
     echo "ERROR: Sensor data not available"
@@ -459,11 +425,8 @@ echo "SUCCESS: All systems operational"
 # Measure startup time
 time docker compose up -d
 
-# Measure API response time
-curl -w "@curl-format.txt" -s -o /dev/null http://localhost:5678
-
 # Monitor resource usage
-docker stats --no-stream ros2_sim_container n8n_container
+docker stats --no-stream ros2_sim_container
 
 # Test robot responsiveness
 ros2 topic pub /cmd_vel geometry_msgs/Twist "{linear: {x: 0.1}}" --once
@@ -480,9 +443,6 @@ netstat -tuln
 
 # Verify firewall rules
 sudo ufw status
-
-# Test API security
-curl -I http://localhost:5678/webhook/robot-control
 
 # Check SSL/TLS configuration (if enabled)
 curl -I https://secure-robot-api.example.com
@@ -612,9 +572,6 @@ ping -c 4 8.8.8.8  # Test connectivity
 # ROS 2 system monitoring
 ros2 doctor --report
 
-# n8n workflow monitoring
-docker logs n8n_container --tail 100
-
 # Robot state monitoring
 ros2 topic echo /robot_status
 ros2 topic echo /diagnostics
@@ -642,7 +599,6 @@ docker system prune -f
 sudo apt update && sudo apt upgrade -y
 
 # Docker image updates
-docker compose pull n8n
 docker compose build --no-cache ros2-sim
 
 # Full system backup
@@ -707,7 +663,7 @@ ping 8.8.8.8
 sudo ufw status
 
 # Check port availability
-netstat -tuln | grep -E '(5678|8765)'
+netstat -tuln | grep -E '8765'
 ```
 
 #### Hardware Interface Issues
@@ -811,7 +767,6 @@ docker compose up --build -d
 
 # Verify rollback success
 docker compose ps
-curl -I http://localhost:5678
 ```
 
 #### Gradual Rollback

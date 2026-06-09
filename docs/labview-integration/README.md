@@ -78,8 +78,8 @@ LabVIEW integration enables:
 
 #### 2. HTTP REST API
 ```bash
-# n8n webhook endpoints
-# Base URL: http://localhost:5678/webhook/
+# REST API endpoints
+# Base URL: http://localhost:5000/api/
 # Endpoints: robot-control, emergency-stop, pick_place
 ```
 

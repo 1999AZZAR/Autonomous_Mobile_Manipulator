@@ -162,17 +162,10 @@ docker compose ps
 Expected output:
 ```
 NAME                 IMAGE                        STATUS
-n8n_container        docker.io/n8nio/n8n:latest   Up
 ros2_sim_container   autonomous_mobile_manipulator-ros2-sim   Up
 ```
 
 ### Step 7: Verify Installation
-
-#### Access n8n Web Interface
-```bash
-# Open web browser and navigate to:
-http://localhost:5678
-```
 
 #### Access ROS 2 Environment
 ```bash
@@ -197,7 +190,6 @@ The system uses the following key environment variables:
 environment:
   - DISPLAY=${DISPLAY}           # X11 display for GUI apps
   - QT_X11_NO_MITSHM=1          # Disable MIT-SHM for containerized X11
-  - GENERIC_TIMEZONE=Asia/Jakarta # Set timezone for n8n
 ```
 
 ### Network Configuration
@@ -240,7 +232,6 @@ xeyes  # Should show animated eyes
 ```bash
 # Check container logs
 docker compose logs ros2_sim_container
-docker compose logs n8n_container
 
 # Restart specific service
 docker compose restart ros2_sim_container

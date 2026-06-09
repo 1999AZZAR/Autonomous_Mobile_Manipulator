@@ -395,7 +395,6 @@ shm_size: '256m'
 ✅ `robot_automation_server` - Core automation  
 ✅ `rest_api_server` - HTTP API  
 ✅ `websocket_server` - WebSocket communication  
-✅ `n8n_ros2_bridge` - Workflow integration  
 ✅ `robot_status_server` - Status monitoring  
 ✅ `sensor_data_server` - Sensor aggregation
 

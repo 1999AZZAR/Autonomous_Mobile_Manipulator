@@ -18,7 +18,6 @@ CRITICAL_NODES=(
     "robot_automation_server"
     "rest_api_server"
     "websocket_server"
-    "n8n_ros2_bridge"
     "robot_status_server"
     "sensor_data_server"
 )
@@ -192,12 +191,7 @@ perform_health_check() {
                         last_restart_time[$node]=$current_time
                     fi
                     ;;
-                "n8n_ros2_bridge")
-                    if restart_node "$node" "my_robot_automation" "n8n_ros2_bridge.py"; then
-                        restart_counts[$node]=$((attempts + 1))
-                        last_restart_time[$node]=$current_time
-                    fi
-                    ;;
+
                 *)
                     log "WARNING: Unknown node type for restart: $node"
                     ;;

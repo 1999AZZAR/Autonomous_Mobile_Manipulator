@@ -14,7 +14,6 @@ This document describes the comprehensive reliability features implemented for t
 - `robot_automation_server` - Core automation logic
 - `rest_api_server` - REST API endpoint
 - `websocket_server` - WebSocket communication
-- `n8n_ros2_bridge` - Workflow integration
 - `robot_status_server` - Status monitoring
 
 ### 2. **Health Checks and Monitoring**

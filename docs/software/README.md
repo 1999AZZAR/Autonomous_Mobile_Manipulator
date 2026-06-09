@@ -14,10 +14,6 @@ This guide provides comprehensive instructions for configuring the software comp
 - [Docker Configuration](#docker-configuration)
   - [Container Optimization](#container-optimization)
   - [Network Configuration](#network-configuration)
-- [n8n Workflow Configuration](#n8n-workflow-configuration)
-  - [Workflow Environment Variables](#workflow-environment-variables)
-  - [Custom Node Installation](#custom-node-installation)
-  - [Workflow Import and Export](#workflow-import-and-export)
 - [System Integration Configuration](#system-integration-configuration)
   - [Coordinate Frame Setup](#coordinate-frame-setup)
   - [Sensor Calibration](#sensor-calibration)
@@ -58,10 +54,10 @@ This guide provides comprehensive instructions for configuring the software comp
 ┌─────────────────────────────────────────────────────────────┐
 │                    Application Layer                         │
 ├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │   n8n       │  │   ROS 2     │  │   LabVIEW Client    │  │
-│  │ Automation  │  │ Framework   │  │   (Optional)        │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
+│  ┌─────────────────────┐  ┌─────────────────────────────┐  │
+│  │   ROS 2             │  │   LabVIEW Client            │  │
+│  │ Framework           │  │   (Optional)                │  │
+│  └─────────────────────┘  └─────────────────────────────┘  │
 ├─────────────────────────────────────────────────────────────┤
 │              Container Runtime (Docker)                     │
 ├─────────────────────────────────────────────────────────────┤
@@ -318,13 +314,6 @@ services:
           memory: 1G                        # Memory reservation
           cpus: '1.0'                       # CPU reservation
     restart: unless-stopped                # Auto-restart policy
-
-  n8n:
-    environment:
-      - GENERIC_TIMEZONE=Asia/Jakarta       # Timezone setting
-      - N8N_LOG_LEVEL=info                  # Log level
-      - N8N_LOG_OUTPUT=console              # Log output destination
-    restart: unless-stopped
 ```
 
 #### Development Container Settings
@@ -340,12 +329,6 @@ services:
     volumes:
       - ./ros2_ws/src:/root/ros2_ws/src     # Live code mounting
       - /tmp/.X11-unix:/tmp/.X11-unix:rw    # X11 socket access
-
-  n8n:
-    ports:
-      - "5678:5678"                         # Development port access
-    environment:
-      - N8N_LOG_LEVEL=debug                 # Debug logging
 ```
 
 ### Network Configuration
@@ -369,81 +352,6 @@ ros2 topic list  # Should only show topics from same domain
 # Prioritize Ethernet over WiFi for better performance
 export ROS_IP=192.168.1.100  # Static IP assignment
 export ROS_MASTER_URI=http://192.168.1.100:11311
-```
-
-## n8n Workflow Configuration
-
-### Workflow Environment Variables
-
-**n8n Configuration** (`docker-compose.yml`):
-```yaml
-environment:
-  - GENERIC_TIMEZONE=Asia/Jakarta
-  - N8N_HOST=0.0.0.0
-  - N8N_PORT=5678
-  - N8N_PROTOCOL=http
-  - N8N_LOG_LEVEL=info
-  - N8N_LOG_OUTPUT=console
-```
-
-### Custom Node Installation
-
-**ROS 2 Publisher Node**:
-```javascript
-// n8n_data/nodes/ros2_publisher.js
-const rosnodejs = require('rosnodejs');
-
-class Ros2Publisher {
-    async execute() {
-        const nh = await rosnodejs.initNode('n8n_bridge');
-        const pub = nh.advertise('/cmd_vel', 'geometry_msgs/Twist');
-
-        const twist = {
-            linear: { x: this.linear_x || 0, y: this.linear_y || 0, z: 0 },
-            angular: { x: 0, y: 0, z: this.angular_z || 0 }
-        };
-
-        pub.publish(twist);
-        return [{ json: { success: true, command: twist } }];
-    }
-}
-```
-
-**ROS 2 Subscriber Node**:
-```javascript
-// n8n_data/nodes/ros2_subscriber.js
-const rosnodejs = require('rosnodejs');
-
-class Ros2Subscriber {
-    async execute() {
-        const nh = await rosnodejs.initNode('n8n_subscriber');
-        const sub = nh.subscribe('/scan', 'sensor_msgs/LaserScan');
-
-        return new Promise((resolve) => {
-            sub.on('message', (msg) => {
-                resolve([{ json: { laser_data: msg } }]);
-            });
-        });
-    }
-}
-```
-
-### Workflow Import and Export
-
-**Export Workflows**:
-```bash
-# From n8n web interface:
-# Settings → Import/Export → Export
-# Save workflow JSON files to n8n_data/workflows/
-```
-
-**Import Workflows**:
-```bash
-# Copy workflow files to container
-docker cp robot_basic_control.json ros2_sim_container:/root/n8n_data/workflows/
-
-# Restart n8n to load new workflows
-docker restart n8n_container
 ```
 
 ## System Integration Configuration
@@ -576,48 +484,14 @@ threading:
 
 ```bash
 # Allow necessary ports
-sudo ufw allow 5678/tcp    # n8n web interface
 sudo ufw allow 8765/tcp    # WebSocket (Foxglove)
 sudo ufw allow 11311/tcp   # ROS Master (if used)
-
-# Restrict access to specific IPs
-sudo ufw allow from 192.168.1.0/24 to any port 5678
 
 # Enable firewall
 sudo ufw enable
 ```
 
-#### API Authentication
-
-**n8n Authentication**:
-```yaml
-# Enable basic authentication
-environment:
-  - N8N_BASIC_AUTH_ACTIVE=true
-  - N8N_BASIC_AUTH_USER=username
-  - N8N_BASIC_AUTH_PASSWORD=password
-```
-
-**Webhook Authentication**:
-```javascript
-// Add authentication to workflows
-const authHeader = $request.headers.authorization;
-if (!authHeader || !authHeader.startsWith('Bearer ')) {
-  throw new Error('Authentication required');
-}
-```
-
 ### Data Security
-
-#### Encrypted Communication
-
-```yaml
-# Enable HTTPS for n8n
-environment:
-  - N8N_PROTOCOL=https
-  - N8N_SSL_CERT=/ssl/cert.pem
-  - N8N_SSL_KEY=/ssl/key.pem
-```
 
 #### Secure Configuration
 
@@ -666,7 +540,6 @@ logging:
 environment:
   - ROS_LOG_LEVEL=debug
   - GAZEBO_VERBOSE=1
-  - N8N_LOG_LEVEL=debug
 
 # Mount source code for live editing
 volumes:
@@ -681,7 +554,6 @@ volumes:
 # Optimize for production performance
 environment:
   - ROS_LOG_LEVEL=warn
-  - N8N_LOG_LEVEL=info
 
 # Resource constraints
 deploy:
@@ -758,9 +630,6 @@ END_TIME=$(date +%s.%N)
 STARTUP_TIME=$(echo "$END_TIME - $START_TIME" | bc)
 echo "Startup time: $STARTUP_TIME seconds"
 
-# Measure API response time
-curl -w "@curl-format.txt" -s -o /dev/null http://localhost:5678
-
 # Measure topic throughput
 ros2 topic bw /cmd_vel
 ros2 topic bw /scan
@@ -781,9 +650,6 @@ docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
 
 # Backup configuration files
 cp -r Autonomous_Mobile_Manipulator/ ~/backups/config/$(date +%Y%m%d)/
-
-# Backup Docker volumes
-docker run --rm -v autonomous_mobile_manipulator_n8n_data:/data -v ~/backups:/backup alpine tar czf /backup/n8n_data_$(date +%Y%m%d).tar.gz -C /data ./
 
 # Backup ROS 2 workspace
 docker run --rm -v ros2_ws:/workspace alpine tar czf ~/backups/ros2_ws_$(date +%Y%m%d).tar.gz -C /workspace ./
@@ -954,7 +820,6 @@ git tag -a config-v1.2.0 -m "Configuration version 1.2.0"
 ### Best Practices
 - [ROS 2 Configuration Management](https://docs.ros.org/en/iron/How-To-Guides/Configuration-Management.html)
 - [Docker Compose Best Practices](https://docs.docker.com/compose/production/)
-- [n8n Configuration Guide](https://docs.n8n.io/hosting/configuration/)
 
 ---
 

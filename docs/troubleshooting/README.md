@@ -53,7 +53,6 @@ docker compose ps
 
 # Check container logs
 docker compose logs ros2_sim_container
-docker compose logs n8n_container
 
 # Check ROS 2 nodes
 docker exec -it ros2_sim_container bash -c "source /opt/ros/iron/setup.bash && ros2 node list"
@@ -335,21 +334,6 @@ ros2 run image_view image_view image:=/camera/image_raw
 
 ### API Connectivity Problems
 
-**Issue**: Webhook endpoints not responding
-```bash
-# Check n8n container status
-docker compose ps | grep n8n
-
-# Test webhook directly
-curl -I http://localhost:5678/webhook/robot-control
-
-# Check n8n logs for errors
-docker logs n8n_container
-
-# Verify port accessibility
-netstat -tuln | grep 5678
-```
-
 **Issue**: WebSocket connection fails
 ```bash
 # Check Foxglove Bridge status
@@ -542,9 +526,6 @@ sudo journalctl -u docker -f
 # Monitor container logs
 docker compose logs -f ros2_sim_container
 
-# Check n8n workflow logs
-docker logs n8n_container | grep ERROR
-
 # Review ROS 2 logs
 docker exec ros2_sim_container bash -c "tail -f /root/.ros/log/latest/*.log"
 ```
@@ -595,8 +576,7 @@ cp docker-compose.yml.backup docker-compose.yml
 # Reset ROS 2 configurations
 docker exec ros2_sim_container bash -c "cp -r /opt/ros/iron/share/* /root/ros2_ws/"
 
-# Restore n8n workflows
-docker compose restart n8n_container
+# Restore ROS 2 configurations if needed
 ```
 
 ## Prevention Measures

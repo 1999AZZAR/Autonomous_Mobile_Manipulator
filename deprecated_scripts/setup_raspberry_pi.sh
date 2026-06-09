@@ -221,7 +221,6 @@ configure_network() {
     sudo ufw default allow outgoing
     sudo ufw allow ssh
     sudo ufw allow 5000  # Robot API
-    sudo ufw allow 5678  # n8n interface
     sudo ufw allow 8765  # WebSocket
     echo "y" | sudo ufw enable
 
@@ -318,7 +317,7 @@ setup_project() {
 
 # Setup and import workflows
 setup_workflows() {
-    log_info "Setting up N8N workflows..."
+    log_info "Setting up workflows..."
 
     cd /home/$USER/Autonomous_Mobile_Manipulator
 
@@ -328,8 +327,7 @@ setup_workflows() {
     local max_attempts=60
 
     while [ $attempts -lt $max_attempts ]; do
-        if curl -s --max-time 5 http://localhost:5678 >/dev/null 2>&1 && \
-           curl -s --max-time 5 http://localhost:5000/health >/dev/null 2>&1; then
+        if curl -s --max-time 5 http://localhost:5000/health >/dev/null 2>&1; then
             log_success "All services are responding"
             break
         fi
@@ -403,7 +401,6 @@ complete_setup() {
     log_success "🎉 Complete Autonomous Mobile Manipulator setup finished!"
     log_info ""
     log_info "System is ready and fully operational:"
-    log_info "   - n8n: http://localhost:5678"
     log_info "   - Robot API: http://localhost:5000"
     log_info "   - WebSocket: ws://localhost:8765"
     log_info ""
@@ -573,12 +570,6 @@ else
     fi
 fi
 
-if ! docker ps | grep -q n8n_prod_container; then
-    report_error "n8n container not running"
-else
-    echo "✓ n8n container is running"
-fi
-
 # Check ROS2-specific health
 echo "Checking ROS2 services..."
 if docker ps | grep -q ros2_sim_prod_container; then
@@ -617,21 +608,6 @@ else
     echo "✓ Robot API is responding"
 
     # Check API health details
-    API_HEALTH=\$(curl -s --max-time 5 http://localhost:5000/health || echo "{}")
-    if echo "\$API_HEALTH" | grep -q '"status":"healthy"'; then
-        echo "✓ Robot API reports healthy status"
-    else
-        report_warning "Robot API health check failed"
-    fi
-fi
-
-if ! curl -s --max-time 5 http://localhost:5678 > /dev/null; then
-    report_error "n8n interface not responding"
-else
-    echo "✓ n8n interface is responding"
-fi
-
-# Check WebSocket endpoint
 echo "Checking WebSocket endpoint..."
 if ! timeout 5 bash -c 'echo > /dev/tcp/localhost/8765' 2>/dev/null; then
     report_warning "WebSocket port not accessible"
@@ -732,11 +708,9 @@ main() {
                 log_info "The setup will then:"
                 log_info "   - Clone the Autonomous Mobile Manipulator project"
                 log_info "   - Start all services (production mode)"
-                log_info "   - Import and configure N8N workflows"
                 log_info "   - Set up monitoring and health checks"
                 log_info ""
                 log_info "After complete setup, access interfaces:"
-                log_info "   - n8n: http://localhost:5678"
                 log_info "   - Robot API: http://localhost:5000"
                 log_info ""
                 log_info "Run './system_monitor.sh' to check system status"

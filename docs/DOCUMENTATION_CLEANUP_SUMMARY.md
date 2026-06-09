@@ -50,7 +50,6 @@ Comprehensive cleanup and consolidation of the Autonomous Mobile Manipulator doc
 - `software/README.md` - Software configuration and ROS2 setup
 - `api/README.md` - Complete API documentation and examples
 - `troubleshooting/README.md` - Troubleshooting guide and diagnostics
-- `workflows/WORKFLOW_MANAGEMENT_README.md` - N8N workflow management
 
 ### Specialized Documentation
 - All `hardware/` technical specifications
@@ -77,7 +76,7 @@ Used chaining MCP tools for systematic analysis:
 
 ### Technical Content Preserved
 - **Hardware Documentation**: Complete assembly, wiring, and configuration guides
-- **Software Setup**: ROS2, Docker, n8n configuration and optimization
+- **Software Setup**: ROS2, Docker configuration and optimization
 - **API Documentation**: Comprehensive endpoint and integration examples
 - **Development Guides**: Workflow, testing, and deployment procedures
 - **Troubleshooting**: Diagnostic tools and problem resolution
@@ -97,7 +96,6 @@ docs/
 ├── development/                       # Development workflow
 ├── troubleshooting/                   # Problem diagnosis
 ├── deployment/                        # Production deployment
-├── workflows/                         # N8N workflow management
 └── labview-integration/               # LabVIEW integration
 ```
 

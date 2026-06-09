@@ -27,7 +27,6 @@ Development setup complete! Access your robot system at:
 ```
 Development setup complete! Access your robot system at:
    🌐 Web Interface (PRIMARY): http://localhost:8000
-   🔧 n8n Workflows (Optional): http://localhost:5678
    🔌 Robot API: http://localhost:5000
    📊 Sensor Data: curl http://localhost:5000/api/robot/sensors
 
@@ -56,7 +55,6 @@ Setup complete! Access your robot system at:
 ```
 Setup complete! Access your robot system at:
    🌐 Web Interface (PRIMARY): http://localhost:8000
-   🔧 n8n Workflows (Optional): http://localhost:5678
    🔌 Robot API: http://localhost:5000
 
 Production Mode Features:
@@ -88,7 +86,6 @@ Services will be available at:
 ```
 Services will be available at:
   🌐 Web Interface (PRIMARY):     http://localhost:8000
-  🔧 n8n Workflows (Optional):    http://localhost:5678
   🔌 Robot REST API:              http://localhost:5000
   🔗 WebSocket Server:            ws://localhost:8765
 
@@ -165,9 +162,7 @@ When you run `./run.sh` or `./start_robot.sh`, the following services start:
 2. **REST API Server** - Port 5000 (backend API)
 3. **Web Interface** - Port 8000 (PRIMARY UI) ✅
 4. **WebSocket Server** - Port 8765 (real-time communication)
-5. **N8N Bridge** - Workflow automation integration
-6. **Service Servers** - Pick-place, patrol, obstacle avoidance, etc.
-7. **N8N** - Port 5678 (optional workflow automation)
+5. **Service Servers** - Pick-place, patrol, obstacle avoidance, etc.
 
 ---
 
@@ -200,7 +195,6 @@ When you run `./run.sh` or `./start_robot.sh`, the following services start:
 | Port | Service | Priority | Description |
 |------|---------|----------|-------------|
 | **8000** | **Web Interface** | **PRIMARY** | **Complete robot control and monitoring** |
-| 5678 | N8N Workflows | Optional | Workflow automation (advanced) |
 | 5000 | REST API | Backend | API endpoints (used by Web UI) |
 | 8765 | WebSocket | Backend | Real-time communication |
 
@@ -264,17 +258,15 @@ When you run `./run.sh` or `./start_robot.sh`, the following services start:
 ```
 1. User runs: ./run.sh
 2. Script checks prerequisites (Docker, Docker Compose)
-3. Starts Docker containers (ros2-sim, n8n)
+3. Starts Docker containers (ros2-sim)
 4. ROS2 container builds packages
 5. Launches automation_launch.py which starts:
    - REST API Server (port 5000)
    - Web Interface (port 8000) ✅
    - WebSocket Server (port 8765)
-   - N8N Bridge
    - Service Servers
-6. N8N container starts (port 5678)
-7. Script displays access information
-8. User opens: http://localhost:8000 (PRIMARY)
+6. Script displays access information
+7. User opens: http://localhost:8000 (PRIMARY)
 ```
 
 ---

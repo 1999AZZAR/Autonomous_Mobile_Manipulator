@@ -294,7 +294,6 @@ If stuck:
 Once everything works:
 
 - Explore automation features
-- Set up n8n workflows
 - Configure path planning
 - Calibrate sensors
 - Test pick-and-place sequences

@@ -53,8 +53,6 @@ brain/controll
     - ubuntu server
     - docker
     - tailscale
-- n8n (on docker)
-    - automation
 - ros2 (on docker)
     - low level
     - direct io

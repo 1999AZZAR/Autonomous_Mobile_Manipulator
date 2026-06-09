@@ -556,7 +556,6 @@ EXAMPLES:
 ACCESS:
     Web Dashboard:  http://localhost:8000
     Robot API:      http://localhost:5000
-    n8n:            http://localhost:5678
 
 EOF
 }

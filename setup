@@ -306,7 +306,6 @@ EOF
     sudo ufw default allow outgoing
     sudo ufw allow ssh
     sudo ufw allow 5000  # Robot API
-    sudo ufw allow 5678  # n8n
     sudo ufw allow 8000  # Web interface
     sudo ufw allow 8765  # WebSocket
     

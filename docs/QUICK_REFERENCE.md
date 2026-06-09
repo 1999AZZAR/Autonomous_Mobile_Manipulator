@@ -80,7 +80,6 @@ Once started:
 
 - **Web Dashboard**: http://localhost:8000
 - **Robot API**: http://localhost:5000
-- **n8n Automation**: http://localhost:5678
 - **WebSocket**: ws://localhost:8765
 
 ## Quick Tips
@@ -174,7 +173,6 @@ docker compose -f docker-compose.dev.yml up -d
 ### View Specific Service Logs
 ```bash
 docker logs -f ros2_sim_container
-docker logs -f n8n_container
 ```
 
 ### Execute Command in Container
@@ -191,7 +189,7 @@ docker exec ros2_sim_container ros2 topic list
 # List available workflows
 ./workflow_management_tools.sh list
 
-# Check n8n status
+# Check service status
 ./workflow_management_tools.sh status
 
 # Export workflows
@@ -208,7 +206,6 @@ docker exec ros2_sim_container ros2 topic list
 ### Configuration
 - Docker: `docker-compose.yml`, `docker-compose.dev.yml`, `docker-compose.prod.yml`
 - ROS2: `ros2_ws/`
-- n8n data: `n8n_data/`
 - Logs: `ros2_logs/`
 
 ### Documentation

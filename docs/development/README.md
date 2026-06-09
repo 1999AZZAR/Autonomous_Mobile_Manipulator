@@ -918,7 +918,6 @@ The contributing guide covers:
 - [ROS 2 Documentation](https://docs.ros.org/en/iron/)
 - [Gazebo Documentation](https://gazebosim.org/docs/)
 - [Docker Documentation](https://docs.docker.com/)
-- [n8n Documentation](https://docs.n8n.io/)
 
 ### Development Tools
 - [ROS 2 Tutorials](https://docs.ros.org/en/iron/Tutorials.html)

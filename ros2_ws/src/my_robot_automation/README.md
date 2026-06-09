@@ -45,7 +45,6 @@ Hexagonal-shaped autonomous mobile robot with omnidirectional movement, object m
 - Raspberry Pi 5 with Ubuntu Server
 - Docker containerized services
 - ROS2 for low-level control
-- n8n for workflow automation
 - Tailscale for remote access
 
 ## Software Architecture
@@ -133,7 +132,7 @@ ros2 run my_robot_automation web_robot_interface.py
 1. **Movement** - Manual control, speed adjustment, directional movement
 2. **Manipulation** - Gripper control, tilt/position adjustment
 3. **Containers** - Storage container management
-4. **Automation** - Patrol routes, pick-and-place, n8n integration
+4. **Automation** - Patrol routes, pick-and-place
 5. **Safety** - Emergency stop controls
 6. **Status** - System health, logs, command history
 7. **Path Planning** - Waypoint management, route visualization

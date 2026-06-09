@@ -104,7 +104,6 @@ cd /root/ros2_ws
 - robot_automation_server
 - rest_api_server
 - websocket_server
-- n8n_ros2_bridge
 - robot_status_server
 - sensor_data_server
 
@@ -125,7 +124,6 @@ cd /root/ros2_ws
 **my_robot_automation** - Core automation logic
 - REST API server
 - WebSocket server
-- N8N bridge
 - Service servers (patrol, pick-place, etc.)
 
 **my_robot_description** - Robot URDF and configuration

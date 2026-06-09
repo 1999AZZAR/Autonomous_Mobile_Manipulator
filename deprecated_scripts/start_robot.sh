@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Autonomous Mobile Manipulator - Startup Script
-# This script provides an easy way to start the ROS2 simulation and n8n workflow automation
+# This script provides an easy way to start the ROS2 simulation and robot services
 
 set -e  # Exit on any error
 
@@ -133,7 +133,6 @@ show_status() {
     echo ""
     print_info "Services will be available at:"
     echo "  🌐 Web Interface (PRIMARY):     http://localhost:8000"
-    echo "  🔧 n8n Workflows (Optional):    http://localhost:5678"
     echo "  🔌 Robot REST API:              http://localhost:5000"
     echo "  🔗 WebSocket Server:            ws://localhost:8765"
     echo ""
@@ -148,7 +147,6 @@ show_status() {
     echo ""
     print_info "Container Access:"
     echo "  ROS2 Container: docker exec -it $CONTAINER_PREFIX bash"
-    echo "  n8n Container:  docker exec -it n8n_container bash"
     echo ""
 }
 
