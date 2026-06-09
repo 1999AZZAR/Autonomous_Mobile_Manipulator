@@ -82,7 +82,6 @@ The LKS Autonomous Mobile Manipulator uses a distributed control architecture:
 | **Power System** | | | |
 | Battery | 12V LiPo 5000mAh | 1 | Power supply for all systems |
 | Voltage Regulators | 5V/12V buck converters | 2 | Power management and distribution |
-
 | Container System | 4-compartment | 1 | Material transport and storage |
 
 **Motor Documentation:**
@@ -179,13 +178,13 @@ The LKS Autonomous Mobile Manipulator uses a distributed control architecture:
 3. **Pi-Mega Communication Setup**:
    ```bash
    # Connect Raspberry Pi UART to Arduino Mega UART
-   # Pi GPIO 14 (TX) → Mega RX (pin 0)
-   # Pi GPIO 15 (RX) ← Mega TX (pin 1)
+   # Pi GPIO 14 (TX) -> Mega RX (pin 0)
+   # Pi GPIO 15 (RX) <- Mega TX (pin 1)
    # Common ground connection
    # Set baud rate to 115200 on both devices
    ```
 
-3. **Servo Power Distribution**:
+4. **Servo Power Distribution**:
    ```bash
    # Install servo power regulator (6V for servos)
    # Connect to 5 servo motors and gripper servo
@@ -332,8 +331,8 @@ YFROBOT Shield Connections:
 
 ```
 Serial UART Connection:
-- Raspberry Pi GPIO 14 (TX) → Arduino Mega pin 0 (RX)
-- Raspberry Pi GPIO 15 (RX) ← Arduino Mega pin 1 (TX)
+- Raspberry Pi GPIO 14 (TX) -> Arduino Mega pin 0 (RX)
+- Raspberry Pi GPIO 15 (RX) <- Arduino Mega pin 1 (TX)
 - Common ground connection between Pi and Mega
 - Baud rate: 115200 (configured in both devices)
 ```
@@ -384,12 +383,20 @@ Container Load Sensors:
 #### Servo Control Wiring:
 
 ```
-Raspberry Pi PWM Pins → Servo Motors:
-- GPIO 14 (PWM0) → Gripper Servo
-- GPIO 15 (PWM1) → Gripper Tilt Servo
-- GPIO 18 (PWM2) → Gripper Neck Servo (continuous)
-- GPIO 19 (PWM3) → Gripper Base Servo
-- GPIO 21 (PWM4) → Container Actuators
+Servo control routes through the Arduino Mega via serial commands.
+The Pi sends single-character commands over UART (GPIO14/15) to the Mega,
+which drives servos via the YFROBOT motor shield.
+
+Raspberry Pi UART -> Arduino Mega:
+- GPIO 14 (TX) -> Mega RX (pin 0)
+- GPIO 15 (RX) <- Mega TX (pin 1)
+- Baud rate: 115200
+
+Servo commands via serial:
+- Gripper open/close: 'no' / 'nc'
+- Gripper tilt: 'ta<angle>'
+- Gripper neck: 'nn' / 'nf'
+- Lifter up/down: 'u' / 'd'
 ```
 
 ## Testing and Verification

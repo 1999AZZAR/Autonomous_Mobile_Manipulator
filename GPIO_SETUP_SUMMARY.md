@@ -1,89 +1,96 @@
-# ROS2 GPIO Setup - Complete Implementation
+# ROS2 GPIO Setup Summary
 
-## ✅ What We've Done
+## What Was Implemented
 
-I've completely set up ROS2 to use GPIO on your Raspberry Pi. Here's what was implemented:
+### 1. GPIO Dependencies and Installation
 
-### 1. **GPIO Dependencies & Installation**
-- ✅ Created `install_gpio_dependencies.sh` for Raspberry Pi host setup
-- ✅ Installs pigpio, gpiozero, RPi.GPIO, and sensor libraries
-- ✅ Configures pigpiod daemon and GPIO permissions
+- `install_gpio_dependencies.sh` installs pigpio, gpiozero, RPi.GPIO, and sensor libraries on the Raspberry Pi host.
+- Configures pigpiod daemon and GPIO permissions for container access.
 
-### 2. **Docker GPIO Configuration**
-- ✅ Created `docker-compose.rpi.yml` for Raspberry Pi deployment
-- ✅ Added `Dockerfile.rpi` with GPIO libraries pre-installed
-- ✅ Configured device passthrough (`/dev/gpiomem`, `/dev/mem`, I2C, SPI)
-- ✅ Enabled privileged mode for hardware access
+### 2. Docker GPIO Configuration
 
-### 3. **Enhanced GPIO Controller**
-- ✅ Improved `GPIOController` class with detailed logging
-- ✅ Added system checks (Raspberry Pi detection, pigpiod status)
-- ✅ Better error handling and fallback to simulation mode
-- ✅ Controls 4 servos, 3 motors, and 4 container servos
+- `docker-compose.rpi.yml` added for Raspberry Pi deployment with device passthrough.
+- Devices exposed: `/dev/gpiomem`, `/dev/mem`, I2C (`/dev/i2c-1`), SPI (`/dev/spidev0.0`).
+- Privileged mode enabled for hardware access.
 
-### 4. **Testing & Diagnostics**
-- ✅ Created `test_gpio_standalone.py` for basic GPIO testing
-- ✅ Created `test_gpio_container.py` for Docker container testing
-- ✅ Enhanced `test_gpio.py` for hardware verification
-- ✅ Added comprehensive logging and troubleshooting
+### 3. GPIO Controller
 
-### 5. **Documentation**
-- ✅ Created `RASPBERRY_PI_GPIO_SETUP.md` complete setup guide
-- ✅ Updated `GPIO_CONTROL_SETUP.md` with Docker instructions
-- ✅ Added troubleshooting sections for common issues
+- `gpio_controller.py` provides the `GPIOController` class.
+- Uses `lgpio` as primary library, `gpiozero` as fallback.
+- Falls back to simulation mode when no GPIO libraries are available.
+- Current implementation covers ADC reading (Sharp IR sensors via SPI) and sensor initialization.
+- Motor and servo control routes through the Arduino Mega via serial, not direct GPIO.
 
-## 🚀 How to Use on Raspberry Pi
+### 4. Testing and Diagnostics
+
+- `test_gpio_standalone.py` — basic GPIO testing on the host.
+- `test_gpio_container.py` — Docker container GPIO testing.
+- Logging and error handling included for troubleshooting.
+
+### 5. Documentation
+
+- `RASPBERRY_PI_GPIO_SETUP.md` — full setup guide.
+- `GPIO_CONTROL_SETUP.md` — updated with Docker instructions.
+
+## How to Use on Raspberry Pi
 
 ### Step 1: Install Dependencies (on Raspberry Pi host)
+
 ```bash
-cd /home/azzar/project/robotic/lks_robot_project
+cd ~/Autonomous_Mobile_Manipulator
 sudo ./install_gpio_dependencies.sh
 ```
 
 ### Step 2: Start ROS2 with GPIO
+
 ```bash
-# Use Raspberry Pi compose file
-docker-compose -f docker-compose.rpi.yml up ros2-hardware
+docker compose -f docker-compose.rpi.yml up ros2-hardware
 ```
 
 ### Step 3: Test GPIO
+
 ```bash
-# Test from host
+# From host
 python3 ros2_ws/src/my_robot_automation/scripts/test_gpio.py
 
-# Test from container
+# From container
 docker exec ros2_hardware_container python3 test_gpio_container.py
 ```
 
 ### Step 4: Access Web Interface
-- Open: `http://raspberry-pi-ip:8000`
-- All GPIO controls (servos, motors, containers) should work
-- Real hardware control, not simulation
 
-## 🔧 GPIO Pin Configuration
+Open `http://<raspberry-pi-ip>:8000`. All controls route through the Arduino Mega for hardware actuation.
 
-### Servos (Hardware PWM)
-- GPIO18: Gripper Tilt
-- GPIO19: Gripper Open/Close
-- GPIO21: Gripper Neck (360°)
-- GPIO12: Gripper Base Height
+## GPIO Pin Configuration
 
-### Motors (Software PWM)
-- GPIO17/27: Front Left Wheel
-- GPIO22/23: Front Right Wheel
-- GPIO24/25: Back Wheel
+### Raspberry Pi Pins (Direct Control)
 
-### Container Servos
-- GPIO26: Left Front Container
-- GPIO5: Left Back Container
-- GPIO6: Right Front Container
-- GPIO7: Right Back Container
+| Function | Pin | Type |
+|----------|-----|------|
+| IMU (MPU6050) SDA | GPIO2 | I2C |
+| IMU (MPU6050) SCL | GPIO3 | I2C |
+| Line Sensor Left | GPIO4 | Digital IN |
+| Line Sensor Center | GPIO17 | Digital IN |
+| Line Sensor Right | GPIO27 | Digital IN |
+| LiDAR (TF-Luna) TX | GPIO14 | UART |
+| LiDAR (TF-Luna) RX | GPIO15 | UART |
 
-## 🐛 Troubleshooting
+### Arduino Mega Pins (via YFROBOT Shield)
 
-### If GPIO doesn't work:
+| Function | Interface |
+|----------|-----------|
+| 4x PG23 Motors (M1-M4) | I2C to YFROBOT shield |
+| IR Distance Sensors (6x) | Analog A0-A5 |
+| Ultrasonic Sensors (2x) | Digital (Trigger/Echo) |
+| Line Sensors (3x) | Digital pins |
+| IMU (MPU6050) | I2C (SDA/SCL) |
+| Servo Actuators | PWM via shield |
 
-1. **Check pigpiod:**
+## Troubleshooting
+
+### If GPIO does not work:
+
+1. **Check pigpiod status:**
    ```bash
    sudo systemctl status pigpiod
    ```
@@ -103,28 +110,18 @@ docker exec ros2_hardware_container python3 test_gpio_container.py
    docker logs ros2_hardware_container | grep GPIO
    ```
 
-### Common Issues:
-- **"pigpiod not running"** → `sudo systemctl start pigpiod`
-- **"Permission denied"** → Add user to gpio group
-- **"Libraries not found"** → Use `docker-compose.rpi.yml` not dev version
+### Common Issues
 
-## 📊 Current Status
+| Problem | Fix |
+|---------|-----|
+| pigpiod not running | `sudo systemctl start pigpiod` |
+| Permission denied | Add user to gpio group: `sudo usermod -aG gpio $USER` |
+| Libraries not found | Use `docker-compose.rpi.yml`, not the dev compose file |
+| I2C not detected | Run `i2cdetect -y 1` — should show MPU6050 at 0x68 |
 
-- ✅ **ROS2 Node**: `web_robot_interface.py` initializes GPIO controller
-- ✅ **Web API**: All endpoints (`/api/robot/move`, `/api/robot/picker/gripper`, etc.) call GPIO methods
-- ✅ **Hardware Control**: Direct servo/motor control via gpiozero + pigpio
-- ✅ **Docker Ready**: Container configured for GPIO device access
-- ✅ **Testing**: Multiple test scripts for verification
-- ✅ **Documentation**: Complete setup and troubleshooting guides
+## Current Status
 
-## 🎯 Result
-
-ROS2 now has **full GPIO access** on Raspberry Pi. The web interface can control:
-- 🤖 **Robot Movement**: Omni-wheel drive system
-- 🦾 **Gripper Control**: Tilt, open/close, extension, height
-- 📦 **Container Management**: 4 servo-controlled storage containers
-- 📊 **Sensor Integration**: IMU, IR distance sensors via ADC
-
-The system automatically falls back to simulation mode if GPIO isn't available, so it works on any machine for development.
-
-Your robot should now respond to web interface commands with real hardware control! 🎉
+- GPIO controller initialized in `web_robot_interface.py` on startup.
+- Web API endpoints (`/api/robot/move`, `/api/robot/picker/gripper`, etc.) route commands to the Arduino Mega via serial.
+- Motor and servo actuation handled by Arduino Mega firmware, not direct GPIO.
+- System falls back to simulation mode if GPIO or serial is unavailable.

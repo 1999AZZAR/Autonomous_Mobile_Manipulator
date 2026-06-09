@@ -100,7 +100,7 @@ The Web Interface (http://localhost:8000) is the **primary control and monitorin
 The Web Interface is built with:
 - **Backend**: Flask (Python) - ROS2 integration
 - **Frontend**: HTML5, CSS3, JavaScript
-- **Communication**: REST API (http://127.0.0.1:5000)
+- **Communication**: REST API (http://localhost:8000/api/*)
 - **Visualization**: HTML5 Canvas for path planning
 
 ## Related Documentation

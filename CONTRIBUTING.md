@@ -47,16 +47,19 @@ git checkout -b feature/your-feature-name
 
 2. **Start Development Environment**
    ```bash
-   # Start with sensor simulation for development
-   ./run.sh --dev
+   # One-time setup
+   ./setup --pc
 
-   # Or start full production environment
-   ./run.sh
+   # Start with simulated sensors for development
+   ./start --sim
+
+   # Or start with real hardware
+   ./start --hw
    ```
 
 3. **Access Development Interfaces**
-   - n8n Workflow Editor: http://localhost:5678
-   - Robot REST API: http://localhost:5000
+   - Web UI: http://localhost:8000
+   - REST API: http://localhost:8000/api/*
    - ROS 2 Development Container: `docker exec -it ros2_sim_container bash`
 
 ### ROS 2 Development
@@ -122,14 +125,6 @@ def calculate_motor_speed(distance: float, time: float) -> float:
 - Follow ROS 2 message and service naming conventions
 - Include proper error handling in ROS 2 nodes
 
-### n8n Workflow Standards
-
-- Use descriptive node names and descriptions
-- Include error handling in workflow nodes
-- Document workflow inputs, outputs, and logic
-- Test workflows with various scenarios
-- Include workflow metadata and tags
-
 ### Commit Message Guidelines
 
 Use clear, descriptive commit messages:
@@ -172,7 +167,6 @@ def test_calculate_motor_speed_zero_time():
 ### Integration Testing
 
 - Test ROS 2 node interactions
-- Verify n8n workflow functionality
 - Test hardware interfaces when possible
 - Include system-level integration tests
 

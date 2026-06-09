@@ -74,9 +74,8 @@ Both configurations support the same environment variables:
 
 Both configurations expose the same ports:
 
-- `5678` - n8n workflow interface
-- `5000` - Robot REST API
-- `8000` - Professional web interface (dev only)
+- `5000` - Advanced REST API server
+- `8000` - Professional web interface
 - `8765` - WebSocket server
 
 ## Hardware Access (Production Only)
@@ -115,8 +114,4 @@ docker compose -f docker-compose.prod.yml build
 # Check ROS2 container logs
 docker logs ros2_sim_dev_container    # Development
 docker logs ros2_sim_prod_container   # Production
-
-# Check n8n container logs
-docker logs n8n_dev_container         # Development
-docker logs n8n_prod_container        # Production
 ```

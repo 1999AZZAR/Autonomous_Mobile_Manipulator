@@ -1,6 +1,6 @@
 # Autonomous Mobile Manipulator
 
-A complete hexagonal-shaped autonomous mobile manipulator system built with ROS 2 Iron, featuring real-time automation workflows, advanced manipulation capabilities, and comprehensive robot control for industrial automation tasks.
+A complete hexagonal-shaped autonomous mobile manipulator system built with ROS 2 Jazzy, featuring real-time automation workflows, advanced manipulation capabilities, and comprehensive robot control for industrial automation tasks.
 
 ## System Overview
 
@@ -8,9 +8,9 @@ The Autonomous Mobile Manipulator is a distributed robotics platform combining R
 
 ### Project Description
 
-This document provides a high-level overview of the Autonomous Mobile Manipulator, a distributed robotics platform combining ROS2 high-level control on Raspberry Pi with real-time sensor/actuator control on Arduino Mega. The system is designed for both simulation and real hardware deployment, featuring a clear separation between high-level coordination and real-time control.
+This document provides a high-level overview of the Autonomous Mobile Manipulator, a distributed robotics platform combining ROS2 high-level control on Raspberry Pi with real-time sensor/actuator control on Arduino Mega. The system is designed for both simulation and real hardware deployment, with clear separation between high-level coordination and real-time control.
 
-It integrates advanced robotics capabilities through a distributed architecture where the Raspberry Pi handles ROS2 navigation, web interfaces, and path planning, while the Arduino Mega manages real-time motor control, sensor acquisition, and actuator positioning.
+It integrates robotics capabilities through a distributed architecture where the Raspberry Pi handles ROS2 navigation, web interfaces, and path planning, while the Arduino Mega manages real-time motor control, sensor acquisition, and actuator positioning.
 
 ### Key Features
 
@@ -27,28 +27,13 @@ It integrates advanced robotics capabilities through a distributed architecture 
 
 ### Technology Stack
 
-- **Robotics Framework:** ROS 2 (Iron)
+- **Robotics Framework:** ROS 2 (Jazzy)
 - **Web Framework:** Flask (Python)
 - **Hardware Control:** Arduino Mega (ATmega2560)
 - **Serial Communication:** PySerial with auto-reconnection
 - **Containerization:** Docker, Docker Compose
 - **Navigation:** Custom path planning algorithms
 - **Primary Language:** Python 3
-
-### System Capabilities
-
-This project provides a complete production-ready robotics platform featuring:
-
-- **Hexagonal robot design** with 3-wheel omnidirectional movement system
-- **Advanced manipulation** with servo-based picker system for precise object handling
-- **Distributed sensor architecture** with real-time sensor fusion:
-  - **Arduino Mega (Real-time):** IR Sharp distance sensors (6x), HC-SR04 ultrasonic sensors (2x), motor control, servo actuators, emergency stop, PID motor control
-  - **Raspberry Pi (High-level):** TF-Luna LiDAR, MPU6050 IMU, line sensors (3x), path planning, ROS2 coordination, web interface
-- **ROS 2 Iron** for robust robot control and navigation
-- **Serial communication** between RPi and Arduino Mega for coordinated control
-- **Web-based control interface** with real-time monitoring and manual control
-- **Docker containerization** for reliable deployment
-- **Hardware control systems** for safety and operational management
 
 ### Software Architecture
 
@@ -85,7 +70,7 @@ The architecture combines ROS 2 high-level control with Arduino Mega real-time c
 The system uses a distributed architecture with clear separation of responsibilities:
 
 **Raspberry Pi 4 Responsibilities (High-level Control):**
-- ROS 2 Iron framework and navigation stack coordination
+- ROS 2 Jazzy framework and navigation stack coordination
 - Web interface (Flask) and REST API server
 - Path planning and waypoint navigation algorithms
 - IMU sensor processing (MPU6050) for orientation tracking
@@ -138,7 +123,7 @@ The Flask-based REST API provides programmatic access to all robot functions:
 - **System Management:** `/health`, `/api/mega/status`
 
 **Architecture Diagram:**
-```
+```text
 Operator → Web UI → REST API → Python Control Logic → Serial → Arduino Mega → Motors/Sensors
 ```
 
@@ -265,40 +250,24 @@ The system consists of two main components:
 - **GPIO control**: Direct hardware control for RPi components
 
 ### Professional Web Interface
-#### WebRobotInterface Auto-Initialization
 
-The `WebRobotInterface` class now supports automatic ROS 2 initialization:
+The `WebRobotInterface` class supports automatic ROS 2 initialization:
 
 ```python
-# Before (manual ROS 2 setup required)
-import rclpy
-rclpy.init()
-from web_robot_interface import WebRobotInterface
-interface = WebRobotInterface()
-
-# After (automatic ROS 2 setup)
 from web_robot_interface import WebRobotInterface
 interface = WebRobotInterface()  # ROS 2 initialized automatically
 interface.cleanup()  # ROS 2 shutdown automatically
 ```
 
-**Features:**
-- ✅ Automatic ROS 2 initialization and shutdown
-- ✅ No manual `rclpy.init()` required
-- ✅ Backward compatible with existing code
-- ✅ Proper resource cleanup
-
 **Test:** `python3 test_auto_ros_init.py`
 
-- **User-friendly control center**: Modern web-based robot control interface
-- **Real-time status monitoring**: Live system status and diagnostics
-- **Tabbed control panels**: Organized access to all robot functions
-- **Professional UI/UX**: Responsive design with intuitive controls
-- **API integration**: Frontend for all ROS2 REST API endpoints
+- User-friendly control center with tabbed panels
+- Real-time status monitoring and diagnostics
+- Responsive design with intuitive controls
+- Frontend for all ROS2 REST API endpoints
 
 ### Future Automation Integration
 
-- **Workflow Automation**: Planned low-code automation platform (n8n)
 - **HTTP API Foundation**: REST endpoints ready for automation integration
 - **Programmatic Control**: Direct API access for custom automation
 - **Sequence Execution**: Movement pattern automation via API
@@ -376,7 +345,7 @@ The Autonomous Mobile Manipulator provides a comprehensive REST API for complete
 
 ```bash
 git clone <repository-url>
-cd lks_robot_project
+cd Autonomous_Mobile_Manipulator
 ```
 
 #### Step 2: Run Setup
@@ -502,8 +471,8 @@ All runtime operations:
 
 ## Project Structure
 
-```
-lks_robot_project/
+```text
+Autonomous_Mobile_Manipulator/
 ├── docker-compose.yml              # Service orchestration
 ├── README.md                       # This file
 ├── docs/                          # Comprehensive documentation
@@ -513,18 +482,6 @@ lks_robot_project/
 │   ├── hardware/                  # Hardware specifications
 │   ├── installation/              # Installation guides
 │   └── troubleshooting/           # Troubleshooting guides
-│       ├── robot_simple_test.json
-│       ├── robot_pick_place.json
-│       ├── robot_mobile_pick_place.json
-│       ├── robot_emergency_stop.json
-│       ├── robot_inspection_patrol.json
-│       ├── robot_material_transport.json
-│       ├── robot_system_calibration.json
-│       ├── individual_sensor_ultrasonic_monitoring.json
-│       ├── individual_control_picker_system.json
-│       ├── individual_control_omni_wheels.json
-│       ├── individual_control_container_system.json
-│       └── individual_control_*.json
 └── ros2_ws/                      # ROS 2 workspace
     └── src/                      # ROS 2 packages
         ├── my_robot_automation/  # Automation services
@@ -616,7 +573,6 @@ The system provides basic automation capabilities through the REST API and web i
 
 ### Planned Automation Features (Future)
 
-- **Workflow Automation**: Low-code automation platform for complex task sequences
 - **Scheduled Operations**: Time-based autonomous operations
 - **Event-Driven Automation**: Sensor-based conditional behaviors
 - **Multi-Robot Coordination**: Distributed robot task management
@@ -632,17 +588,17 @@ The robot provides a comprehensive REST API on port 8000 for external control an
 
 ```bash
 # Health check
-curl http://127.0.0.1:5000/health
+curl http://127.0.0.1:8000/health
 
 # Get comprehensive robot status
-curl http://127.0.0.1:5000/api/robot/status
+curl http://127.0.0.1:8000/api/robot/status
 ```
 
 ### Robot Mode Management
 
 ```bash
 # Set robot operating mode
-curl -X POST http://127.0.0.1:5000/api/robot/mode \
+curl -X POST http://127.0.0.1:8000/api/robot/mode \
   -H "Content-Type: application/json" \
   -d '{"mode": "AUTONOMOUS", "reason": "Starting automated operation"}'
 
@@ -653,44 +609,44 @@ curl -X POST http://127.0.0.1:5000/api/robot/mode \
 
 ```bash
 # Move robot in cardinal directions
-curl -X POST http://127.0.0.1:5000/api/robot/move \
+curl -X POST http://127.0.0.1:8000/api/robot/move \
   -H "Content-Type: application/json" \
   -d '{"direction": "forward", "speed": 0.5}'
 
 # Turn robot left/right
-curl -X POST http://127.0.0.1:5000/api/robot/turn \
+curl -X POST http://127.0.0.1:8000/api/robot/turn \
   -H "Content-Type: application/json" \
   -d '{"direction": "left", "speed": 0.3}'
 
 # Strafe movement (omni-directional)
-curl -X POST http://127.0.0.1:5000/api/robot/move \
+curl -X POST http://127.0.0.1:8000/api/robot/move \
   -H "Content-Type: application/json" \
   -d '{"direction": "strafe_left", "speed": 0.4}'
 
 # Stop all movement
-curl -X POST http://127.0.0.1:5000/api/robot/stop
+curl -X POST http://127.0.0.1:8000/api/robot/stop
 ```
 
 ### Picker System Control
 
 ```bash
 # Control gripper (open/close)
-curl -X POST http://127.0.0.1:5000/api/robot/picker/gripper \
+curl -X POST http://127.0.0.1:8000/api/robot/picker/gripper \
   -H "Content-Type: application/json" \
   -d '{"command": "open"}'
 
 # Control gripper tilt
-curl -X POST http://127.0.0.1:5000/api/robot/picker/gripper_tilt \
+curl -X POST http://127.0.0.1:8000/api/robot/picker/gripper_tilt \
   -H "Content-Type: application/json" \
   -d '{"angle": 15}'
 
 # Control gripper neck position
-curl -X POST http://127.0.0.1:5000/api/robot/picker/gripper_neck \
+curl -X POST http://127.0.0.1:8000/api/robot/picker/gripper_neck \
   -H "Content-Type: application/json" \
   -d '{"position": 0.5}'
 
 # Control gripper base height
-curl -X POST http://127.0.0.1:5000/api/robot/picker/gripper_base \
+curl -X POST http://127.0.0.1:8000/api/robot/picker/gripper_base \
   -H "Content-Type: application/json" \
   -d '{"height": 0.3}'
 ```
@@ -699,22 +655,22 @@ curl -X POST http://127.0.0.1:5000/api/robot/picker/gripper_base \
 
 ```bash
 # Control left front container
-curl -X POST http://127.0.0.1:5000/api/robot/containers/left_front \
+curl -X POST http://127.0.0.1:8000/api/robot/containers/left_front \
   -H "Content-Type: application/json" \
   -d '{"action": "load"}'
 
 # Control left back container
-curl -X POST http://127.0.0.1:5000/api/robot/containers/left_back \
+curl -X POST http://127.0.0.1:8000/api/robot/containers/left_back \
   -H "Content-Type: application/json" \
   -d '{"action": "unload"}'
 
 # Control right front container
-curl -X POST http://127.0.0.1:5000/api/robot/containers/right_front \
+curl -X POST http://127.0.0.1:8000/api/robot/containers/right_front \
   -H "Content-Type: application/json" \
   -d '{"action": "load"}'
 
 # Control right back container
-curl -X POST http://127.0.0.1:5000/api/robot/containers/right_back \
+curl -X POST http://127.0.0.1:8000/api/robot/containers/right_back \
   -H "Content-Type: application/json" \
   -d '{"action": "unload"}'
 ```
@@ -723,17 +679,17 @@ curl -X POST http://127.0.0.1:5000/api/robot/containers/right_back \
 
 ```bash
 # Emergency stop
-curl -X POST http://127.0.0.1:5000/api/robot/hardware/emergency \
+curl -X POST http://127.0.0.1:8000/api/robot/hardware/emergency \
   -H "Content-Type: application/json" \
   -d '{"action": "stop"}'
 
 # Start/stop robot
-curl -X POST http://127.0.0.1:5000/api/robot/hardware/start_stop \
+curl -X POST http://127.0.0.1:8000/api/robot/hardware/start_stop \
   -H "Content-Type: application/json" \
   -d '{"action": "start"}'
 
 # Set robot mode
-curl -X POST http://127.0.0.1:5000/api/robot/hardware/mode \
+curl -X POST http://127.0.0.1:8000/api/robot/hardware/mode \
   -H "Content-Type: application/json" \
   -d '{"mode": "run"}'
 ```
@@ -742,7 +698,7 @@ curl -X POST http://127.0.0.1:5000/api/robot/hardware/mode \
 
 ```bash
 # Legacy servo control (for compatibility)
-curl -X POST http://127.0.0.1:5000/api/robot/servo \
+curl -X POST http://127.0.0.1:8000/api/robot/servo \
   -H "Content-Type: application/json" \
   -d '{"servo": 1, "angle": 90}'
 
@@ -754,7 +710,7 @@ curl -X POST http://127.0.0.1:5000/api/robot/servo \
 
 ```bash
 # Execute pick and place operation
-curl -X POST http://127.0.0.1:5000/api/robot/pick-place \
+curl -X POST http://127.0.0.1:8000/api/robot/pick-place \
   -H "Content-Type: application/json" \
   -d '{
     "pickup_location": {
@@ -768,7 +724,7 @@ curl -X POST http://127.0.0.1:5000/api/robot/pick-place \
   }'
 
 # Execute autonomous patrol
-curl -X POST http://127.0.0.1:5000/api/robot/patrol \
+curl -X POST http://127.0.0.1:8000/api/robot/patrol \
   -H "Content-Type: application/json" \
   -d '{
     "waypoints": [
@@ -781,7 +737,7 @@ curl -X POST http://127.0.0.1:5000/api/robot/patrol \
   }'
 
 # Execute obstacle avoidance navigation
-curl -X POST http://127.0.0.1:5000/api/robot/obstacle-avoidance \
+curl -X POST http://127.0.0.1:8000/api/robot/obstacle-avoidance \
   -H "Content-Type: application/json" \
   -d '{
     "target_location": {
@@ -796,17 +752,17 @@ curl -X POST http://127.0.0.1:5000/api/robot/obstacle-avoidance \
 
 ```bash
 # Emergency stop (immediate halt)
-curl -X POST http://127.0.0.1:5000/api/robot/emergency-stop \
+curl -X POST http://127.0.0.1:8000/api/robot/emergency-stop \
   -H "Content-Type: application/json" \
   -d '{"activate": true, "reason": "Safety emergency"}'
 
 # Activate emergency stop
-curl -X POST http://127.0.0.1:5000/api/robot/emergency-stop \
+curl -X POST http://127.0.0.1:8000/api/robot/emergency-stop \
   -H "Content-Type: application/json" \
   -d '{"activate": true, "reason": "Manual emergency stop", "force": true}'
 
 # Deactivate emergency stop
-curl -X POST http://127.0.0.1:5000/api/robot/emergency-stop \
+curl -X POST http://127.0.0.1:8000/api/robot/emergency-stop \
   -H "Content-Type: application/json" \
   -d '{"activate": false, "reason": "Emergency resolved"}'
 ```
@@ -845,30 +801,30 @@ curl -X POST http://localhost:8000/api/serial/send \
 
 ```bash
 # Get comprehensive robot status (includes safety systems and sensor data)
-curl http://127.0.0.1:5000/api/robot/status
+curl http://127.0.0.1:8000/api/robot/status
 
 # Get detailed sensor data
-curl http://127.0.0.1:5000/api/robot/sensors
+curl http://127.0.0.1:8000/api/robot/sensors
 
 # Get active tasks
-curl http://127.0.0.1:5000/api/robot/tasks
+curl http://127.0.0.1:8000/api/robot/tasks
 
 # Cancel a running task
-curl -X POST http://127.0.0.1:5000/api/robot/tasks/task_123/cancel \
+curl -X POST http://127.0.0.1:8000/api/robot/tasks/task_123/cancel \
   -H "Content-Type: application/json" \
   -d '{"reason": "User requested cancellation"}'
 
 # Get navigation status
-curl http://127.0.0.1:5000/api/robot/navigation/status
+curl http://127.0.0.1:8000/api/robot/navigation/status
 
 # Get IMU position (accessible all time as per specification)
-curl http://127.0.0.1:5000/api/robot/imu/position
+curl http://127.0.0.1:8000/api/robot/imu/position
 
 # Get robot log (accessible all time as per specification)
-curl http://127.0.0.1:5000/api/robot/log
+curl http://127.0.0.1:8000/api/robot/log
 
 # Get last 3 commands (accessible all time as per specification)
-curl http://127.0.0.1:5000/api/robot/commands/last
+curl http://127.0.0.1:8000/api/robot/commands/last
 ```
 
 ## Development Guide
@@ -963,10 +919,10 @@ All API endpoints return JSON responses with consistent structure:
 pip3 install flask pyserial lgpio gpiozero
 
 # Run in simulation mode (recommended for development)
-python3 main.py --simulation
+python3 ros2_ws/src/my_robot_automation/scripts/main.py --simulation
 
 # Run with Arduino Mega hardware
-python3 main.py --hardware
+python3 ros2_ws/src/my_robot_automation/scripts/main.py --hardware
 
 # Access interfaces
 # Web UI: http://localhost:8000
@@ -1025,35 +981,32 @@ Comprehensive documentation is available:
 ### Raspberry Pi Deployment
 
 - `docs/deployment/raspberry_pi_setup.md` - Complete Raspberry Pi ARM64 setup guide
-- `setup_raspberry_pi.sh` - Automated Raspberry Pi configuration script
 
-### Software & Workflows
+### Software and Workflows
 
-#### **Core Documentation**
+#### Core Documentation
 
-- **[Control Systems Documentation](docs/software/CONTROL_SYSTEMS.md)** - Complete PID control, motion control, navigation, and safety systems
-- **[Software Configuration Guide](docs/software/README.md)** - Comprehensive software setup, ROS2 configuration, and system architecture
-- **[API Documentation](docs/api/README.md)** - Complete REST API reference and integration guide
+- **[Control Systems Documentation](docs/software/CONTROL_SYSTEMS.md)** - PID control, motion control, navigation, and safety systems
+- **[Software Configuration Guide](docs/software/README.md)** - Software setup, ROS2 configuration, and system architecture
+- **[API Documentation](docs/api/README.md)** - REST API reference and integration guide
 
-#### **API & Development**
+#### API and Development
 
-- **[API Documentation](docs/api/)** - Complete REST API reference with 25+ endpoints for robot control
-- **[Development Guide](docs/development/)** - Development workflow, ROS2 programming, and best practices
-- **[Installation Guide](docs/installation/)** - Detailed installation instructions for all platforms
+- **[API Documentation](docs/api/)** - REST API reference with endpoints for robot control
+- **[Development Guide](docs/development/)** - Development workflow and best practices
+- **[Installation Guide](docs/installation/)** - Installation instructions for all platforms
 
-#### **Hardware & Deployment**
+#### Hardware and Deployment
 
-- **[Hardware Guide](docs/hardware/)** - Complete hardware specifications, pinouts, and assembly guides
+- **[Hardware Guide](docs/hardware/)** - Hardware specifications, pinouts, and assembly guides
 - **[Raspberry Pi Setup](docs/deployment/raspberry_pi_setup.md)** - ARM64 deployment guide for production hardware
 - **[Deployment Guide](docs/deployment/)** - Production deployment procedures and containerization
 - **[Troubleshooting Guide](docs/troubleshooting/)** - Common issues, solutions, and debugging procedures
-- **[Workflows README](docs/README.md)** - Documentation overview and navigation guide
+- **[Documentation Index](docs/README.md)** - Documentation overview and navigation guide
 
-#### **System Verification Reports**
+#### System Verification
 
-- **[API Verification Report](docs/api/API_VERIFICATION_REPORT.md)** - Complete API verification against hardware specifications
-- **[Workflow Cleanup Report](docs/workflow/WORKFLOW_CLEANUP_REPORT.md)** - Workflow management and corrections
-- **[Connection Fix Report](docs/workflow/CONNECTION_FIX_REPORT.md)** - IPv4/IPv6 connectivity resolution
+- **[API Verification Report](docs/api/API_VERIFICATION_REPORT.md)** - API verification against hardware specifications
 
 #### **REST API Automation**
 

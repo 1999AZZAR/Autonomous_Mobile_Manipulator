@@ -18,7 +18,7 @@ The robot uses a distributed control architecture with clear role separation:
 
 #### Raspberry Pi 5 (High-Level Control)
 - **Operating System**: Ubuntu Server 22.04 LTS
-- **Framework**: ROS2 Iron with Docker containerization
+- **Framework**: ROS2 Jazzy with Docker containerization
 - **Responsibilities**:
   - High-level task coordination and planning
   - Web interface and API server hosting
@@ -51,7 +51,7 @@ The robot uses a distributed control architecture with clear role separation:
        ▼
 ┌─────────────┐
 │  REST API   │
-│ (Port 5000) │
+│ (Port 8000) │
 └──────┬──────┘
        │
        ▼
@@ -87,9 +87,9 @@ The robot uses a distributed control architecture with clear role separation:
 
 ### Technology Stack
 - **Frontend**: HTML5, CSS3, JavaScript
-- **Backend**: Flask (Python)
+- **Backend**: Flask (Python) on port 8000
 - **Real-time**: WebSocket for live updates
-- **API**: RESTful HTTP endpoints
+- **API**: RESTful HTTP endpoints (same port as Web UI)
 
 ## Web UI Usage Guide
 
@@ -124,7 +124,7 @@ The system provides a complete robotics platform with:
 
 ### Access Points
 - **Web UI:** http://localhost:8000
-- **REST API:** http://localhost:5000
+- **REST API:** http://localhost:8000/api/*
 - **Arduino Serial:** /dev/ttyACM0 (115200 baud)
 
 ### Key Features
