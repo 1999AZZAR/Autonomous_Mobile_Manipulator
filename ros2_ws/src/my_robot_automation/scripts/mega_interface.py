@@ -341,12 +341,6 @@ class MegaInterface:
         mega_command = f"ta{int(angle)}"
         return self.send_command_to_mega(mega_command)
 
-    def set_gripper_neck(self, position):
-        """Set gripper neck position (-1 to 1, continuous servo)"""
-        # Note: Mega may not support gripper neck control yet
-        logger.warning(f"[NOT IMPLEMENTED] Gripper neck control not available on Mega: {position}")
-        return False
-
     def set_speed(self, speed_percent):
         """Set robot speed (0-100%)"""
         if not (0 <= speed_percent <= 100):
@@ -526,7 +520,11 @@ class MegaInterface:
             sensor_data = {
                 'laser_sensors': {},
                 'ultrasonic_sensors': {},
-                'line_sensors': {}
+                'line_sensors': {},
+                'motor_status': {},
+                'sync_status': None,
+                'vff': None,
+                'moving': None,
             }
 
             for line in response_lines:
@@ -544,48 +542,79 @@ class MegaInterface:
                             key = key.strip()
                             value = value.strip()
 
-                            # Skip non-sensor data
-                            if key.startswith('MTR') or key in ['SYNC', 'VFF', 'MOVING']:
+                            # Skip non-sensor data but parse motor/sync/vff/moving
+                            if key.startswith('MTR'):
+                                try:
+                                    # MTR:id,setpoint,rpm,syncerr,position,output
+                                    parts = value.split(',')
+                                    if len(parts) >= 6:
+                                        motor_id = int(parts[0])
+                                        sensor_data['motor_status'][f'motor_{motor_id}'] = {
+                                            'setpoint': float(parts[1]),
+                                            'rpm': float(parts[2]),
+                                            'sync_error': float(parts[3]),
+                                            'position': float(parts[4]),
+                                            'output': float(parts[5]),
+                                        }
+                                except (ValueError, IndexError):
+                                    pass
+                                continue
+                            elif key == 'SYNC':
+                                try:
+                                    parts = value.split(',')
+                                    if len(parts) >= 2:
+                                        sensor_data['sync_status'] = {
+                                            'target_rpm': float(parts[0]),
+                                            'active_motors': int(parts[1]),
+                                        }
+                                except (ValueError, IndexError):
+                                    pass
+                                continue
+                            elif key == 'VFF':
+                                try:
+                                    # VFF:x,y,m|vx,vy
+                                    force_part, vel_part = value.split('|')
+                                    fx, fy, mag = force_part.split(',')
+                                    vx, vy = vel_part.split(',')
+                                    sensor_data['vff'] = {
+                                        'force_x': float(fx), 'force_y': float(fy),
+                                        'magnitude': float(mag),
+                                        'velocity_x': float(vx), 'velocity_y': float(vy),
+                                    }
+                                except (ValueError, IndexError):
+                                    pass
+                                continue
+                            elif key == 'MOVING':
+                                sensor_data['moving'] = value.strip() == '1'
                                 continue
 
-                            # Parse IR sensors
+                            # Parse IR sensors (Sharp GP2Y0A02YK0F: ADC → mm)
                             if key.startswith('IR_'):
-                                if key == 'IR_LF':  # Left Front
-                                    if value != 'INV':
-                                        try:
-                                            sensor_data['laser_sensors']['left_front'] = float(value)
-                                        except ValueError:
-                                            pass
-                                elif key == 'IR_LB':  # Left Back
-                                    if value != 'INV':
-                                        try:
-                                            sensor_data['laser_sensors']['left_back'] = float(value)
-                                        except ValueError:
-                                            pass
-                                elif key == 'IR_RF':  # Right Front
-                                    if value != 'INV':
-                                        try:
-                                            sensor_data['laser_sensors']['right_front'] = float(value)
-                                        except ValueError:
-                                            pass
-                                elif key == 'IR_RB':  # Right Back
-                                    if value != 'INV':
-                                        try:
-                                            sensor_data['laser_sensors']['right_back'] = float(value)
-                                        except ValueError:
-                                            pass
-                                elif key == 'IR_BL':  # Back Left
-                                    if value != 'INV':
-                                        try:
-                                            sensor_data['laser_sensors']['back_left'] = float(value)
-                                        except ValueError:
-                                            pass
-                                elif key == 'IR_BR':  # Back Right
-                                    if value != 'INV':
-                                        try:
-                                            sensor_data['laser_sensors']['back_right'] = float(value)
-                                        except ValueError:
-                                            pass
+                                if value != 'INV':
+                                    try:
+                                        adc = float(value)
+                                        # Sharp GP2Y0A02YK0F conversion: ADC → voltage → distance mm
+                                        # Voltage = ADC * 5.0 / 1023.0
+                                        # Distance (mm) = 27.86 / (voltage - 0.1) approx
+                                        # Simplified: if ADC > 0, distance ≈ 12343.85 * ADC^(-1.269)
+                                        # For safety, use simpler linear approx for common range
+                                        if adc > 0:
+                                            voltage = adc * 5.0 / 1023.0
+                                            if voltage > 0.3:
+                                                distance_mm = 27.86 / (voltage - 0.1)
+                                            else:
+                                                distance_mm = 1500.0  # max range
+                                        else:
+                                            distance_mm = 0.0
+
+                                        sensor_map = {
+                                            'IR_LF': 'left_front', 'IR_LB': 'left_back',
+                                            'IR_RF': 'right_front', 'IR_RB': 'right_back',
+                                            'IR_BL': 'back_left', 'IR_BR': 'back_right',
+                                        }
+                                        sensor_data['laser_sensors'][sensor_map[key]] = round(distance_mm, 1)
+                                    except ValueError:
+                                        pass
 
                             # Parse ultrasonic sensors
                             elif key.startswith('US_'):

@@ -132,6 +132,61 @@ class FlaskApp:
         def emergency_stop():
             return self._emergency_stop()
 
+        # Lifter control
+        @self.app.route('/api/robot/lifter/up', methods=['POST'])
+        def lifter_up():
+            if self.mega:
+                self.mega.send_command_to_mega('u')
+                return jsonify({'ok': True, 'command': 'u'})
+            return jsonify({'error': 'mega not connected'}), 503
+
+        @self.app.route('/api/robot/lifter/down', methods=['POST'])
+        def lifter_down():
+            if self.mega:
+                self.mega.send_command_to_mega('d')
+                return jsonify({'ok': True, 'command': 'd'})
+            return jsonify({'error': 'mega not connected'}), 503
+
+        # Camera tilt control
+        @self.app.route('/api/robot/camera/tilt', methods=['POST'])
+        def set_camera_tilt():
+            data = request.get_json(silent=True) or {}
+            position = data.get('position', 'center')
+            cmd_map = {'up': 'mu', 'down': 'md', 'center': 'mc'}
+            cmd = cmd_map.get(position)
+            if cmd and self.mega:
+                self.mega.send_command_to_mega(cmd)
+                return jsonify({'ok': True, 'command': cmd})
+            return jsonify({'error': 'invalid position or mega not connected'}), 400
+
+        # Safety system control
+        @self.app.route('/api/robot/safety/perimeter', methods=['POST'])
+        def toggle_perimeter_safety():
+            data = request.get_json(silent=True) or {}
+            enable = data.get('enable', True)
+            if self.mega:
+                cmd = 'se' if enable else 'sd'
+                self.mega.send_command_to_mega(cmd)
+                return jsonify({'ok': True, 'command': cmd, 'enabled': enable})
+            return jsonify({'error': 'mega not connected'}), 503
+
+        @self.app.route('/api/robot/safety/limit-switches', methods=['GET'])
+        def test_limit_switches():
+            if self.mega:
+                self.mega.send_command_to_mega('ls')
+                return jsonify({'ok': True, 'command': 'ls'})
+            return jsonify({'error': 'mega not connected'}), 503
+
+        @self.app.route('/api/robot/sensor-publishing', methods=['POST'])
+        def toggle_sensor_publishing():
+            data = request.get_json(silent=True) or {}
+            enable = data.get('enable', True)
+            if self.mega:
+                cmd = 'spe' if enable else 'spd'
+                self.mega.send_command_to_mega(cmd)
+                return jsonify({'ok': True, 'command': cmd, 'enabled': enable})
+            return jsonify({'error': 'mega not connected'}), 503
+
         # Path Planning
         @self.app.route('/api/robot/sequences/execute', methods=['POST'])
         def execute_sequence():
@@ -760,12 +815,23 @@ class FlaskApp:
         """Execute a movement sequence"""
         try:
             data = request.get_json()
-            if not data or 'sequence' not in data:
-                return jsonify({'success': False, 'error': 'Sequence required', 'timestamp': time.time()}), 400
+            if not data:
+                return jsonify({'success': False, 'error': 'Request body required', 'timestamp': time.time()}), 400
 
-            sequence = data['sequence']
+            # Accept both 'sequence' (array) and 'name' (load then execute)
+            sequence = data.get('sequence')
+            name = data.get('name')
+
+            if name and not sequence:
+                # Load sequence by name, then execute
+                loaded = self._load_sequence_data(name)
+                if loaded:
+                    sequence = loaded
+                else:
+                    return jsonify({'success': False, 'error': f'Sequence "{name}" not found', 'timestamp': time.time()}), 404
+
             if not isinstance(sequence, list) or len(sequence) == 0:
-                return jsonify({'success': False, 'error': 'Valid sequence list required', 'timestamp': time.time()}), 400
+                return jsonify({'success': False, 'error': 'Valid sequence list or name required', 'timestamp': time.time()}), 400
 
             # Execute sequence in background
             threading.Thread(target=self._execute_sequence_async, args=(sequence,), daemon=True).start()
@@ -802,11 +868,12 @@ class FlaskApp:
         """Save a movement sequence"""
         try:
             data = request.get_json()
-            if not data or 'name' not in data or 'sequence' not in data:
-                return jsonify({'success': False, 'error': 'Name and sequence required', 'timestamp': time.time()}), 400
+            if not data or 'name' not in data:
+                return jsonify({'success': False, 'error': 'Name required', 'timestamp': time.time()}), 400
 
             name = data['name']
-            sequence = data['sequence']
+            # Accept both 'sequence' and 'steps' from frontend
+            sequence = data.get('sequence') or data.get('steps', [])
 
             if not isinstance(sequence, list):
                 return jsonify({'success': False, 'error': 'Sequence must be a list', 'timestamp': time.time()}), 400
@@ -832,14 +899,19 @@ class FlaskApp:
     def _load_sequence(self, name):
         """Load a movement sequence"""
         try:
-            # In a real implementation, this would load from a database
-            # For now, return a placeholder
+            sequence = self._load_sequence_data(name)
+            if sequence:
+                return jsonify({
+                    'success': True,
+                    'sequence': sequence,
+                    'name': name,
+                    'timestamp': time.time()
+                })
             return jsonify({
-                'success': True,
-                'sequence': ['f', 's'],  # Placeholder sequence
-                'name': name,
+                'success': False,
+                'error': f'Sequence "{name}" not found',
                 'timestamp': time.time()
-            })
+            }), 404
 
         except Exception as e:
             logger.error(f'Load sequence error: {str(e)}')
@@ -848,6 +920,16 @@ class FlaskApp:
                 'error': str(e),
                 'timestamp': time.time()
             }), 500
+
+    def _load_sequence_data(self, name):
+        """Load sequence data by name (internal helper)"""
+        # In a real implementation, this would load from database
+        # For now, return a placeholder
+        sequences = {
+            'test': ['f', 'f', 's', 'b', 's'],
+            'square': ['f', 's', 'c', 's', 'f', 's', 'c', 's', 'f', 's', 'c', 's', 'f', 's', 'c', 's'],
+        }
+        return sequences.get(name)
 
     def _list_sequences(self):
         """List saved sequences"""
@@ -955,111 +1037,6 @@ class FlaskApp:
 
         except Exception as e:
             logger.error(f'IMU waypoint navigation error: {str(e)}')
-
-    def _navigate_to_coordinate_imu(self, target_x, target_y, main_app=None):
-        """Navigate to specific coordinate using IMU dead reckoning"""
-        try:
-            timeout = 30.0  # 30 second timeout per waypoint
-            start_time = time.time()
-            tolerance = 0.2  # 20cm tolerance
-
-            while time.time() - start_time < timeout:
-                # Get current position from IMU tracking
-                if main_app and hasattr(main_app, 'get_current_position'):
-                    current_state = main_app.get_current_position()
-                    if not current_state['initialized']:
-                        logger.warning("IMU position not initialized, waiting...")
-                        time.sleep(1)
-                        continue
-
-                    current_pos = current_state['position']
-                    current_heading = current_state['orientation'][2]  # yaw
-                else:
-                    # Fallback to simple position tracking
-                    current_pos = [0.0, 0.0, 0.0]
-                    current_heading = 0.0
-
-                # Calculate distance and bearing to target
-                dx = target_x - current_pos[0]
-                dy = target_y - current_pos[1]
-                distance = math.sqrt(dx*dx + dy*dy)
-
-                logger.debug(f'Current: ({current_pos[0]:.2f}, {current_pos[1]:.2f}) '
-                           f'Heading: {current_heading:.1f}°, '
-                           f'Target: ({target_x:.1f}, {target_y:.1f}), '
-                           f'Distance: {distance:.2f}m')
-
-                # Check if we've reached the waypoint
-                if distance <= tolerance:
-                    logger.info(f'Waypoint reached! Distance: {distance:.2f}m')
-                    if self.mega:
-                        self.mega.send_command_to_mega('s')  # Stop
-                    return True
-
-                # Calculate required bearing to target
-                target_bearing = math.degrees(math.atan2(dy, dx))
-
-                # Calculate turn angle
-                turn_angle = target_bearing - current_heading
-
-                # Normalize turn angle to -180 to 180 degrees
-                while turn_angle > 180:
-                    turn_angle -= 360
-                while turn_angle < -180:
-                    turn_angle += 360
-
-                # Execute turn if needed (5 degree tolerance)
-                if abs(turn_angle) > 5:
-                    turn_command = 'e' if turn_angle > 0 else 'q'  # e=right turn, q=left turn
-                    turn_time = min(abs(turn_angle) / 45.0, 2.0)  # Max 2 seconds turn
-
-                    if self.mega:
-                        logger.debug(f'Turning {turn_angle:.1f}° for {turn_time:.1f}s')
-                        self.mega.send_command_to_mega(turn_command)
-                        time.sleep(turn_time)
-                        self.mega.send_command_to_mega('s')
-                        time.sleep(0.5)  # Brief pause
-
-                        # Update heading based on turn
-                        if main_app:
-                            actual_turn = turn_angle * (turn_time / (abs(turn_angle) / 45.0))  # Estimate actual turn
-                            main_app.current_orientation[2] += actual_turn
-                            # Keep heading in -180 to 180 range
-                            while main_app.current_orientation[2] > 180:
-                                main_app.current_orientation[2] -= 360
-                            while main_app.current_orientation[2] < -180:
-                                main_app.current_orientation[2] += 360
-                            logger.debug(f'Updated heading: {main_app.current_orientation[2]:.1f}°')
-
-                # Move forward (proportional to remaining distance)
-                if distance > tolerance:
-                    # Speed based on distance (slower when close)
-                    speed_factor = min(distance / 2.0, 1.0)  # Max speed at 2m distance
-                    move_time = min(distance / 0.3 * speed_factor, 5.0)  # Max 5 seconds
-
-                    if self.mega:
-                        logger.debug(f'Moving forward for {move_time:.1f}s (distance: {distance:.2f}m)')
-                        self.mega.send_command_to_mega('f')
-                        time.sleep(move_time)
-                        self.mega.send_command_to_mega('s')
-                        time.sleep(0.5)  # Brief pause
-
-                        # Update position estimate based on movement
-                        if main_app:
-                            heading_rad = main_app.current_orientation[2] * 3.14159 / 180.0
-                            move_distance = min(distance, 0.3 * move_time * speed_factor)  # Estimate actual movement
-                            main_app.current_position[0] += move_distance * math.cos(heading_rad)
-                            main_app.current_position[1] += move_distance * math.sin(heading_rad)
-                            logger.debug(f'Updated position: ({main_app.current_position[0]:.2f}, {main_app.current_position[1]:.2f})')
-
-                time.sleep(0.2)  # Small delay between navigation iterations
-
-            logger.warning(f'Waypoint navigation timeout after {timeout}s')
-            return False
-
-        except Exception as e:
-            logger.error(f'IMU coordinate navigation error: {str(e)}')
-            return False
 
     def _navigate_to_coordinate_imu_sensor_safe(self, target_x, target_y, main_app=None):
         """Navigate to specific coordinate using IMU dead reckoning with sensor-based obstacle avoidance"""
@@ -1170,14 +1147,6 @@ class FlaskApp:
                         time.sleep(move_time)
                         self.mega.send_command_to_mega('s')
                         time.sleep(0.5)  # Brief pause
-
-                        # Update position estimate based on movement
-                        if main_app:
-                            heading_rad = main_app.current_orientation[2] * 3.14159 / 180.0
-                            move_distance = min(distance, 0.3 * move_time * speed_factor)  # Estimate actual movement
-                            main_app.current_position[0] += move_distance * math.cos(heading_rad)
-                            main_app.current_position[1] += move_distance * math.sin(heading_rad)
-                            logger.debug(f'Updated position: ({main_app.current_position[0]:.2f}, {main_app.current_position[1]:.2f})')
 
                         # Update position estimate based on movement
                         if main_app:
@@ -1490,29 +1459,6 @@ class FlaskApp:
                 'error': str(e),
                 'timestamp': time.time()
             }), 500
-
-    def _path_to_commands(self, path):
-        """Convert path coordinates to movement commands"""
-        commands = []
-
-        for i in range(1, len(path)):
-            current = path[i - 1]
-            next_pos = path[i]
-
-            # Calculate movement direction
-            dx = next_pos[0] - current[0]
-            dy = next_pos[1] - current[1]
-
-            # Determine primary direction
-            if abs(dx) > abs(dy):
-                command = 'r' if dx > 0 else 'l'
-            else:
-                command = 'f' if dy > 0 else 'b'
-
-            commands.append(command)
-
-        commands.append('s')  # Stop at destination
-        return commands
 
     def run(self, host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG):
         """Run the Flask application"""

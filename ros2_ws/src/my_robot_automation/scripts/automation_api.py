@@ -398,7 +398,7 @@ def get_automation_logs(automation_id):
         return jsonify({'error': str(e)}), 500
 
 
-@automation_bp.route('/feeds', methods=['GET'])
+@automation_bp.route('/automation-feeds', methods=['GET'])
 def list_feeds():
     """List available sensor feeds."""
     engine = _get_engine()
@@ -413,7 +413,7 @@ def list_feeds():
         return jsonify({'error': str(e)}), 500
 
 
-@automation_bp.route('/feeds/<key>/value', methods=['GET'])
+@automation_bp.route('/automation-feeds/<key>/value', methods=['GET'])
 def get_feed_value(key):
     """Get current value of a sensor feed."""
     engine = _get_engine()
@@ -432,7 +432,7 @@ def get_feed_value(key):
         return jsonify({'error': str(e)}), 500
 
 
-@automation_bp.route('/feeds/all', methods=['GET'])
+@automation_bp.route('/automation-feeds/all', methods=['GET'])
 def get_all_feed_values():
     """Get current values of all sensor feeds."""
     engine = _get_engine()

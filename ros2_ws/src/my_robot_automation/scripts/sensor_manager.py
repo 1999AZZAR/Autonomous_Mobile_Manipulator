@@ -78,7 +78,8 @@ class SensorManager:
                 logger.info("Successfully read sensor data from Mega")
                 # Add IMU data (still simulated for now)
                 mega_sensor_data['imu'] = self._get_simulated_imu_data()
-                return mega_sensor_data
+                # Normalize to flat keys for frontend
+                return self._normalize_sensor_data(mega_sensor_data)
             else:
                 logger.warning("Failed to read sensor data from Mega, using simulated data")
                 return self._get_simulated_sensor_data()
@@ -86,6 +87,41 @@ class SensorManager:
         except Exception as e:
             logger.error(f"Error reading sensors from Mega: {str(e)}")
             return self._get_simulated_sensor_data()
+
+    def _normalize_sensor_data(self, data):
+        """Convert nested mega sensor data to flat keys for frontend dashboard."""
+        laser = data.get('laser_sensors', {})
+        ultra = data.get('ultrasonic_sensors', {})
+        imu = data.get('imu', {})
+        line = data.get('line_sensors', {})
+        tf = data.get('tf_luna', {})
+
+        # IR sensors from mega are already in mm (parsed by mega_interface)
+        # Ultrasonic sensors from mega are in cm, convert to mm
+        return {
+            # Flat keys for frontend dashboard
+            'laser_left_front': laser.get('left_front', 0),
+            'laser_left_back': laser.get('left_back', 0),
+            'laser_right_front': laser.get('right_front', 0),
+            'laser_right_back': laser.get('right_back', 0),
+            'laser_back_left': laser.get('back_left', 0),
+            'laser_back_right': laser.get('back_right', 0),
+            'ultra_front_left': ultra.get('front_left', 0),
+            'ultra_front_right': ultra.get('front_right', 0),
+            'line_left': line.get('left', 0),
+            'line_center': line.get('center', 0),
+            'line_right': line.get('right', 0),
+            'imu_heading': imu.get('orientation', {}).get('z', 0),
+            'imu_pitch': imu.get('orientation', {}).get('y', 0),
+            'imu_roll': imu.get('orientation', {}).get('x', 0),
+            'tf_luna_distance': tf.get('distance', 0),
+            # Nested keys for internal control systems
+            'laser_sensors': laser,
+            'ultrasonic_sensors': ultra,
+            'line_sensors': line,
+            'imu': imu,
+            'tf_luna': tf,
+        }
 
     def read_all_sensors_old(self):
         """Read all available sensors and return structured data"""
@@ -145,57 +181,70 @@ class SensorManager:
         # Simulate some variation
         sim_time = time.time()
 
-        # Generate flat sensor data
-        ir_left_front = 800 + random.randint(-100, 100)
-        ir_left_back = 750 + random.randint(-100, 100)
-        ir_right_front = 850 + random.randint(-100, 100)
-        ir_right_back = 700 + random.randint(-100, 100)
-        ir_back_left = 600 + random.randint(-100, 100)
-        ir_back_right = 650 + random.randint(-100, 100)
-        ultrasonic_front_left = 500 + random.randint(-50, 50)
-        ultrasonic_front_right = 550 + random.randint(-50, 50)
+        # Generate sensor values in mm
+        laser_left_front = 800 + random.randint(-100, 100)
+        laser_left_back = 750 + random.randint(-100, 100)
+        laser_right_front = 850 + random.randint(-100, 100)
+        laser_right_back = 700 + random.randint(-100, 100)
+        laser_back_left = 600 + random.randint(-100, 100)
+        laser_back_right = 650 + random.randint(-100, 100)
+        ultra_front_left = 500 + random.randint(-50, 50)
+        ultra_front_right = 550 + random.randint(-50, 50)
 
         return {
-            # Flat structure for display
-            'ir_left_front': ir_left_front,
-            'ir_left_back': ir_left_back,
-            'ir_right_front': ir_right_front,
-            'ir_right_back': ir_right_back,
-            'ir_back_left': ir_back_left,
-            'ir_back_right': ir_back_right,
-            'ultrasonic_front_left': ultrasonic_front_left,
-            'ultrasonic_front_right': ultrasonic_front_right,
-            # Structured data for control systems
+            # Flat keys for frontend dashboard
+            'laser_left_front': laser_left_front,
+            'laser_left_back': laser_left_back,
+            'laser_right_front': laser_right_front,
+            'laser_right_back': laser_right_back,
+            'laser_back_left': laser_back_left,
+            'laser_back_right': laser_back_right,
+            'ultra_front_left': ultra_front_left,
+            'ultra_front_right': ultra_front_right,
+            'line_left': 0,
+            'line_center': 1,
+            'line_right': 0,
+            'imu_heading': 0.0,
+            'imu_pitch': math.sin(sim_time * 0.1) * 3.0,
+            'imu_roll': math.cos(sim_time * 0.1) * 5.0,
+            'tf_luna_distance': 0,
+            'mega_connected': False,
+            # Nested keys for internal control systems
             'laser_sensors': {
-                'left_front': ir_left_front,
-                'left_back': ir_left_back,
-                'right_front': ir_right_front,
-                'right_back': ir_right_back,
-                'back_left': ir_back_left,
-                'back_right': ir_back_right
+                'left_front': laser_left_front,
+                'left_back': laser_left_back,
+                'right_front': laser_right_front,
+                'right_back': laser_right_back,
+                'back_left': laser_back_left,
+                'back_right': laser_back_right,
             },
             'ultrasonic_sensors': {
-                'front_left': ultrasonic_front_left,
-                'front_right': ultrasonic_front_right
+                'front_left': ultra_front_left,
+                'front_right': ultra_front_right,
+            },
+            'line_sensors': {
+                'left': False,
+                'center': True,
+                'right': False,
             },
             'imu': {
                 'orientation': {
-                    'x': math.sin(sim_time * 0.1) * 0.1,  # Small roll
-                    'y': math.cos(sim_time * 0.1) * 0.1,  # Small pitch
-                    'z': 0.0
+                    'x': math.sin(sim_time * 0.05) * 5.0,
+                    'y': math.cos(sim_time * 0.05) * 3.0,
+                    'z': 0.0,
                 },
                 'angular_velocity': {
-                    'x': math.sin(sim_time * 0.2) * 0.1,
-                    'y': math.cos(sim_time * 0.2) * 0.1,
-                    'z': 0.0
+                    'x': math.sin(sim_time * 0.1) * 2.0,
+                    'y': math.cos(sim_time * 0.1) * 1.5,
+                    'z': 0.0,
                 },
                 'linear_acceleration': {
                     'x': 0.0,
                     'y': 0.0,
-                    'z': 9.81  # Gravity
+                    'z': 9.81,
                 },
-                'temperature': 25.0 + math.sin(sim_time * 0.01) * 2.0
-            }
+                'temperature': 25.0 + math.sin(sim_time * 0.01) * 2.0,
+            },
         }
 
     def _get_simulated_imu_data(self):
