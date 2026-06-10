@@ -2,6 +2,16 @@
 
 Hexagonal 3-wheel omnidirectional mobile manipulator with Arduino Mega real-time control, Raspberry Pi high-level planning, and containerized deployment.
 
+## Screenshots
+
+| Dashboard | Movement | Manipulator |
+|-----------|----------|-------------|
+| ![Dashboard](demo/dashboard/dashboard.png) | ![Movement](demo/dashboard/movement.png) | ![Manipulator](demo/dashboard/manipulator.png) |
+
+| Map | Automation | AI | System |
+|-----|------------|-----|--------|
+| ![Map](demo/dashboard/map.png) | ![Automation](demo/dashboard/automation.png) | ![AI](demo/dashboard/ai.png) | ![System](demo/dashboard/system.png) |
+
 ## Architecture
 
 ```
