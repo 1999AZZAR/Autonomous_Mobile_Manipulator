@@ -271,13 +271,23 @@ class FlaskApp:
 
         @self.app.route('/api/command', methods=['POST'])
         def send_command():
-            """Single-char command from frontend D-Pad / keyboard"""
+            """Command from frontend D-Pad / keyboard / click-to-move.
+            Supports optional speed and duration (ms) for timed commands.
+            """
             data = request.get_json(silent=True) or {}
             cmd = data.get('command', '')
             if not cmd:
                 return jsonify({'error': 'command required'}), 400
             if self.mega:
                 self.mega.send_command_to_mega(cmd)
+                # Optional: auto-stop after duration
+                duration_ms = data.get('duration')
+                if duration_ms and duration_ms > 0:
+                    import threading
+                    def _stop_after_delay():
+                        time.sleep(duration_ms / 1000.0)
+                        self.mega.send_command_to_mega('s')
+                    threading.Thread(target=_stop_after_delay, daemon=True).start()
                 return jsonify({'ok': True, 'command': cmd})
             return jsonify({'error': 'mega not connected'}), 503
 
@@ -443,7 +453,7 @@ class FlaskApp:
             # Try Mega first, then ROS2, then GPIO
             success = False
             if self.mega:
-                success = self.mega.move_robot(direction, speed)
+                success = self.mega.move_robot(direction, speed, duration)
             if not success and self.ros2:
                 success = self.ros2.call_move_robot(direction, speed, duration)
 

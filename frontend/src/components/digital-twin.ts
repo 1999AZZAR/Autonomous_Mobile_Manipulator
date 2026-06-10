@@ -6,16 +6,16 @@ import { createEnvironment } from '../engine/environment';
 import { createLaserArcs, createUltrasonicCones, createTfLunaRay, updateSensorArcs, addLaserArcsToScene, addUltrasonicConesToScene } from '../engine/sensor-viz';
 import { createPathLine, createReplayMarker } from '../engine/waypoint-viz';
 import { createCameraFrustum, createSensorLabel, updateSensorLabel } from '../engine/sensor-labels';
-import { PhysicsEngine, type KinematicState } from '../engine/physics';
-import { MockSensorGenerator, type MockSensorData } from '../engine/mock-sensors';
+import { PhysicsEngine } from '../engine/physics';
+import { MockSensorGenerator } from '../engine/mock-sensors';
 import { scenarioToObstacles, PRESETS, type Scenario } from '../engine/scenario';
 import { SessionRecorder, saveRecording, type Recording } from '../engine/recording';
 import { PlaybackEngine, type PlaybackProgress } from '../engine/playback';
-import { onTwinStateChange, getTwinState, updateTwinState, getWaypoints } from '../state/twin-state';
-import { fetchRobotPosition, fetchSensors, fetchPath, fetchPaths, moveRobot } from '../api';
+import { onTwinStateChange, getTwinState, updateTwinState } from '../state/twin-state';
+import { fetchRobotPosition, fetchSensors, fetchPath, moveRobot } from '../api';
 import type { RobotModelParts } from '../types/twin';
 import type { SensorArcMesh } from '../engine/sensor-viz';
-import type { SensorData } from '../types';
+import * as THREE from 'three';
 
 let scene: TwinScene | null = null;
 let robotGroup: any = null;
@@ -25,7 +25,6 @@ let ultraCones: Map<string, SensorArcMesh> | null = null;
 let hitPoints: Map<string, any> | null = null;
 let tfLuna: { line: any; hitPoint: any } | null = null;
 let unsubscribe: (() => void) | null = null;
-let sensorUnsubscribe: (() => void) | null = null;
 let containerEl: HTMLElement | null = null;
 let cameraFrustum: any = null;
 let sensorLabels: Map<string, any> | null = null;
@@ -35,11 +34,14 @@ let physics: PhysicsEngine | null = null;
 let mockSensors: MockSensorGenerator | null = null;
 let simMode: 'real' | 'simulation' = 'real';
 let simInterval: ReturnType<typeof setInterval> | null = null;
+let realPollInterval: ReturnType<typeof setInterval> | null = null;
 let recorder: SessionRecorder | null = null;
 let playback: PlaybackEngine | null = null;
-let playbackProgress: PlaybackProgress | null = null;
 
-import * as THREE from 'three';
+// Click-to-move target tracking
+let targetMarker: THREE.Mesh | null = null;
+let moveTarget: { x: number; y: number } | null = null;
+let moveLoopId: ReturnType<typeof setInterval> | null = null;
 
 function initHitPoints() {
   hitPoints = new Map<string, THREE.Mesh>();
@@ -55,19 +57,15 @@ export function initDigitalTwin(container: HTMLElement) {
   if (scene) return;
   containerEl = container;
 
-  // Create scene
   scene = createScene(container);
 
-  // Create robot model
   const model = createRobotModel();
   robotGroup = model.group;
   robotParts = model.parts;
   scene.scene.add(robotGroup);
 
-  // Create environment
   createEnvironment(scene.scene);
 
-  // Create sensor visualizations
   laserArcs = createLaserArcs();
   ultraCones = createUltrasonicCones();
   tfLuna = createTfLunaRay();
@@ -77,11 +75,9 @@ export function initDigitalTwin(container: HTMLElement) {
   scene.scene.add(tfLuna.line);
   scene.scene.add(tfLuna.hitPoint);
 
-  // Create camera frustum
   cameraFrustum = createCameraFrustum();
   scene.scene.add(cameraFrustum);
 
-  // Create sensor distance labels
   sensorLabels = new Map();
   const labelPositions: Record<string, THREE.Vector3> = {
     laser_left_front: new THREE.Vector3(0.18, 0.1, 0.22),
@@ -101,50 +97,47 @@ export function initDigitalTwin(container: HTMLElement) {
   });
 
   initHitPoints();
-
-  // Setup click-to-move interaction
   setupClickToMove(scene);
 
-  // Initialize simulation engine
   physics = new PhysicsEngine();
   mockSensors = new MockSensorGenerator();
   recorder = new SessionRecorder();
   playback = new PlaybackEngine();
 
-  // Subscribe to state changes
+  // Subscribe to state changes — update 3D model
   unsubscribe = onTwinStateChange((state) => {
     if (!robotGroup || !robotParts) return;
 
-    // Update position
+    // Position (mm -> m)
     robotGroup.position.set(
-      state.position.x * 0.001, // mm to m
+      state.position.x * 0.001,
       state.position.y * 0.001,
       0
     );
 
-    // Update heading
+    // Heading
     robotGroup.rotation.z = (state.heading * Math.PI) / 180;
 
-    // Update gripper
+    // Gripper
     updateGripper(state.gripperOpen, robotParts);
 
-    // Update tilt servo (tilts gripper + camera + TF-Luna together)
+    // Tilt servo
     updateTiltServo(state.tiltAngle, robotParts);
 
-    // Update lifter (raises/lowers gripper assembly)
+    // Lifter
     updateLifter(state.lifterHeight, robotParts);
 
-    // Update line sensors (from actual line sensor data)
+    // Line sensors — use actual line sensor data
     updateLineSensors(
       {
-        line_left: state.sensors.laser_left_front,
-        line_center: state.sensors.laser_left_front,
-        line_right: state.sensors.laser_right_front,
+        line_left: state.sensors.line_left,
+        line_center: state.sensors.line_center,
+        line_right: state.sensors.line_right,
       },
       robotParts
     );
 
-    // Update sensor arcs
+    // Laser sensor arcs
     if (laserArcs && hitPoints) {
       updateSensorArcs(
         {
@@ -161,6 +154,7 @@ export function initDigitalTwin(container: HTMLElement) {
       );
     }
 
+    // Ultrasonic sensor arcs
     if (ultraCones && hitPoints) {
       updateSensorArcs(
         {
@@ -173,18 +167,18 @@ export function initDigitalTwin(container: HTMLElement) {
       );
     }
 
-    // Update TF-Luna
+    // TF-Luna — use its own distance sensor
     if (tfLuna) {
-      const tfDist = (state.sensors.ultra_front_left || 1500) * 0.001;
-      const dir = 0; // forward
+      const tfDist = (state.sensors.tf_luna_distance || 1500) * 0.001;
+      const headingRad = (state.heading * Math.PI) / 180;
       tfLuna.hitPoint.position.set(
-        Math.cos(dir) * tfDist,
-        Math.sin(dir) * tfDist,
+        robotGroup.position.x + Math.cos(headingRad) * tfDist,
+        robotGroup.position.y + Math.sin(headingRad) * tfDist,
         0
       );
     }
 
-    // Update sensor labels
+    // Sensor labels
     if (sensorLabels) {
       const allSensors: Record<string, number> = {
         laser_left_front: state.sensors.laser_left_front,
@@ -205,32 +199,36 @@ export function initDigitalTwin(container: HTMLElement) {
       });
     }
 
-    // Update camera frustum visibility (only in AI mode)
+    // Camera frustum (AI mode only)
     if (cameraFrustum) {
       cameraFrustum.visible = state.mode === 'ai';
     }
 
-    // Update wheel rotation based on movement
-    updateWheelRotation(state.position.x !== 0 ? 1 : 0, robotParts);
+    // Wheel rotation — use velocity magnitude
+    const vel = Math.sqrt(
+      (state.position.x !== 0 ? 1 : 0) ** 2 +
+      (state.position.y !== 0 ? 1 : 0) ** 2
+    );
+    // In sim mode, read velocity from physics; in real mode, approximate from position changes
+    updateWheelRotation(vel > 0 ? 1 : 0, robotParts);
   });
 
   // Initial data fetch
   refreshTwinData();
 
-  // Animation loop — update sensor data periodically
-  scene.animate(() => {
-    // Periodic refresh (every ~100ms via requestAnimationFrame)
-  });
+  // Start real-mode polling
+  startRealPolling();
+
+  scene.animate(() => {});
 }
 
 export function destroyDigitalTwin() {
+  stopRealPolling();
+  stopMoveLoop();
+
   if (unsubscribe) {
     unsubscribe();
     unsubscribe = null;
-  }
-  if (sensorUnsubscribe) {
-    sensorUnsubscribe();
-    sensorUnsubscribe = null;
   }
   if (scene) {
     scene.dispose();
@@ -247,6 +245,26 @@ export function destroyDigitalTwin() {
   currentPathGroup = null;
   replayMarker = null;
   containerEl = null;
+  moveTarget = null;
+  targetMarker = null;
+}
+
+// --- Real-mode polling ---
+
+function startRealPolling() {
+  stopRealPolling();
+  realPollInterval = setInterval(() => {
+    if (simMode === 'real') {
+      refreshTwinData();
+    }
+  }, 200);
+}
+
+function stopRealPolling() {
+  if (realPollInterval) {
+    clearInterval(realPollInterval);
+    realPollInterval = null;
+  }
 }
 
 export function refreshTwinData() {
@@ -280,6 +298,10 @@ export function refreshTwinData() {
           laser_back_right: sensors.laser_back_right,
           ultra_front_left: sensors.ultra_front_left,
           ultra_front_right: sensors.ultra_front_right,
+          line_left: sensors.line_left,
+          line_center: sensors.line_center,
+          line_right: sensors.line_right,
+          tf_luna_distance: sensors.tf_luna_distance,
         },
       });
     })
@@ -289,7 +311,6 @@ export function refreshTwinData() {
 export async function loadWaypointPath(pathId: number) {
   if (!scene) return;
 
-  // Remove old path
   if (currentPathGroup) {
     scene.scene.remove(currentPathGroup);
     currentPathGroup = null;
@@ -340,13 +361,14 @@ export function hideReplayMarker() {
   }
 }
 
+// --- Click-to-move ---
+
 function setupClickToMove(twinScene: TwinScene) {
   const raycaster = new THREE.Raycaster();
   const mouse = new THREE.Vector2();
   const groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
 
   twinScene.renderer.domElement.addEventListener('click', (event) => {
-    // Ignore if orbit controls are being used (right-click or middle-click)
     if (event.button !== 0) return;
 
     const rect = twinScene.renderer.domElement.getBoundingClientRect();
@@ -358,21 +380,34 @@ function setupClickToMove(twinScene: TwinScene) {
     raycaster.ray.intersectPlane(groundPlane, intersection);
 
     if (intersection) {
-      // Convert Three.js meters to backend millimeters
       const xMm = Math.round(intersection.x * 1000);
       const yMm = Math.round(intersection.y * 1000);
 
-      // Calculate heading to target
-      const state = getTwinState();
-      const dx = xMm - state.position.x;
-      const dy = yMm - state.position.y;
-      const heading = (Math.atan2(dx, dy) * 180) / Math.PI;
-
-      // Show target marker
       showTargetMarker(intersection.x, intersection.y);
 
-      // Send movement commands
-      moveRobot('forward', 200).catch(() => {});
+      if (simMode === 'simulation') {
+        // Simulation: use physics engine to move toward target
+        startMoveToTarget(xMm, yMm);
+      } else {
+        // Real mode: send turn + move commands
+        const state = getTwinState();
+        const dx = xMm - state.position.x;
+        const dy = yMm - state.position.y;
+        const dist = Math.sqrt(dx * dx + dy * dy);
+        if (dist < 50) return; // too close
+
+        const targetHeading = (Math.atan2(dx, dy) * 180) / Math.PI;
+        const headingDiff = ((targetHeading - state.heading + 540) % 360) - 180;
+
+        // Turn toward target, then move forward
+        if (Math.abs(headingDiff) > 5) {
+          const turnCmd = headingDiff > 0 ? 'tl' : 'tr';
+          moveRobot(turnCmd, Math.min(Math.abs(headingDiff), 90)).catch(() => {});
+        }
+        // Move forward for calculated duration (dist / speed)
+        const durationMs = Math.round((dist / 200) * 1000);
+        moveRobot('forward', 200, durationMs).catch(() => {});
+      }
     }
   });
 
@@ -393,7 +428,43 @@ function setupClickToMove(twinScene: TwinScene) {
   });
 }
 
-let targetMarker: THREE.Mesh | null = null;
+function startMoveToTarget(targetX: number, targetY: number) {
+  stopMoveLoop();
+  moveTarget = { x: targetX, y: targetY };
+
+  moveLoopId = setInterval(() => {
+    if (!physics || !moveTarget) {
+      stopMoveLoop();
+      return;
+    }
+
+    const state = getTwinState();
+    const dx = moveTarget.x - state.position.x;
+    const dy = moveTarget.y - state.position.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    if (dist < 30) {
+      // Reached target
+      physics.command(0, 0, 0);
+      stopMoveLoop();
+      return;
+    }
+
+    // Move toward target at 200 mm/s
+    const speed = 200;
+    const vx = (dx / dist) * speed;
+    const vy = (dy / dist) * speed;
+    physics.command(vx, vy, 0);
+  }, 33);
+}
+
+function stopMoveLoop() {
+  if (moveLoopId) {
+    clearInterval(moveLoopId);
+    moveLoopId = null;
+  }
+  moveTarget = null;
+}
 
 function showTargetMarker(x: number, y: number) {
   if (!scene) return;
@@ -416,7 +487,6 @@ function showTargetMarker(x: number, y: number) {
   targetMarker.position.set(x, y, 0.005);
   scene.scene.add(targetMarker);
 
-  // Auto-remove after 3 seconds
   setTimeout(() => {
     if (scene && targetMarker) {
       scene.scene.remove(targetMarker);
@@ -431,23 +501,23 @@ export function startSimulation(presetName?: string) {
   if (!scene || !physics || !mockSensors) return;
 
   simMode = 'simulation';
+  stopRealPolling();
 
-  // Load preset scenario
   let scenario: Scenario | null = null;
   if (presetName) {
     const preset = PRESETS.find((p) => p.name === presetName);
     if (preset) scenario = preset.scenario;
   }
 
+  const obstacleMeshes: THREE.Mesh[] = [];
+
   if (scenario) {
-    // Set robot start position
     physics.setState(scenario.robotStart);
 
-    // Set obstacles
     const obstacles = scenarioToObstacles(scenario);
     physics.setObstacles(obstacles);
 
-    // Update obstacle meshes in scene
+    // Remove old obstacle meshes
     const oldMeshes: THREE.Mesh[] = [];
     scene.scene.children.forEach((child) => {
       if (child.userData.isObstacle) oldMeshes.push(child as THREE.Mesh);
@@ -458,6 +528,7 @@ export function startSimulation(presetName?: string) {
       (m.material as THREE.Material).dispose();
     });
 
+    // Create new obstacle meshes
     obstacles.forEach((obs) => {
       const geo = new THREE.BoxGeometry(obs.width * 0.001, obs.height * 0.001, obs.depth * 0.001);
       const mat = new THREE.MeshStandardMaterial({
@@ -472,8 +543,12 @@ export function startSimulation(presetName?: string) {
       mesh.receiveShadow = true;
       mesh.userData.isObstacle = true;
       scene!.scene.add(mesh);
+      obstacleMeshes.push(mesh);
     });
   }
+
+  // Pass obstacle meshes to mock sensor generator
+  mockSensors.setObstacleMeshes(obstacleMeshes);
 
   // Start simulation loop
   if (simInterval) clearInterval(simInterval);
@@ -483,7 +558,7 @@ export function startSimulation(presetName?: string) {
     const simState = physics.step(1 / 30);
     const sensorData = mockSensors.generate(simState, scene!.scene);
 
-    // Update robot position in scene
+    // Update robot in scene
     if (robotGroup) {
       robotGroup.position.set(simState.x * 0.001, simState.y * 0.001, 0);
       robotGroup.rotation.z = (simState.heading * Math.PI) / 180;
@@ -509,8 +584,18 @@ export function startSimulation(presetName?: string) {
         laser_back_right: sensorData.laser_back_right,
         ultra_front_left: sensorData.ultra_front_left,
         ultra_front_right: sensorData.ultra_front_right,
+        line_left: sensorData.line_left,
+        line_center: sensorData.line_center,
+        line_right: sensorData.line_right,
+        tf_luna_distance: sensorData.ultra_front_left,
       },
     });
+
+    // Wheel rotation — use velocity magnitude from physics
+    const velMag = Math.sqrt(simState.vx ** 2 + simState.vy ** 2);
+    if (robotParts) {
+      updateWheelRotation(velMag > 1 ? 1 : 0, robotParts);
+    }
 
     // Record frame if recording
     if (recorder?.isRecording()) {
@@ -526,6 +611,8 @@ export function stopSimulation() {
     simInterval = null;
   }
   physics?.stop();
+  stopMoveLoop();
+  startRealPolling();
   refreshTwinData();
 }
 
@@ -544,6 +631,7 @@ export function commandSimulation(vx: number, vy: number, omega: number) {
 }
 
 export function stopSimulationRobot() {
+  stopMoveLoop();
   if (physics) {
     physics.stop();
   }

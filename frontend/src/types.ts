@@ -177,6 +177,10 @@ export interface SensorReadings {
   laser_back_right: number;
   ultra_front_left: number;
   ultra_front_right: number;
+  line_left: number;
+  line_center: number;
+  line_right: number;
+  tf_luna_distance: number;
 }
 
 // --- Automation Logs ---

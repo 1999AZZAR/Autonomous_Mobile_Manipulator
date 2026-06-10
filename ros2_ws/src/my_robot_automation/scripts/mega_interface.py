@@ -392,8 +392,10 @@ class MegaInterface:
         """Stop all wheels"""
         return self.send_command_to_mega('wstop')
 
-    def move_robot(self, direction, speed=0.5):
-        """Move robot in specified direction"""
+    def move_robot(self, direction, speed=0.5, duration=0.0):
+        """Move robot in specified direction.
+        If duration > 0, auto-stops after that many seconds.
+        """
         commands = {
             'forward': 'f',
             'backward': 'b',
@@ -409,6 +411,12 @@ class MegaInterface:
                 # Set speed if different from default
                 speed_percent = int(speed * 100)
                 self.set_speed(speed_percent)
+            # Auto-stop after duration
+            if success and duration > 0:
+                def _stop_after():
+                    time.sleep(duration)
+                    self.send_command_to_mega('s')
+                threading.Thread(target=_stop_after, daemon=True).start()
             return success
         else:
             logger.error(f"Unknown direction: {direction}")
