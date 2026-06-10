@@ -463,3 +463,211 @@ def list_actions():
     except Exception as e:
         logger.error(f"Error listing actions: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# ============================================================
+# AI Decision Engine API
+# ============================================================
+
+ai_bp = Blueprint('ai', __name__, url_prefix='/api/ai')
+_ai_engine = None
+
+
+def init_ai_api(engine):
+    """Set the AI decision engine reference."""
+    global _ai_engine
+    _ai_engine = engine
+
+
+@ai_bp.route('/start', methods=['POST'])
+def ai_start():
+    """Start the AI decision loop."""
+    if not _ai_engine:
+        return jsonify({'error': 'AI engine not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    result = _ai_engine.start(
+        task_goal=data.get('goal', ''),
+        interval=data.get('interval'),
+    )
+    return jsonify(result)
+
+
+@ai_bp.route('/stop', methods=['POST'])
+def ai_stop():
+    """Stop the AI decision loop."""
+    if not _ai_engine:
+        return jsonify({'error': 'AI engine not initialized'}), 503
+    result = _ai_engine.stop()
+    return jsonify(result)
+
+
+@ai_bp.route('/status', methods=['GET'])
+def ai_status():
+    """Get AI engine status."""
+    if not _ai_engine:
+        return jsonify({'error': 'AI engine not initialized'}), 503
+    return jsonify(_ai_engine.get_status())
+
+
+@ai_bp.route('/analyze', methods=['POST'])
+def ai_analyze():
+    """Run a single AI analysis cycle."""
+    if not _ai_engine:
+        return jsonify({'error': 'AI engine not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    result = _ai_engine.analyze_once(task_goal=data.get('goal'))
+    return jsonify(result)
+
+
+@ai_bp.route('/decisions', methods=['GET'])
+def ai_decisions():
+    """Get decision history."""
+    if not _ai_engine:
+        return jsonify({'error': 'AI engine not initialized'}), 503
+    limit = request.args.get('limit', 20, type=int)
+    return jsonify({'decisions': _ai_engine.get_decisions(limit)})
+
+
+@ai_bp.route('/guidance', methods=['POST'])
+def ai_guidance():
+    """Send human guidance to the AI engine."""
+    if not _ai_engine:
+        return jsonify({'error': 'AI engine not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    guidance = data.get('guidance', '')
+    _ai_engine.set_human_guidance(guidance)
+    return jsonify({'success': True, 'guidance': guidance[:200]})
+
+
+@ai_bp.route('/camera/snapshot', methods=['GET'])
+def ai_camera_snapshot():
+    """Get current camera frame as JPEG."""
+    if not _ai_engine:
+        return jsonify({'error': 'AI engine not initialized'}), 503
+    frame = _ai_engine.camera.capture_frame()
+    if frame is None:
+        return jsonify({'error': 'Camera not available', 'state': _ai_engine.camera.get_state()}), 503
+    from flask import Response
+    return Response(frame, mimetype='image/jpeg')
+
+
+@ai_bp.route('/config', methods=['POST'])
+def ai_config():
+    """Update AI engine settings."""
+    if not _ai_engine:
+        return jsonify({'error': 'AI engine not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    if 'interval' in data:
+        _ai_engine.loop_interval = max(1.0, float(data['interval']))
+    if 'backend' in data:
+        _ai_engine.backend = data['backend']
+    if 'model' in data:
+        _ai_engine.api_model = data['model']
+    if 'goal' in data:
+        _ai_engine.task_goal = data['goal']
+    return jsonify({'success': True, 'status': _ai_engine.get_status()})
+
+
+# ============================================================
+# Waypoint Memory API
+# ============================================================
+
+waypoint_bp = Blueprint('waypoints', __name__, url_prefix='/api/waypoints')
+_waypoint_memory = None
+
+
+def init_waypoint_api(memory):
+    """Set the waypoint memory reference."""
+    global _waypoint_memory
+    _waypoint_memory = memory
+
+
+@waypoint_bp.route('/paths', methods=['GET'])
+def list_paths():
+    """List all saved paths."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    return jsonify({'paths': _waypoint_memory.list_paths()})
+
+
+@waypoint_bp.route('/paths', methods=['POST'])
+def create_path():
+    """Start recording a new path."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    name = data.get('name')
+    if not name:
+        return jsonify({'error': 'Name is required'}), 400
+    result = _waypoint_memory.start_recording(name, data.get('description'))
+    return jsonify(result)
+
+
+@waypoint_bp.route('/paths/<int:path_id>', methods=['GET'])
+def get_path(path_id):
+    """Get a path with all waypoints."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    path = _waypoint_memory.get_path(path_id)
+    if not path:
+        return jsonify({'error': 'Path not found'}), 404
+    return jsonify(path)
+
+
+@waypoint_bp.route('/paths/<int:path_id>', methods=['DELETE'])
+def delete_path(path_id):
+    """Delete a path."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    result = _waypoint_memory.delete_path(path_id)
+    return jsonify(result)
+
+
+@waypoint_bp.route('/record', methods=['POST'])
+def record_waypoint():
+    """Record a single waypoint at current position."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    result = _waypoint_memory.record_waypoint(actions=data.get('actions'))
+    return jsonify(result)
+
+
+@waypoint_bp.route('/stop', methods=['POST'])
+def stop_recording():
+    """Stop recording."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    result = _waypoint_memory.stop_recording()
+    return jsonify(result)
+
+
+@waypoint_bp.route('/replay/<int:path_id>', methods=['POST'])
+def start_replay(path_id):
+    """Start replaying a saved path."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    result = _waypoint_memory.start_replay(path_id)
+    return jsonify(result)
+
+
+@waypoint_bp.route('/replay/stop', methods=['POST'])
+def stop_replay():
+    """Stop the current replay."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    _waypoint_memory.stop_replay()
+    return jsonify({'success': True})
+
+
+@waypoint_bp.route('/status', methods=['GET'])
+def waypoint_status():
+    """Get recording/replay status."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    return jsonify({
+        'recording': _waypoint_memory.recording,
+        'current_path_id': _waypoint_memory.current_path_id,
+        'replaying': _waypoint_memory.replaying,
+        'replay_index': _waypoint_memory.replay_index,
+    })

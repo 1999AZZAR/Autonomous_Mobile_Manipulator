@@ -54,3 +54,39 @@ model AutomationLog {
   timestamp       DateTime @default(now())
   automation      Automation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
 }
+
+model SavedPath {
+  id          Int         @id @default(autoincrement())
+  name        String
+  description String?
+  waypoints   Waypoint[]
+  createdAt   DateTime    @default(now())
+}
+
+model Waypoint {
+  id             Int       @id @default(autoincrement())
+  pathId         Int
+  path           SavedPath @relation(fields: [pathId], references: [id], onDelete: Cascade)
+  order          Int
+  x              Float
+  y              Float
+  heading        Float
+  actions        Json?     // actions to perform at this waypoint
+  sensorSnapshot Json?     // sensor readings at recorded time
+}
+
+model AiDecision {
+  id             Int      @id @default(autoincrement())
+  taskGoal       String
+  mode           String   @default("ai") // replay, ifttt, ai
+  cameraFrame    String?  @db.Text
+  sensorSnapshot Json?
+  yoloDetections Json?
+  aiResponse     Json?
+  actionsExecuted Int     @default(0)
+  confidence     Float?
+  backend        String   @default("hybrid") // local, api, hybrid
+  modelUsed      String?
+  latencyMs      Int?
+  createdAt      DateTime @default(now())
+}

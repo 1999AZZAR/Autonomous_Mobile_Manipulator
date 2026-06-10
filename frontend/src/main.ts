@@ -5,11 +5,12 @@ import { initDashboard, destroyDashboard } from './components/dashboard';
 import { initMovement, destroyMovement } from './components/movement';
 import { initManipulator, destroyManipulator } from './components/manipulator';
 import { initAutomations, destroyAutomations } from './components/automations';
+import { renderAiControl } from './components/ai-control';
 import { initSystem, destroySystem } from './components/system';
 
 const socket = new SensorSocket();
 
-const TABS = ['dashboard', 'movement', 'manipulator', 'automations', 'system'] as const;
+const TABS = ['dashboard', 'movement', 'manipulator', 'automations', 'ai', 'system'] as const;
 type Tab = (typeof TABS)[number];
 
 const initFns: Record<Tab, (el: HTMLElement) => void> = {
@@ -17,6 +18,7 @@ const initFns: Record<Tab, (el: HTMLElement) => void> = {
   movement: initMovement,
   manipulator: initManipulator,
   automations: initAutomations,
+  ai: renderAiControl,
   system: initSystem,
 };
 
@@ -25,6 +27,7 @@ const destroyFns: Record<Tab, () => void> = {
   movement: destroyMovement,
   manipulator: destroyManipulator,
   automations: destroyAutomations,
+  ai: () => {},
   system: destroySystem,
 };
 

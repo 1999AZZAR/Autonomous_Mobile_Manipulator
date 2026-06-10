@@ -78,3 +78,74 @@ export interface ApiResponse<T> {
   timestamp?: number;
   data?: T;
 }
+
+// --- AI Decision Engine ---
+
+export interface AiStatus {
+  running: boolean;
+  mode: 'replay' | 'ifttt' | 'ai';
+  task_goal: string;
+  loop_interval: number;
+  backend: string;
+  camera: {
+    state: string;
+    camera_id: number;
+    resolution: string;
+    frame_count: number;
+    error_count: number;
+    last_frame_time: number;
+  };
+  last_decision: AiDecisionResult | null;
+  history_count: number;
+  human_guidance: string | null;
+}
+
+export interface AiDecisionResult {
+  reasoning: string;
+  actions: Array<{ type: string; value: string; delay_ms: number }>;
+  confidence: number;
+  continue: boolean;
+  mode: string;
+  latency_ms: number;
+  timestamp: string;
+}
+
+export interface AiDecision {
+  id: number;
+  taskGoal: string;
+  mode: string;
+  aiResponse: AiDecisionResult | null;
+  actionsExecuted: number;
+  confidence: number | null;
+  backend: string;
+  modelUsed: string | null;
+  latencyMs: number | null;
+  createdAt: string | null;
+}
+
+// --- Waypoint Memory ---
+
+export interface SavedPath {
+  id: number;
+  name: string;
+  description: string | null;
+  waypoint_count: number;
+  created_at: string | null;
+}
+
+export interface Waypoint {
+  id: number;
+  order: number;
+  x: number;
+  y: number;
+  heading: number;
+  actions: Record<string, unknown> | null;
+  sensorSnapshot: Record<string, unknown> | null;
+}
+
+export interface WaypointStatus {
+  recording: boolean;
+  current_path_id: number | null;
+  replaying: boolean;
+  replay_index: number;
+}

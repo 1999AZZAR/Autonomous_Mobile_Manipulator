@@ -16,10 +16,14 @@ RUN apt-get update && apt-get install -y \
     ros-jazzy-rmw-cyclonedds-cpp \
     procps \
     curl \
+    libgl1-mesa-glx \
+    libglib2.0-0 \
     && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
-RUN pip3 install --break-system-packages flask flask-cors pyserial smbus2 mpu6050-raspberrypi spidev requests prisma psycopg2-binary redis
+RUN pip3 install --break-system-packages --ignore-installed numpy \
+    flask flask-cors pyserial smbus2 mpu6050-raspberrypi spidev requests \
+    prisma psycopg2-binary redis httpx opencv-python-headless
 
 # Install Node.js + Prisma CLI
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \

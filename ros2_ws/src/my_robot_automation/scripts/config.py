@@ -45,3 +45,20 @@ AUTOMATION_CACHE_INTERVAL = 0.1  # Sensor cache update interval (seconds)
 AUTOMATION_RATE_LIMIT_WINDOW = 5.0  # Rate limit window (seconds)
 AUTOMATION_MAX_EXECUTIONS_PER_WINDOW = 10  # Max executions per window
 AUTOMATION_MAX_TRIGGER_DEPTH = 5  # Max circular trigger depth
+
+# AI Decision Engine settings
+AI_BACKEND = os.environ.get('AI_BACKEND', 'hybrid')  # local, api, hybrid
+AI_MODEL = os.environ.get('AI_MODEL', 'gpt-4o')
+AI_LOOP_INTERVAL = float(os.environ.get('AI_LOOP_INTERVAL', '3.0'))  # seconds
+AI_DECISION_HISTORY_SIZE = 5
+AI_OPENAI_API_KEY = os.environ.get('OPENAI_API_KEY', '')
+
+# Camera settings
+CAMERA_ID = int(os.environ.get('CAMERA_ID', '0'))
+CAMERA_WIDTH = int(os.environ.get('CAMERA_WIDTH', '640'))
+CAMERA_HEIGHT = int(os.environ.get('CAMERA_HEIGHT', '480'))
+
+# Waypoint settings
+WAYPOINT_RECORD_INTERVAL = 0.5  # seconds between auto-recorded waypoints
+WAYPOINT_POSITION_TOLERANCE = 0.15  # meters
+WAYPOINT_HEADING_TOLERANCE = 10.0  # degrees

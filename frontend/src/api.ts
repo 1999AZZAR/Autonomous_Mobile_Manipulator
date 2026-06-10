@@ -1,6 +1,6 @@
 // REST API client for the Python backend
 
-import type { Automation, SensorData, SystemStatus } from './types';
+import type { Automation, SensorData, SystemStatus, AiStatus, AiDecision, SavedPath, WaypointStatus } from './types';
 
 const BASE = '/api';
 
@@ -94,4 +94,99 @@ export function fetchFeeds(): Promise<{ feeds: Record<string, unknown> }> {
 
 export function fetchFeedValue(key: string): Promise<{ key: string; value: unknown }> {
   return request(`/feeds/${key}`);
+}
+
+// --- AI Decision Engine ---
+
+export function fetchAiStatus(): Promise<AiStatus> {
+  return request('/ai/status');
+}
+
+export function startAiLoop(goal: string, interval?: number): Promise<{ success: boolean }> {
+  return request('/ai/start', {
+    method: 'POST',
+    body: JSON.stringify({ goal, interval }),
+  });
+}
+
+export function stopAiLoop(): Promise<{ success: boolean }> {
+  return request('/ai/stop', { method: 'POST' });
+}
+
+export function analyzeOnce(goal?: string): Promise<unknown> {
+  return request('/ai/analyze', {
+    method: 'POST',
+    body: JSON.stringify({ goal }),
+  });
+}
+
+export function fetchAiDecisions(limit = 20): Promise<{ decisions: AiDecision[] }> {
+  return request(`/ai/decisions?limit=${limit}`);
+}
+
+export function sendHumanGuidance(guidance: string): Promise<{ success: boolean }> {
+  return request('/ai/guidance', {
+    method: 'POST',
+    body: JSON.stringify({ guidance }),
+  });
+}
+
+export function updateAiConfig(config: {
+  interval?: number;
+  backend?: string;
+  model?: string;
+  goal?: string;
+}): Promise<{ success: boolean }> {
+  return request('/ai/config', {
+    method: 'POST',
+    body: JSON.stringify(config),
+  });
+}
+
+export function getCameraSnapshotUrl(): string {
+  return `${BASE}/ai/camera/snapshot`;
+}
+
+// --- Waypoints ---
+
+export function fetchPaths(): Promise<{ paths: SavedPath[] }> {
+  return request('/waypoints/paths');
+}
+
+export function fetchPath(id: number): Promise<SavedPath & { waypoints: Array<{ id: number; order: number; x: number; y: number; heading: number; actions: unknown; sensorSnapshot: unknown }> }> {
+  return request(`/waypoints/paths/${id}`);
+}
+
+export function createPath(name: string, description?: string): Promise<{ success: boolean; path_id: number }> {
+  return request('/waypoints/paths', {
+    method: 'POST',
+    body: JSON.stringify({ name, description }),
+  });
+}
+
+export function deletePath(id: number): Promise<{ success: boolean }> {
+  return request(`/waypoints/paths/${id}`, { method: 'DELETE' });
+}
+
+export function recordWaypoint(actions?: Record<string, unknown>): Promise<{ success: boolean }> {
+  return request('/waypoints/record', {
+    method: 'POST',
+    body: JSON.stringify({ actions }),
+  });
+}
+
+export function stopRecording(): Promise<{ success: boolean; path_id: number; waypoint_count: number }> {
+  return request('/waypoints/stop', { method: 'POST' });
+}
+
+export function startReplay(pathId: number): Promise<{ success: boolean }> {
+  return request(`/waypoints/replay/${pathId}`, { method: 'POST' });
+}
+
+export function stopReplay(): Promise<{ success: boolean }> {
+  return request('/waypoints/replay/stop', { method: 'POST' });
+}
+
+export function fetchWaypointStatus(): Promise<WaypointStatus> {
+  return request('/waypoints/status');
 }

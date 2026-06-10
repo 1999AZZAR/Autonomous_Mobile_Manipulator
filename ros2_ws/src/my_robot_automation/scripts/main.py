@@ -16,7 +16,12 @@ from mega_interface import MegaInterface
 from sensor_manager import SensorManager
 from path_planning import GridMap, PathPlanner, MovementSequence, WaypointNavigator
 from automation_engine import AutomationEngine
-from automation_api import automation_bp, init_automation_api
+from automation_api import automation_bp, init_automation_api, ai_bp, waypoint_bp, init_ai_api, init_waypoint_api
+from camera_service import CameraService
+from waypoint_memory import WaypointMemory
+from ai_decision import AIDecisionEngine
+from config import (CAMERA_ID, CAMERA_WIDTH, CAMERA_HEIGHT,
+                    AI_BACKEND, AI_MODEL, AI_LOOP_INTERVAL, AI_OPENAI_API_KEY)
 
 # ROS2 import (optional - for systems with ROS2 installed)
 try:
@@ -105,6 +110,45 @@ class AutonomousMobileManipulator:
             logger.info("Automation API blueprint registered")
         else:
             logger.warning("Automation engine failed to initialize, API disabled")
+
+        # Initialize camera (OFF by default, activates only for AI mode)
+        self.camera_service = CameraService(
+            camera_id=CAMERA_ID,
+            width=CAMERA_WIDTH,
+            height=CAMERA_HEIGHT,
+        )
+        logger.info("Camera service initialized (OFF by default)")
+
+        # Initialize waypoint memory
+        self.waypoint_memory = WaypointMemory(
+            mega_interface=self.mega_interface,
+            sensor_manager=self.sensor_manager,
+        )
+        self.waypoint_memory.initialize(self.automation_engine.db)
+        self.waypoint_memory.get_position = lambda: self.current_position
+        self.waypoint_memory.get_orientation = lambda: self.current_orientation
+        logger.info("Waypoint memory initialized")
+
+        # Initialize AI decision engine
+        self.ai_engine = AIDecisionEngine(
+            camera_service=self.camera_service,
+            automation_engine=self.automation_engine,
+            mega_interface=self.mega_interface,
+            sensor_manager=self.sensor_manager,
+            waypoint_memory=self.waypoint_memory,
+        )
+        self.ai_engine.initialize(self.automation_engine.db)
+        self.ai_engine.backend = AI_BACKEND
+        self.ai_engine.api_model = AI_MODEL
+        self.ai_engine.api_key = AI_OPENAI_API_KEY
+        self.ai_engine.loop_interval = AI_LOOP_INTERVAL
+
+        # Register AI + waypoint API endpoints
+        init_ai_api(self.ai_engine)
+        init_waypoint_api(self.waypoint_memory)
+        self.flask_app.app.register_blueprint(ai_bp)
+        self.flask_app.app.register_blueprint(waypoint_bp)
+        logger.info("AI decision engine and waypoint API registered")
 
         logger.info("Path planning components initialized")
 
@@ -291,6 +335,24 @@ class AutonomousMobileManipulator:
     def cleanup(self):
         """Clean up all resources"""
         logger.info("Cleaning up resources...")
+
+        try:
+            if self.ai_engine:
+                self.ai_engine.cleanup()
+        except Exception as e:
+            logger.error(f"Error stopping AI engine: {str(e)}")
+
+        try:
+            if self.camera_service:
+                self.camera_service.cleanup()
+        except Exception as e:
+            logger.error(f"Error cleaning up camera: {str(e)}")
+
+        try:
+            if self.waypoint_memory:
+                self.waypoint_memory.cleanup()
+        except Exception as e:
+            logger.error(f"Error cleaning up waypoint memory: {str(e)}")
 
         try:
             if self.automation_engine:
