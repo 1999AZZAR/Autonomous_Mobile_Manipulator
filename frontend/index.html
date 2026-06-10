@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AMM Control</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@phosphor-icons/web@2.1.2/src/bold/style.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+    <div id="app">
+        <aside id="sidebar">
+            <div class="sidebar-header">
+                <span class="logo-icon ph ph-robot"></span>
+                <h1>AMM Control</h1>
+            </div>
+            <nav class="sidebar-nav">
+                <div class="nav-section">
+                    <span class="nav-label">Overview</span>
+                    <button class="nav-item active" data-tab="dashboard">
+                        <span class="ph ph-squares-four"></span>
+                        Dashboard
+                    </button>
+                </div>
+                <div class="nav-section">
+                    <span class="nav-label">Control</span>
+                    <button class="nav-item" data-tab="movement">
+                        <span class="ph ph-joystick"></span>
+                        Movement
+                    </button>
+                    <button class="nav-item" data-tab="manipulator">
+                        <span class="ph ph-armchair"></span>
+                        Manipulator
+                    </button>
+                </div>
+                <div class="nav-section">
+                    <span class="nav-label">Automation</span>
+                    <button class="nav-item" data-tab="automations">
+                        <span class="ph ph-lightning"></span>
+                        Automations
+                    </button>
+                </div>
+                <div class="nav-section">
+                    <span class="nav-label">System</span>
+                    <button class="nav-item" data-tab="system">
+                        <span class="ph ph-gear-six"></span>
+                        System
+                    </button>
+                </div>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="connection-status" id="ws-status">
+                    <span class="status-dot disconnected"></span>
+                    <span class="status-text">Disconnected</span>
+                </div>
+            </div>
+        </aside>
+        <main id="content">
+            <div id="tab-dashboard" class="tab-panel active"></div>
+            <div id="tab-movement" class="tab-panel"></div>
+            <div id="tab-manipulator" class="tab-panel"></div>
+            <div id="tab-automations" class="tab-panel"></div>
+            <div id="tab-system" class="tab-panel"></div>
+        </main>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+</body>
+</html>

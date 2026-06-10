@@ -36,3 +36,12 @@ IMU_CALIBRATION_SAMPLES = 100
 
 # Logging
 LOG_LEVEL = 'INFO'
+
+# Database settings
+DATABASE_URL = os.environ.get('DATABASE_URL', 'postgresql://robot:robot_secret@localhost:5432/robot_automation')
+
+# Automation settings
+AUTOMATION_CACHE_INTERVAL = 0.1  # Sensor cache update interval (seconds)
+AUTOMATION_RATE_LIMIT_WINDOW = 5.0  # Rate limit window (seconds)
+AUTOMATION_MAX_EXECUTIONS_PER_WINDOW = 10  # Max executions per window
+AUTOMATION_MAX_TRIGGER_DEPTH = 5  # Max circular trigger depth

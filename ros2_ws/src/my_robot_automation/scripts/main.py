@@ -15,6 +15,8 @@ from app import FlaskApp
 from mega_interface import MegaInterface
 from sensor_manager import SensorManager
 from path_planning import GridMap, PathPlanner, MovementSequence, WaypointNavigator
+from automation_engine import AutomationEngine
+from automation_api import automation_bp, init_automation_api
 
 # ROS2 import (optional - for systems with ROS2 installed)
 try:
@@ -88,6 +90,21 @@ class AutonomousMobileManipulator:
             simulation_mode=self.simulation_mode,
             main_app=self  # Pass reference to self for IMU access
         )
+
+        # Initialize automation engine
+        self.automation_engine = AutomationEngine(
+            sensor_manager=self.sensor_manager,
+            mega_interface=self.mega_interface,
+            simulation_mode=self.simulation_mode
+        )
+
+        # Initialize automation API
+        if self.automation_engine.initialize():
+            init_automation_api(self.automation_engine)
+            self.flask_app.app.register_blueprint(automation_bp)
+            logger.info("Automation API blueprint registered")
+        else:
+            logger.warning("Automation engine failed to initialize, API disabled")
 
         logger.info("Path planning components initialized")
 
@@ -242,6 +259,11 @@ class AutonomousMobileManipulator:
             else:
                 logger.info("ROS2 thread not started (ROS2 not available)")
 
+            # Start automation engine
+            if self.automation_engine:
+                self.automation_engine.start()
+                logger.info("Automation engine started")
+
             # Start Flask web interface (blocking)
             logger.info("Starting Flask web interface...")
             self.flask_app.run()
@@ -269,6 +291,12 @@ class AutonomousMobileManipulator:
     def cleanup(self):
         """Clean up all resources"""
         logger.info("Cleaning up resources...")
+
+        try:
+            if self.automation_engine:
+                self.automation_engine.stop()
+        except Exception as e:
+            logger.error(f"Error stopping automation engine: {str(e)}")
 
         try:
             if self.mega_interface:

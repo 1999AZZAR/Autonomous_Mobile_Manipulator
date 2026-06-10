@@ -1,0 +1,56 @@
+generator client {
+  provider = "prisma-client-py"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Automation {
+  id                 Int       @id @default(autoincrement())
+  name               String
+  isActive           Boolean   @default(true)
+  triggerType        String    @default("sensor") // sensor, time, manual, webhook
+  conditionMatch     String    @default("ALL")    // ALL or ANY
+  elseConditionMatch String    @default("ALL")
+  scheduleCron       String?   // for time triggers (e.g. "*/30 * * * *")
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  conditions         AutomationCondition[]
+  actions            AutomationAction[]
+  logs               AutomationLog[]
+}
+
+model AutomationCondition {
+  id           Int       @id @default(autoincrement())
+  feedKey      String    // sensor name (e.g. "laser_left_front")
+  operator     String    // >, <, ==, !=, >=, <=
+  value        String    // threshold value
+  isElse       Boolean   @default(false)
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  automationId Int
+}
+
+model AutomationAction {
+  id           Int       @id @default(autoincrement())
+  actionType   String    // move, turn, gripper, stop, delay, webhook, trigger
+  actionValue  String?   // command payload (e.g. "forward", "open", "90")
+  delayMs      Int       @default(0)
+  webhookUrl   String?   // for webhook actions
+  triggerId    Int?      // for chaining automations
+  actionOrder  Int       @default(0)
+  isElse       Boolean   @default(false)
+  automation   Automation @relation(fields: [automationId], references: [id], onDelete: Cascade)
+  automationId Int
+}
+
+model AutomationLog {
+  id              Int      @id @default(autoincrement())
+  automationId    Int?
+  automationName  String
+  triggerReason   String
+  actionsExecuted Int
+  timestamp       DateTime @default(now())
+  automation      Automation? @relation(fields: [automationId], references: [id], onDelete: SetNull)
+}

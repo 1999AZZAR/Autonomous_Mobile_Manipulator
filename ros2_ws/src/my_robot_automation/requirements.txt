@@ -1,6 +1,10 @@
 flask>=2.3.0
+flask-cors>=4.0.0
 pyserial>=3.5
 spidev>=3.6
 smbus2>=0.4.0
 mpu6050-raspberrypi>=1.0
 requests>=2.28.0
+prisma>=0.11.0
+psycopg2-binary>=2.9.9
+redis>=5.0.0

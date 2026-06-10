@@ -19,7 +19,14 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Python dependencies
-RUN pip3 install --break-system-packages flask pyserial smbus2 mpu6050-raspberrypi spidev requests
+RUN pip3 install --break-system-packages flask flask-cors pyserial smbus2 mpu6050-raspberrypi spidev requests prisma psycopg2-binary redis
+
+# Install Node.js + Prisma CLI
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
+    apt-get install -y nodejs && \
+    npm install -g prisma && \
+    rm -rf /var/lib/apt/lists/*
+ENV PATH="/usr/local/lib/node_modules/.bin:${PATH}"
 
 # ROS 2 workspace
 WORKDIR /root/ros2_ws

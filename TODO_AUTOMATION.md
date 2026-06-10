@@ -14,14 +14,14 @@ Flask App (:8001) ←→ PostgreSQL (:5432) via Prisma
 ## Tasks
 
 ### Phase 1: Infrastructure
-- [ ] Add PostgreSQL container to `docker-compose.yml`
-- [ ] Create `ros2_ws/prisma/schema.prisma` (Automation, AutomationCondition, AutomationAction, AutomationLog)
-- [ ] Update `Dockerfile` — install prisma CLI, `prisma generate`, `prisma db push`
-- [ ] Update `requirements.txt` — add `prisma`, `psycopg2-binary`
-- [ ] Update `config.py` — add DATABASE_URL, automation settings
+- [x] Add PostgreSQL container to `docker-compose.yml`
+- [x] Create `ros2_ws/prisma/schema.prisma` (Automation, AutomationCondition, AutomationAction, AutomationLog)
+- [x] Update `Dockerfile` — install prisma CLI, `prisma generate`, `prisma db push`
+- [x] Update `requirements.txt` — add `prisma`, `psycopg2-binary`
+- [x] Update `config.py` — add DATABASE_URL, automation settings
 
 ### Phase 2: Core Engine
-- [ ] Create `scripts/automation_engine.py`
+- [x] Create `scripts/automation_engine.py`
   - Prisma client initialization
   - Sensor value cache (read at 10Hz from sensor_manager)
   - Condition evaluator (>, <, ==, !=, >=, <= with ALL/ANY matching)
@@ -32,7 +32,7 @@ Flask App (:8001) ←→ PostgreSQL (:5432) via Prisma
   - Else-branch support
 
 ### Phase 3: API
-- [ ] Create `scripts/automation_api.py` — Flask blueprint
+- [x] Create `scripts/automation_api.py` — Flask blueprint
   - `GET    /api/automations` — list all
   - `POST   /api/automations` — create
   - `GET    /api/automations/<id>` — get one
@@ -45,15 +45,15 @@ Flask App (:8001) ←→ PostgreSQL (:5432) via Prisma
   - `GET    /api/feeds/<key>/value` — current sensor value
 
 ### Phase 4: Web UI
-- [ ] Add automation page to Flask web interface
+- [x] Add automation page to Flask web interface
   - Automation list with enable/disable toggles
   - Rule builder form (conditions + actions)
   - Manual trigger buttons
   - Execution log viewer
 
 ### Phase 5: Integration
-- [ ] Update `main.py` — init AutomationEngine, start scheduler, run `prisma db push`
-- [ ] Update `app.py` — mount automation API blueprint, add nav link
+- [x] Update `main.py` — init AutomationEngine, start scheduler, run `prisma db push`
+- [x] Update `app.py` — mount automation API blueprint, add nav link
 
 ### Phase 6: Test
 - [ ] Build Docker image, verify PostgreSQL connection
