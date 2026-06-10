@@ -34,10 +34,10 @@ export function createScene(container: HTMLElement): TwinScene {
   scene.background = new THREE.Color(0x1a1a2e);
   scene.fog = new THREE.Fog(0x1a1a2e, 20, 50);
 
-  // Camera — X-right, Y-forward, Z-up (ROS2 convention mapped to Three.js)
+  // Camera — positioned in front of the robot so the arm assembly is always in view
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-  camera.position.set(4, -4, 5);
-  camera.lookAt(0, 0, 0);
+  camera.position.set(2, 5, 4);
+  camera.lookAt(0, 0, 0.1);
 
   // Controls
   const controls = new OrbitControls(camera, renderer.domElement);
@@ -46,15 +46,15 @@ export function createScene(container: HTMLElement): TwinScene {
   controls.minDistance = 2;
   controls.maxDistance = 20;
   controls.maxPolarAngle = Math.PI / 2.1;
-  controls.target.set(0, 0, 0);
+  controls.target.set(0, 0, 0.1);
   controls.update();
 
-  // Lighting
-  const ambient = new THREE.AmbientLight(0x404060, 0.6);
+  // Lighting — bright enough to see all robot faces
+  const ambient = new THREE.AmbientLight(0xffffff, 2.5);
   scene.add(ambient);
 
-  const dir = new THREE.DirectionalLight(0xffffff, 1.2);
-  dir.position.set(5, -3, 8);
+  const dir = new THREE.DirectionalLight(0xffffff, 3.0);
+  dir.position.set(4, -2, 6);
   dir.castShadow = true;
   dir.shadow.mapSize.set(1024, 1024);
   dir.shadow.camera.near = 0.5;
@@ -65,7 +65,12 @@ export function createScene(container: HTMLElement): TwinScene {
   dir.shadow.camera.bottom = -8;
   scene.add(dir);
 
-  const hemi = new THREE.HemisphereLight(0x606080, 0x404040, 0.3);
+  // Fill light from the front so the robot face is always lit
+  const fill = new THREE.DirectionalLight(0xaaccff, 2.0);
+  fill.position.set(-3, 5, 3);
+  scene.add(fill);
+
+  const hemi = new THREE.HemisphereLight(0x8899cc, 0x445566, 1.0);
   scene.add(hemi);
 
   // Ground plane — 10x10m

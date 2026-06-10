@@ -48,6 +48,7 @@ export interface RobotModelParts {
   wheels: Array<{ rotation: { y: number } }>;
   gripper: { left: { position: { x: number } }; right: { position: { x: number } } };
   gripperAssembly: THREE.Group;
+  carriage: THREE.Mesh;
   tiltServo: { rotation: { x: number } };
   laserSensors: Array<{ material: any }>;
   ultraSensors: Array<{ material: any }>;

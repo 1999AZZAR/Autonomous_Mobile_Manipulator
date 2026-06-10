@@ -38,10 +38,13 @@ let realPollInterval: ReturnType<typeof setInterval> | null = null;
 let recorder: SessionRecorder | null = null;
 let playback: PlaybackEngine | null = null;
 
-// Click-to-move target tracking
 let targetMarker: THREE.Mesh | null = null;
 let moveTarget: { x: number; y: number } | null = null;
 let moveLoopId: ReturnType<typeof setInterval> | null = null;
+
+// Keyboard drive state
+const keyState: Record<string, boolean> = {};
+let keyDriveInterval: ReturnType<typeof setInterval> | null = null;
 
 function initHitPoints() {
   hitPoints = new Map<string, THREE.Mesh>();
@@ -216,7 +219,11 @@ export function initDigitalTwin(container: HTMLElement) {
   // Initial data fetch
   refreshTwinData();
 
-  // Start real-mode polling
+  // Auto-start simulation so the twin is immediately drivable
+  startSimulation();
+  setupKeyboardDrive();
+
+  // Start real-mode polling (simulation overrides position, but polling keeps sensors live)
   startRealPolling();
 
   scene.animate(() => {});
@@ -225,6 +232,7 @@ export function initDigitalTwin(container: HTMLElement) {
 export function destroyDigitalTwin() {
   stopRealPolling();
   stopMoveLoop();
+  stopKeyboardDrive();
 
   if (unsubscribe) {
     unsubscribe();
@@ -493,6 +501,47 @@ function showTargetMarker(x: number, y: number) {
       targetMarker = null;
     }
   }, 3000);
+}
+
+// --- Keyboard Drive ---
+
+const DRIVE_KEYS = ['w','s','a','d','q','e','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '];
+
+function setupKeyboardDrive() {
+  const onKeyDown = (e: KeyboardEvent) => {
+    if (!DRIVE_KEYS.includes(e.key)) return;
+    e.preventDefault();
+    keyState[e.key] = true;
+  };
+  const onKeyUp = (e: KeyboardEvent) => {
+    delete keyState[e.key];
+  };
+  document.addEventListener('keydown', onKeyDown);
+  document.addEventListener('keyup', onKeyUp);
+
+  // Poll at 20 Hz and push velocity to physics
+  keyDriveInterval = setInterval(() => {
+    if (simMode !== 'simulation' || !physics) return;
+    let vx = 0, vy = 0, omega = 0;
+    if (keyState['w'] || keyState['ArrowUp'])    vy =  300;
+    if (keyState['s'] || keyState['ArrowDown'])  vy = -300;
+    if (keyState['a'] || keyState['ArrowLeft'])  vx = -300;
+    if (keyState['d'] || keyState['ArrowRight']) vx =  300;
+    if (keyState['q']) omega =  90;
+    if (keyState['e']) omega = -90;
+    if (keyState[' ']) { vx = 0; vy = 0; omega = 0; }
+    if (vx !== 0 || vy !== 0 || omega !== 0 || keyState[' ']) {
+      physics.command(vx, vy, omega);
+    }
+  }, 50);
+}
+
+function stopKeyboardDrive() {
+  if (keyDriveInterval) {
+    clearInterval(keyDriveInterval);
+    keyDriveInterval = null;
+  }
+  Object.keys(keyState).forEach((k) => delete keyState[k]);
 }
 
 // --- Simulation Mode ---

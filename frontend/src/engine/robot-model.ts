@@ -4,15 +4,15 @@ import * as THREE from 'three';
 import type { RobotModelParts } from '../types/twin';
 
 const COLORS = {
-  body: 0x3a3a5c,
-  bodyAccent: 0x4a4a6c,
-  wheel: 0x222222,
-  gripper: 0x888888,
-  laser: 0x00cc66,
-  ultrasonic: 0x4488ff,
-  line: 0xffaa00,
-  heading: 0xff3333,
-  lifter: 0x555577,
+  body:       0x6e9ef5,   // bright cornflower blue
+  bodyAccent: 0x99bbff,   // lighter blue
+  wheel:      0x7788aa,   // medium slate
+  gripper:    0xe8eeff,   // near-white
+  laser:      0x00ff88,
+  ultrasonic: 0x44ddff,
+  line:       0xffcc00,
+  heading:    0xff4444,
+  lifter:     0xffaa33,   // bright orange — masts/arm stand out clearly
 };
 
 export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts } {
@@ -30,7 +30,13 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
     else bodyShape.lineTo(x, y);
   }
   const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, { depth: 0.12, bevelEnabled: false });
-  const bodyMat = new THREE.MeshStandardMaterial({ color: COLORS.body, roughness: 0.6 });
+  const bodyMat = new THREE.MeshStandardMaterial({
+    color: COLORS.body,
+    roughness: 0.5,
+    metalness: 0,
+    emissive: 0x1a2a60,
+    emissiveIntensity: 0.4,
+  });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.rotation.x = -Math.PI / 2;
   body.position.z = 0.06;
@@ -42,22 +48,23 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
   const wheelRadius = 0.04;
   const wheelWidth = 0.03;
   const wheelDist = 0.25;
-  const wheelAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
+  // FR at 30°, FL at 150°, Back at 270° — matches Motor2/Motor3/Motor4 physical positions
+  const wheelAngles = [Math.PI / 6, (5 * Math.PI) / 6, (3 * Math.PI) / 2];
 
   wheelAngles.forEach((angle) => {
     const geo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelWidth, 16);
-    const mat = new THREE.MeshStandardMaterial({ color: COLORS.wheel, roughness: 0.8 });
+    const mat = new THREE.MeshStandardMaterial({ color: COLORS.wheel, roughness: 0.7, metalness: 0, emissive: 0x223344, emissiveIntensity: 0.3 });
     const wheel = new THREE.Mesh(geo, mat);
     const wx = Math.cos(angle) * wheelDist;
     const wy = Math.sin(angle) * wheelDist;
     wheel.position.set(wx, wy, wheelRadius);
-    wheel.rotation.z = Math.PI / 2;
+    wheel.rotation.z = angle - Math.PI / 2; // axle points radially outward
     wheel.castShadow = true;
     group.add(wheel);
     wheels.push(wheel);
 
     const bracketGeo = new THREE.BoxGeometry(0.01, 0.04, 0.06);
-    const bracketMat = new THREE.MeshStandardMaterial({ color: COLORS.lifter });
+    const bracketMat = new THREE.MeshStandardMaterial({ color: COLORS.lifter, roughness: 0.6, metalness: 0, emissive: 0x334455, emissiveIntensity: 0.3 });
     const bracket = new THREE.Mesh(bracketGeo, bracketMat);
     bracket.position.set(wx * 0.85, wy * 0.85, 0.06);
     group.add(bracket);
@@ -125,62 +132,121 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
     lineSensors.push(sensor);
   });
 
-  // === GRIPPER ASSEMBLY — tilt servo + gripper + camera + TF-Luna, moves up/down via lifter ===
-  const gripperAssembly = new THREE.Group();
-  gripperAssembly.position.set(0, 0.22, 0.12);
+  // === LIFTER MASTS — tall static vertical structure on front face ===
+  const mastHeight = 0.30;
+  const mastMat = new THREE.MeshStandardMaterial({
+    color: COLORS.lifter, roughness: 0.5, metalness: 0,
+    emissive: 0x884400, emissiveIntensity: 0.45,
+  });
+  [-0.042, 0.042].forEach((rx) => {
+    const mast = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.012, 0.012, mastHeight, 8),  // 12mm — clearly visible
+      mastMat
+    );
+    mast.position.set(rx, 0.22, 0.04 + mastHeight / 2); // center z=0.19
+    mast.rotation.x = Math.PI / 2; // vertical along Z
+    mast.castShadow = true;
+    group.add(mast);
+  });
+  // Top cross-beam
+  const crossBeam = new THREE.Mesh(
+    new THREE.BoxGeometry(0.115, 0.022, 0.022),
+    mastMat
+  );
+  crossBeam.position.set(0, 0.22, 0.04 + mastHeight);
+  group.add(crossBeam);
 
-  // Tilt servo housing
-  const servoGeo = new THREE.BoxGeometry(0.04, 0.03, 0.03);
-  const servoMat = new THREE.MeshStandardMaterial({ color: COLORS.bodyAccent });
+  // === CARRIAGE — slides up/down on masts, does NOT tilt ===
+  const carriageMat = new THREE.MeshStandardMaterial({
+    color: COLORS.bodyAccent, roughness: 0.5, metalness: 0,
+    emissive: 0x884400, emissiveIntensity: 0.45,
+  });
+  const carriage = new THREE.Mesh(
+    new THREE.BoxGeometry(0.11, 0.03, 0.055),
+    carriageMat
+  );
+  carriage.position.set(0, 0.22, 0.20); // initial (lifterHeight=50 → z=0.20)
+  carriage.castShadow = true;
+  group.add(carriage);
+
+  // === GRIPPER ASSEMBLY — arm in +Z, tilts around X at carriage height ===
+  const gripperAssembly = new THREE.Group();
+  gripperAssembly.position.set(0, 0.235, 0.20);
+  gripperAssembly.rotation.x = 0; // 0° = arm straight up (+Z), matches tiltAngle=0 default
+
+  // Tilt servo housing (the pivot point)
+  const servoGeo = new THREE.BoxGeometry(0.026, 0.018, 0.026);
+  const servoMat = new THREE.MeshStandardMaterial({
+    color: COLORS.lifter, roughness: 0.4, metalness: 0,
+    emissive: 0x884400, emissiveIntensity: 0.4,
+  });
   const servoMesh = new THREE.Mesh(servoGeo, servoMat);
   gripperAssembly.add(servoMesh);
 
-  // Gripper base
-  const gripperBase = new THREE.Mesh(
-    new THREE.BoxGeometry(0.06, 0.02, 0.03),
-    new THREE.MeshStandardMaterial({ color: COLORS.gripper })
+  // Arm column — extends in +Z (upward) from the pivot
+  const armColMat = new THREE.MeshStandardMaterial({
+    color: COLORS.lifter, roughness: 0.5, metalness: 0,
+    emissive: 0x884400, emissiveIntensity: 0.4,
+  });
+  const armColumn = new THREE.Mesh(
+    new THREE.BoxGeometry(0.014, 0.014, 0.10),
+    armColMat
   );
-  gripperBase.position.set(0, 0.03, 0);
+  armColumn.position.set(0, 0, 0.055); // spans local z=0.005 to z=0.105
+  armColumn.castShadow = true;
+  gripperAssembly.add(armColumn);
+
+  // Gripper base crossbar at tip of arm column
+  const gripperBaseMat = new THREE.MeshStandardMaterial({
+    color: COLORS.gripper, roughness: 0.4, metalness: 0,
+    emissive: 0x445577, emissiveIntensity: 0.3,
+  });
+  const gripperBase = new THREE.Mesh(
+    new THREE.BoxGeometry(0.065, 0.018, 0.013),
+    gripperBaseMat
+  );
+  gripperBase.position.set(0, 0, 0.108);
   gripperBase.castShadow = true;
   gripperAssembly.add(gripperBase);
 
-  // Gripper fingers
-  const fingerGeo = new THREE.BoxGeometry(0.008, 0.04, 0.02);
-  const fingerMat = new THREE.MeshStandardMaterial({ color: COLORS.gripper });
-  const leftFinger = new THREE.Mesh(fingerGeo, fingerMat);
-  leftFinger.position.set(-0.02, 0.06, 0);
+  // Gripper fingers — extend further in +Z, open/close in ±X
+  const fingerMat = new THREE.MeshStandardMaterial({
+    color: COLORS.gripper, roughness: 0.4, metalness: 0,
+    emissive: 0x445566, emissiveIntensity: 0.25,
+  });
+  const leftFinger = new THREE.Mesh(
+    new THREE.BoxGeometry(0.009, 0.016, 0.042),
+    fingerMat
+  );
+  leftFinger.position.set(-0.022, 0, 0.132);
   leftFinger.castShadow = true;
   gripperAssembly.add(leftFinger);
 
-  const rightFinger = new THREE.Mesh(fingerGeo, fingerMat);
-  rightFinger.position.set(0.02, 0.06, 0);
+  const rightFinger = new THREE.Mesh(
+    new THREE.BoxGeometry(0.009, 0.016, 0.042),
+    fingerMat
+  );
+  rightFinger.position.set(0.022, 0, 0.132);
   rightFinger.castShadow = true;
   gripperAssembly.add(rightFinger);
 
-  // Camera (on gripper)
-  const camGeo = new THREE.BoxGeometry(0.03, 0.02, 0.02);
-  const camMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
-  const camera = new THREE.Mesh(camGeo, camMat);
-  camera.position.set(0, -0.02, 0.02);
+  // Camera on servo housing (points forward +Y)
+  const camera = new THREE.Mesh(
+    new THREE.BoxGeometry(0.024, 0.014, 0.018),
+    new THREE.MeshStandardMaterial({ color: 0x223344 })
+  );
+  camera.position.set(-0.02, 0.018, 0);
   gripperAssembly.add(camera);
 
-  // TF-Luna (on gripper)
-  const tfGeo = new THREE.BoxGeometry(0.015, 0.01, 0.01);
-  const tfMat = new THREE.MeshStandardMaterial({ color: 0x44aacc });
-  const tfLuna = new THREE.Mesh(tfGeo, tfMat);
-  tfLuna.position.set(0.04, -0.02, 0.02);
+  // TF-Luna beside camera
+  const tfLuna = new THREE.Mesh(
+    new THREE.BoxGeometry(0.012, 0.010, 0.012),
+    new THREE.MeshStandardMaterial({ color: 0x44aacc, emissive: 0x22aacc, emissiveIntensity: 0.35 })
+  );
+  tfLuna.position.set(0.02, 0.018, 0);
   gripperAssembly.add(tfLuna);
 
   group.add(gripperAssembly);
-
-  // === LIFTER RAILS — vertical guides for gripper assembly ===
-  const railGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.1, 6);
-  const railMat = new THREE.MeshStandardMaterial({ color: COLORS.lifter });
-  [-0.035, 0.035].forEach((rx) => {
-    const rail = new THREE.Mesh(railGeo, railMat);
-    rail.position.set(rx, 0.22, 0.17);
-    group.add(rail);
-  });
 
   group.position.set(0, 0, 0);
 
@@ -191,6 +257,7 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
       wheels,
       gripper: { left: leftFinger, right: rightFinger },
       gripperAssembly,
+      carriage,
       tiltServo: servoMesh as any,
       laserSensors,
       ultraSensors,
@@ -207,14 +274,16 @@ export function updateGripper(open: boolean, parts: RobotModelParts) {
 }
 
 export function updateTiltServo(angle: number, parts: RobotModelParts) {
-  const rad = ((angle - 90) * Math.PI) / 180;
+  // Arm extends in +Z. rotation.x = 0 → vertical up (0°), -π/2 → forward (90°), -π → down (180°)
+  const rad = -(angle * Math.PI) / 180;
   parts.gripperAssembly.rotation.x = rad;
 }
 
 export function updateLifter(height: number, parts: RobotModelParts) {
   const clamped = Math.max(0, Math.min(100, height));
-  const zOffset = (clamped / 100) * 0.08;
-  parts.gripperAssembly.position.z = 0.12 + zOffset;
+  const z = 0.10 + (clamped / 100) * 0.20; // travels z=0.10 → z=0.30 along the mast
+  parts.carriage.position.z = z;           // carriage stays upright
+  parts.gripperAssembly.position.z = z;    // arm tilts from same height
 }
 
 export function updateLineSensors(readings: { line_left: number; line_center: number; line_right: number }, parts: RobotModelParts) {
