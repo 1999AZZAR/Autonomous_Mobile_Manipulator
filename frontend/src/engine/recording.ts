@@ -11,7 +11,7 @@ export interface RecordingFrame {
   sensors: MockSensorData;
   gripperOpen: boolean;
   tiltAngle: number;
-  armJoints: number[];
+  lifterHeight: number;
   aiMode: string;
 }
 
@@ -79,7 +79,7 @@ export class SessionRecorder {
       sensors,
       gripperOpen: state.gripperOpen,
       tiltAngle: state.tiltAngle,
-      armJoints: [...state.armJoints],
+      lifterHeight: state.lifterHeight,
       aiMode: state.mode,
     });
   }

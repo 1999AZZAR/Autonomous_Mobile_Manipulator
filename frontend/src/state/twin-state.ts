@@ -18,7 +18,7 @@ const defaultState: TwinState = {
   },
   gripperOpen: true,
   tiltAngle: 90,
-  armJoints: [0, 0, 0, 0, 0, 0],
+  lifterHeight: 50,
   connected: false,
   mode: 'idle',
 };

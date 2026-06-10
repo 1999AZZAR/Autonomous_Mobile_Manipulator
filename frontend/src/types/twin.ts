@@ -1,6 +1,7 @@
 // Digital twin specific types
 
 import type { RobotPosition, SensorReadings } from '../types';
+import type * as THREE from 'three';
 
 export interface TwinState {
   position: RobotPosition;
@@ -8,7 +9,7 @@ export interface TwinState {
   sensors: SensorReadings;
   gripperOpen: boolean;
   tiltAngle: number;
-  armJoints: [number, number, number, number, number, number];
+  lifterHeight: number;
   connected: boolean;
   mode: 'replay' | 'ifttt' | 'ai' | 'idle';
 }
@@ -46,8 +47,8 @@ export interface RobotModelParts {
   body: { rotation: { x: number } };
   wheels: Array<{ rotation: { y: number } }>;
   gripper: { left: { position: { x: number } }; right: { position: { x: number } } };
+  gripperAssembly: THREE.Group;
   tiltServo: { rotation: { x: number } };
-  armJoints: Array<{ rotation: { x: number } }>;
   laserSensors: Array<{ material: any }>;
   ultraSensors: Array<{ material: any }>;
   lineSensors: Array<{ material: any }>;

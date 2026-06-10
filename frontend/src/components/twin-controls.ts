@@ -6,7 +6,6 @@ import { loadWaypointPath, clearWaypointPath, startSimulation, stopSimulation, g
 import { loadAllRecordings, type Recording } from '../engine/recording';
 
 let containerEl: HTMLElement | null = null;
-let sliders: HTMLInputElement[] = [];
 
 export function initTwinControls(parent: HTMLElement) {
   if (containerEl) return;
@@ -15,10 +14,6 @@ export function initTwinControls(parent: HTMLElement) {
   containerEl.className = 'twin-controls';
   containerEl.innerHTML = `
     <div class="twin-control-section">
-      <h4>Arm Joints</h4>
-      <div class="joint-sliders" id="joint-sliders"></div>
-    </div>
-    <div class="twin-control-section">
       <h4>Gripper</h4>
       <button class="twin-btn" id="gripper-toggle">Open / Close</button>
     </div>
@@ -26,6 +21,16 @@ export function initTwinControls(parent: HTMLElement) {
       <h4>Camera Tilt</h4>
       <input type="range" id="tilt-slider" min="0" max="145" value="90" class="twin-slider" />
       <span class="twin-slider-value" id="tilt-value">90°</span>
+    </div>
+    <div class="twin-control-section">
+      <h4>Lifter</h4>
+      <div class="lifter-labels"><span>DOWN</span><span>UP</span></div>
+      <input type="range" id="lifter-slider" min="0" max="100" value="50" class="twin-slider" />
+      <span class="twin-slider-value" id="lifter-value">50mm</span>
+      <div class="lifter-limits">
+        <span class="limit-indicator" id="lifter-bottom-limit">▼ BOT</span>
+        <span class="limit-indicator" id="lifter-top-limit">▲ TOP</span>
+      </div>
     </div>
     <div class="twin-control-section">
       <h4>Waypoint Path</h4>
@@ -95,34 +100,6 @@ export function initTwinControls(parent: HTMLElement) {
   `;
   parent.appendChild(containerEl);
 
-  // Joint sliders
-  const sliderContainer = containerEl.querySelector('#joint-sliders') as HTMLElement;
-  const jointNames = ['Base', 'Shoulder', 'Elbow', 'Wrist1', 'Wrist2', 'Gripper'];
-  sliders = [];
-
-  jointNames.forEach((name, i) => {
-    const wrapper = document.createElement('div');
-    wrapper.className = 'joint-slider-row';
-    wrapper.innerHTML = `
-      <label>${name}</label>
-      <input type="range" min="0" max="180" value="90" class="twin-slider joint-slider" data-joint="${i}" />
-      <span class="joint-value">90°</span>
-    `;
-    sliderContainer.appendChild(wrapper);
-
-    const slider = wrapper.querySelector('input') as HTMLInputElement;
-    const valueEl = wrapper.querySelector('.joint-value') as HTMLElement;
-    sliders.push(slider);
-
-    slider.addEventListener('input', () => {
-      const val = parseInt(slider.value);
-      valueEl.textContent = val + '°';
-      const joints = [...getTwinState().armJoints];
-      joints[i] = val;
-      updateTwinState({ armJoints: joints as [number, number, number, number, number, number] });
-    });
-  });
-
   // Gripper toggle
   const gripperBtn = containerEl.querySelector('#gripper-toggle') as HTMLButtonElement;
   gripperBtn.addEventListener('click', () => {
@@ -141,6 +118,26 @@ export function initTwinControls(parent: HTMLElement) {
     updateTwinState({ tiltAngle: val });
     sendMovementCommand(`ta${val}`).catch(() => {});
   });
+
+  // Lifter slider with limit switch indicators
+  const lifterSlider = containerEl.querySelector('#lifter-slider') as HTMLInputElement;
+  const lifterValue = containerEl.querySelector('#lifter-value') as HTMLElement;
+  const lifterBotLimit = containerEl.querySelector('#lifter-bottom-limit') as HTMLElement;
+  const lifterTopLimit = containerEl.querySelector('#lifter-top-limit') as HTMLElement;
+
+  function updateLifterLimits(val: number) {
+    lifterBotLimit.classList.toggle('active', val <= 1);
+    lifterTopLimit.classList.toggle('active', val >= 99);
+  }
+
+  lifterSlider.addEventListener('input', () => {
+    const val = parseInt(lifterSlider.value);
+    lifterValue.textContent = val + 'mm';
+    updateLifterLimits(val);
+    updateTwinState({ lifterHeight: val });
+    sendMovementCommand(`lu${val}`).catch(() => {});
+  });
+  updateLifterLimits(parseInt(lifterSlider.value));
 
   // Path selector
   const pathSelector = containerEl.querySelector('#path-selector') as HTMLSelectElement;
@@ -361,7 +358,6 @@ export function initTwinControls(parent: HTMLElement) {
 }
 
 export function destroyTwinControls() {
-  sliders = [];
   if (containerEl) {
     containerEl.remove();
     containerEl = null;
@@ -370,9 +366,8 @@ export function destroyTwinControls() {
 
 export function syncSlidersToState() {
   const state = getTwinState();
-  state.armJoints.forEach((val, i) => {
-    if (sliders[i]) {
-      sliders[i].value = String(val);
-    }
-  });
+  const lifterSlider = containerEl?.querySelector('#lifter-slider') as HTMLInputElement | null;
+  if (lifterSlider) lifterSlider.value = String(state.lifterHeight);
+  const tiltSlider = containerEl?.querySelector('#tilt-slider') as HTMLInputElement | null;
+  if (tiltSlider) tiltSlider.value = String(state.tiltAngle);
 }

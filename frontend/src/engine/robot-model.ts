@@ -1,4 +1,4 @@
-// Robot mesh builder — hexagonal chassis, 3 omni wheels, sensors, gripper, arm
+// Robot mesh builder — hexagonal chassis, 3 omni wheels, sensors, gripper+lifter assembly
 
 import * as THREE from 'three';
 import type { RobotModelParts } from '../types/twin';
@@ -12,7 +12,7 @@ const COLORS = {
   ultrasonic: 0x4488ff,
   line: 0xffaa00,
   heading: 0xff3333,
-  arm: 0x666688,
+  lifter: 0x555577,
 };
 
 export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts } {
@@ -29,10 +29,7 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
     if (i === 0) bodyShape.moveTo(x, y);
     else bodyShape.lineTo(x, y);
   }
-  const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, {
-    depth: 0.12,
-    bevelEnabled: false,
-  });
+  const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, { depth: 0.12, bevelEnabled: false });
   const bodyMat = new THREE.MeshStandardMaterial({ color: COLORS.body, roughness: 0.6 });
   const body = new THREE.Mesh(bodyGeo, bodyMat);
   body.rotation.x = -Math.PI / 2;
@@ -45,7 +42,7 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
   const wheelRadius = 0.04;
   const wheelWidth = 0.03;
   const wheelDist = 0.25;
-  const wheelAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3]; // 0°, 120°, 240°
+  const wheelAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
 
   wheelAngles.forEach((angle) => {
     const geo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelWidth, 16);
@@ -59,9 +56,8 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
     group.add(wheel);
     wheels.push(wheel);
 
-    // Wheel bracket
     const bracketGeo = new THREE.BoxGeometry(0.01, 0.04, 0.06);
-    const bracketMat = new THREE.MeshStandardMaterial({ color: 0x555577 });
+    const bracketMat = new THREE.MeshStandardMaterial({ color: COLORS.lifter });
     const bracket = new THREE.Mesh(bracketGeo, bracketMat);
     bracket.position.set(wx * 0.85, wy * 0.85, 0.06);
     group.add(bracket);
@@ -82,12 +78,12 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
   // === LASER SENSORS — 6 positions ===
   const laserSensors: THREE.Mesh[] = [];
   const laserPositions = [
-    { name: 'LF', x: 0.18, y: 0.1, angle: 0.4 },
-    { name: 'LB', x: 0.18, y: -0.1, angle: -0.4 },
-    { name: 'RF', x: -0.18, y: 0.1, angle: Math.PI - 0.4 },
-    { name: 'RB', x: -0.18, y: -0.1, angle: Math.PI + 0.4 },
-    { name: 'BL', x: 0.08, y: -0.2, angle: -Math.PI / 2 - 0.3 },
-    { name: 'BR', x: -0.08, y: -0.2, angle: -Math.PI / 2 + 0.3 },
+    { x: 0.18, y: 0.1, angle: 0.4 },
+    { x: 0.18, y: -0.1, angle: -0.4 },
+    { x: -0.18, y: 0.1, angle: Math.PI - 0.4 },
+    { x: -0.18, y: -0.1, angle: Math.PI + 0.4 },
+    { x: 0.08, y: -0.2, angle: -Math.PI / 2 - 0.3 },
+    { x: -0.08, y: -0.2, angle: -Math.PI / 2 + 0.3 },
   ];
 
   laserPositions.forEach((lp) => {
@@ -103,12 +99,10 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
 
   // === ULTRASONIC SENSORS — 2 front ===
   const ultraSensors: THREE.Mesh[] = [];
-  const ultraPositions = [
+  [
     { x: 0.08, y: 0.2 },
     { x: -0.08, y: 0.2 },
-  ];
-
-  ultraPositions.forEach((up) => {
+  ].forEach((up) => {
     const geo = new THREE.CylinderGeometry(0.015, 0.015, 0.02, 8);
     const mat = new THREE.MeshStandardMaterial({ color: COLORS.ultrasonic, emissive: COLORS.ultrasonic, emissiveIntensity: 0.2 });
     const sensor = new THREE.Mesh(geo, mat);
@@ -121,9 +115,7 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
 
   // === LINE SENSORS — 3 bottom dots ===
   const lineSensors: THREE.Mesh[] = [];
-  const linePositions = [-0.06, 0, 0.06];
-
-  linePositions.forEach((lx) => {
+  [-0.06, 0, 0.06].forEach((lx) => {
     const geo = new THREE.CircleGeometry(0.008, 8);
     const mat = new THREE.MeshStandardMaterial({ color: COLORS.line, emissive: COLORS.line, emissiveIntensity: 0.4 });
     const sensor = new THREE.Mesh(geo, mat);
@@ -133,75 +125,63 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
     lineSensors.push(sensor);
   });
 
-  // === GRIPPER — 2-finger parallel ===
+  // === GRIPPER ASSEMBLY — tilt servo + gripper + camera + TF-Luna, moves up/down via lifter ===
+  const gripperAssembly = new THREE.Group();
+  gripperAssembly.position.set(0, 0.22, 0.12);
+
+  // Tilt servo housing
+  const servoGeo = new THREE.BoxGeometry(0.04, 0.03, 0.03);
+  const servoMat = new THREE.MeshStandardMaterial({ color: COLORS.bodyAccent });
+  const servoMesh = new THREE.Mesh(servoGeo, servoMat);
+  gripperAssembly.add(servoMesh);
+
+  // Gripper base
   const gripperBase = new THREE.Mesh(
     new THREE.BoxGeometry(0.06, 0.02, 0.03),
     new THREE.MeshStandardMaterial({ color: COLORS.gripper })
   );
-  gripperBase.position.set(0, 0.26, 0.12);
+  gripperBase.position.set(0, 0.03, 0);
   gripperBase.castShadow = true;
-  group.add(gripperBase);
+  gripperAssembly.add(gripperBase);
 
+  // Gripper fingers
   const fingerGeo = new THREE.BoxGeometry(0.008, 0.04, 0.02);
   const fingerMat = new THREE.MeshStandardMaterial({ color: COLORS.gripper });
-
   const leftFinger = new THREE.Mesh(fingerGeo, fingerMat);
-  leftFinger.position.set(-0.02, 0.29, 0.12);
+  leftFinger.position.set(-0.02, 0.06, 0);
   leftFinger.castShadow = true;
-  group.add(leftFinger);
+  gripperAssembly.add(leftFinger);
 
   const rightFinger = new THREE.Mesh(fingerGeo, fingerMat);
-  rightFinger.position.set(0.02, 0.29, 0.12);
+  rightFinger.position.set(0.02, 0.06, 0);
   rightFinger.castShadow = true;
-  group.add(rightFinger);
+  gripperAssembly.add(rightFinger);
 
-  // === TILT SERVO HOUSING ===
-  const tiltServo = new THREE.Group();
-  const servoGeo = new THREE.BoxGeometry(0.04, 0.03, 0.03);
-  const servoMat = new THREE.MeshStandardMaterial({ color: COLORS.bodyAccent });
-  const servoMesh = new THREE.Mesh(servoGeo, servoMat);
-  tiltServo.add(servoMesh);
-  tiltServo.position.set(0, 0.24, 0.12);
-  group.add(tiltServo);
+  // Camera (on gripper)
+  const camGeo = new THREE.BoxGeometry(0.03, 0.02, 0.02);
+  const camMat = new THREE.MeshStandardMaterial({ color: 0x222222 });
+  const camera = new THREE.Mesh(camGeo, camMat);
+  camera.position.set(0, -0.02, 0.02);
+  gripperAssembly.add(camera);
 
-  // === ARM — 6DOF (base + 5 joints) ===
-  const armJoints: THREE.Mesh[] = [];
-  const armBase = new THREE.Mesh(
-    new THREE.CylinderGeometry(0.02, 0.025, 0.03, 12),
-    new THREE.MeshStandardMaterial({ color: COLORS.arm })
-  );
-  armBase.position.set(0, -0.05, 0.135);
-  armBase.castShadow = true;
-  group.add(armBase);
+  // TF-Luna (on gripper)
+  const tfGeo = new THREE.BoxGeometry(0.015, 0.01, 0.01);
+  const tfMat = new THREE.MeshStandardMaterial({ color: 0x44aacc });
+  const tfLuna = new THREE.Mesh(tfGeo, tfMat);
+  tfLuna.position.set(0.04, -0.02, 0.02);
+  gripperAssembly.add(tfLuna);
 
-  // Joint segments
-  const jointLengths = [0.06, 0.08, 0.07, 0.05, 0.04];
-  let armY = -0.05;
-  let armZ = 0.15;
+  group.add(gripperAssembly);
 
-  jointLengths.forEach((len, i) => {
-    const geo = new THREE.CylinderGeometry(0.012, 0.012, len, 8);
-    const mat = new THREE.MeshStandardMaterial({
-      color: i % 2 === 0 ? COLORS.arm : COLORS.bodyAccent,
-    });
-    const joint = new THREE.Mesh(geo, mat);
-    armY -= len * 0.3;
-    armZ += len * 0.5;
-    joint.position.set(0, armY, armZ);
-    joint.castShadow = true;
-    group.add(joint);
-    armJoints.push(joint);
-
-    // Joint pivot sphere
-    const pivot = new THREE.Mesh(
-      new THREE.SphereGeometry(0.015, 8, 8),
-      new THREE.MeshStandardMaterial({ color: 0x777799 })
-    );
-    pivot.position.set(0, armY + len * 0.3, armZ - len * 0.5);
-    group.add(pivot);
+  // === LIFTER RAILS — vertical guides for gripper assembly ===
+  const railGeo = new THREE.CylinderGeometry(0.005, 0.005, 0.1, 6);
+  const railMat = new THREE.MeshStandardMaterial({ color: COLORS.lifter });
+  [-0.035, 0.035].forEach((rx) => {
+    const rail = new THREE.Mesh(railGeo, railMat);
+    rail.position.set(rx, 0.22, 0.17);
+    group.add(rail);
   });
 
-  // Set initial position at world origin
   group.position.set(0, 0, 0);
 
   return {
@@ -210,8 +190,8 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
       body,
       wheels,
       gripper: { left: leftFinger, right: rightFinger },
-      tiltServo,
-      armJoints,
+      gripperAssembly,
+      tiltServo: servoMesh as any,
       laserSensors,
       ultraSensors,
       lineSensors,
@@ -228,15 +208,13 @@ export function updateGripper(open: boolean, parts: RobotModelParts) {
 
 export function updateTiltServo(angle: number, parts: RobotModelParts) {
   const rad = ((angle - 90) * Math.PI) / 180;
-  parts.tiltServo.rotation.x = rad;
+  parts.gripperAssembly.rotation.x = rad;
 }
 
-export function updateArmJoints(joints: number[], parts: RobotModelParts) {
-  joints.forEach((angle, i) => {
-    if (i < parts.armJoints.length) {
-      parts.armJoints[i].rotation.x = ((angle - 90) * Math.PI) / 180;
-    }
-  });
+export function updateLifter(height: number, parts: RobotModelParts) {
+  const clamped = Math.max(0, Math.min(100, height));
+  const zOffset = (clamped / 100) * 0.08;
+  parts.gripperAssembly.position.z = 0.12 + zOffset;
 }
 
 export function updateLineSensors(readings: { line_left: number; line_center: number; line_right: number }, parts: RobotModelParts) {

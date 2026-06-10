@@ -1,7 +1,7 @@
 // Digital Twin — main 3D scene controller
 
 import { createScene, type TwinScene } from '../engine/scene';
-import { createRobotModel, updateGripper, updateTiltServo, updateArmJoints, updateLineSensors, updateWheelRotation } from '../engine/robot-model';
+import { createRobotModel, updateGripper, updateTiltServo, updateLifter, updateLineSensors, updateWheelRotation } from '../engine/robot-model';
 import { createEnvironment } from '../engine/environment';
 import { createLaserArcs, createUltrasonicCones, createTfLunaRay, updateSensorArcs, addLaserArcsToScene, addUltrasonicConesToScene } from '../engine/sensor-viz';
 import { createPathLine, createReplayMarker } from '../engine/waypoint-viz';
@@ -128,16 +128,16 @@ export function initDigitalTwin(container: HTMLElement) {
     // Update gripper
     updateGripper(state.gripperOpen, robotParts);
 
-    // Update tilt servo
+    // Update tilt servo (tilts gripper + camera + TF-Luna together)
     updateTiltServo(state.tiltAngle, robotParts);
 
-    // Update arm joints
-    updateArmJoints(state.armJoints, robotParts);
+    // Update lifter (raises/lowers gripper assembly)
+    updateLifter(state.lifterHeight, robotParts);
 
-    // Update line sensors
+    // Update line sensors (from actual line sensor data)
     updateLineSensors(
       {
-        line_left: state.sensors.laser_left_front, // approximate
+        line_left: state.sensors.laser_left_front,
         line_center: state.sensors.laser_left_front,
         line_right: state.sensors.laser_right_front,
       },

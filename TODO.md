@@ -231,17 +231,24 @@ A real-time 3D virtual replica of the AMM robot. Mirrors physical state (positio
 ### Implemented
 - [x] Three.js r168 installed with @types/three
 - [x] OrbitControls for camera manipulation
-- [x] Primitive robot model (hexagonal chassis, wheels, arm, sensors)
+- [x] Primitive robot model (hexagonal chassis, 3 omni wheels, heading arrow)
+- [x] Gripper assembly (tilt servo + 2-finger gripper + camera + TF-Luna on shared tilt)
+- [x] Lifter (vertical Z movement of gripper assembly, 0-100mm, limit switches at top/bottom)
 - [x] State management via twin-state.ts
 - [x] WebSocket integration via /ws/sensors endpoint
 - [x] Sensor arc visualization (laser + ultrasonic)
 - [x] Distance labels for all sensors
 - [x] Camera frustum wireframe (AI mode only)
 - [x] HUD overlay (position, heading, mode, connection status)
-- [x] Control panel (joint sliders, gripper toggle, movement buttons)
+- [x] Control panel (gripper toggle, tilt slider, lifter slider with limit indicators, movement buttons)
 - [x] Waypoint path visualization with direction arrows
 - [x] Click-to-move interaction
 - [x] Digital Twin tab in sidebar navigation
+- [x] Simulation engine (kinematics, collision, mock sensors)
+- [x] Scenario presets (Empty, Warehouse, Pick&Place, Maze)
+- [x] Session recording with frame capture
+- [x] Playback engine with speed control (0.25x-4x)
+- [x] Analysis metrics (distance, time, speed, turns)
 - [x] Simulation engine (kinematics, collision, mock sensors)
 - [x] Scenario presets (Empty, Warehouse, Pick&Place, Maze)
 - [x] Session recording with frame capture
