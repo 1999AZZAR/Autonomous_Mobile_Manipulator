@@ -2,30 +2,30 @@
 
 ## Hardware
 
-- **[Hardware Overview](hardware/README.md)** — Robot specs, sensors, actuators
-- **[Raspberry Pi Pinouts](hardware/RASPBERRY_PI_PINOUTS.md)** — GPIO pin assignments
+- **[Hardware Overview](hardware/README.md)** — Robot specs, sensors, actuators, communication architecture
+- **[Arduino Mega Pinout](hardware/RASPBERRY_PI_PINOUTS.md)** — GPIO pin assignments, power distribution
 
 ## Software
 
-- **[Software Overview](software/README.md)** — ROS2 packages, automation engine
-- **[Control Systems](software/CONTROL_SYSTEMS.md)** — PID, motion, navigation, safety
+- **[Software Architecture](software/README.md)** — Stack, project structure, backend routes, data flow
+- **[Web Interface](software/web-interface/README.md)** — Frontend tabs, features, technology
+- **[ROS2 Packages](software/ros2/README.md)** — Package structure, build, CycloneDDS
 
 ## Deployment
 
-- **[Deployment Overview](deployment/README.md)** — Docker, services, networking
-- **[Raspberry Pi Setup](deployment/raspberry_pi_setup.md)** — Production RPi deployment
+- **[Deployment Guide](deployment/README.md)** — Docker services, ports, production setup, auto-start
 
 ## API
 
-- **[API Reference](api/README.md)** — REST endpoints, WebSocket, authentication
+- **[API Reference](api/README.md)** — REST endpoints, WebSocket, automation rules, AI engine, waypoints
 
 ## Development
 
-- **[Development Guide](development/README.md)** — Workflow, testing, contributing
+- **[Development Guide](development/README.md)** — Workflow, conventions, testing, common tasks
 
 ## Troubleshooting
 
-- **[Troubleshooting](troubleshooting/README.md)** — Common issues and solutions
+- **[Troubleshooting](troubleshooting/README.md)** — Common issues, diagnostics, emergency stop
 
 ## Mega Firmware
 

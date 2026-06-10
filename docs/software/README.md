@@ -1,826 +1,173 @@
-# Software Configuration Guide
+# Software Architecture
 
-This guide provides comprehensive instructions for configuring the software components of the Autonomous Mobile Manipulator robot system.
+The system separates concerns across three layers: a TypeScript frontend, a Python REST API backend, and ROS2 packages for robot description and bringup. The backend also hosts an automation engine (IFTTT-style rules) and an AI decision engine (camera + YOLOv8 + API reasoning).
 
-## Table of Contents
+## Stack
 
-- [System Architecture Overview](#system-architecture-overview)
-  - [Software Stack Components](#software-stack-components)
-- [ROS 2 Configuration](#ros-2-configuration)
-  - [Workspace Setup](#workspace-setup)
-  - [Control System Architecture](#control-system-architecture)
-  - [Navigation Implementation](#navigation-implementation)
-  - [Sensor Configuration](#sensor-configuration)
-- [Docker Configuration](#docker-configuration)
-  - [Container Optimization](#container-optimization)
-  - [Network Configuration](#network-configuration)
-- [System Integration Configuration](#system-integration-configuration)
-  - [Coordinate Frame Setup](#coordinate-frame-setup)
-  - [Sensor Calibration](#sensor-calibration)
-- [Performance Tuning](#performance-tuning)
-  - [Memory Optimization](#memory-optimization)
-  - [CPU Optimization](#cpu-optimization)
-- [Security Configuration](#security-configuration)
-  - [Network Security](#network-security)
-  - [Data Security](#data-security)
-- [Monitoring Configuration](#monitoring-configuration)
-  - [System Monitoring](#system-monitoring)
-  - [Log Configuration](#log-configuration)
-- [Environment-Specific Configuration](#environment-specific-configuration)
-  - [Development Environment](#development-environment)
-  - [Production Environment](#production-environment)
-  - [Testing Environment](#testing-environment)
-- [Configuration Validation](#configuration-validation)
-  - [Configuration Testing](#configuration-testing)
-  - [Performance Benchmarking](#performance-benchmarking)
-- [Backup and Recovery](#backup-and-recovery)
-  - [Configuration Backup](#configuration-backup)
-  - [Configuration Recovery](#configuration-recovery)
-- [Troubleshooting Configuration Issues](#troubleshooting-configuration-issues)
-  - [Common Configuration Problems](#common-configuration-problems)
-- [Advanced Configuration](#advanced-configuration)
-  - [Custom Controller Implementation](#custom-controller-implementation)
-  - [Multi-Robot Configuration](#multi-robot-configuration)
-- [Support and Maintenance](#support-and-maintenance)
-  - [Configuration Versioning](#configuration-versioning)
-- [Navigation Parameters (`nav2_params.yaml`)](#navigation-parameters-nav2_paramsyaml)
-- [Resources and References](#resources-and-references)
+| Layer | Technology | Port |
+|-------|-----------|------|
+| Frontend | TypeScript + Vite, Carbon dark theme | 3000 (nginx) |
+| Backend | Python Flask + Flask-SocketIO | 8001 |
+| Database | PostgreSQL 16 + Prisma Python client | 5432 (internal) |
+| Cache | Redis 7 | 6379 (internal) |
+| Robot control | Arduino Mega (serial, 115200 baud) | USB |
+| Robot description | ROS2 Jazzy (URDF, bringup) | — |
 
-## System Architecture Overview
-
-### Software Stack Components
+## Project Structure
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Application Layer                         │
-├─────────────────────────────────────────────────────────────┤
-│  ┌─────────────────────┐  ┌─────────────────────────────┐  │
-│  │   ROS 2             │  │   LabVIEW Client            │  │
-│  │ Framework           │  │   (Optional)                │  │
-│  └─────────────────────┘  └─────────────────────────────┘  │
-├─────────────────────────────────────────────────────────────┤
-│              Container Runtime (Docker)                     │
-├─────────────────────────────────────────────────────────────┤
-│                    Operating System                         │
-├─────────────────────────────────────────────────────────────┤
-│                    Hardware Layer                           │
-└─────────────────────────────────────────────────────────────┘
+ros2_ws/src/my_robot_automation/
+├── scripts/
+│   ├── main.py                 # Entry point: inits all services, registers blueprints
+│   ├── app.py                  # Flask REST API + WebSocket
+│   ├── automation_engine.py    # Redis cache, rate limiting, async helper
+│   ├── automation_api.py       # Blueprint routes: automation, AI, waypoints
+│   ├── sensor_manager.py       # Sensor data collection from Mega
+│   ├── mega_interface.py       # Serial communication with Arduino Mega
+│   ├── camera_service.py       # Power-aware USB camera (OFF by default)
+│   ├── waypoint_memory.py      # Save/load/replay waypoint paths
+│   ├── ai_decision.py          # AI decision engine (REPLAY/IFTTT/AI modes)
+│   └── config.py               # All configuration constants
+├── prisma/
+│   └── schema.prisma           # Database schema (7 models)
+└── requirements.txt            # Python dependencies
+
+frontend/
+├── src/
+│   ├── main.ts                 # Tab routing, emergency stop
+│   ├── api.ts                  # REST + WebSocket client
+│   ├── types.ts                # TypeScript interfaces
+│   ├── components/
+│   │   ├── dashboard.ts        # Overview panel
+│   │   ├── movement.ts         # 8-direction movement controls
+│   │   ├── manipulator.ts      # Gripper, tilt, lifter
+│   │   ├── map-view.ts         # 2D navigation map (canvas)
+│   │   ├── digital-twin.ts     # 3D scene (Three.js)
+│   │   ├── ai-control.ts       # AI decision engine panel
+│   │   ├── automations.ts      # Automation rule builder
+│   │   └── system.ts           # System status, logs
+│   ├── engine/                 # Three.js digital twin
+│   │   ├── scene.ts            # Renderer, camera, lighting
+│   │   ├── robot-model.ts      # Hexagonal chassis, sensors, gripper
+│   │   ├── physics.ts          # Kinematic simulation
+│   │   ├── mock-sensors.ts     # Raycast-based mock sensor data
+│   │   ├── sensor-viz.ts       # Sensor arc visualization
+│   │   ├── waypoint-viz.ts     # Path rendering
+│   │   ├── scenario.ts         # Simulation presets
+│   │   ├── recording.ts        # Session recording
+│   │   └── playback.ts         # Playback engine
+│   └── state/
+│       └── twin-state.ts       # Shared 3D state store
+└── index.html                  # Sidebar navigation, tab panels
 ```
 
-## ROS 2 Configuration
+## Backend Routes
 
-### Workspace Setup
+### Robot Control (`app.py`)
 
-#### ROS 2 Workspace Structure
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/robot/sensors` | All sensor data (flat keys) |
+| GET | `/api/robot/sensors/diagnostics` | Sensor diagnostics |
+| POST | `/api/robot/move` | Directional movement |
+| POST | `/api/robot/turn` | Rotation |
+| POST | `/api/robot/stop` | Stop all motors |
+| POST | `/api/robot/emergency-stop` | Emergency stop |
+| POST | `/api/robot/speed` | Set speed multiplier |
+| POST | `/api/robot/turbo` | Toggle turbo mode |
+| POST | `/api/robot/wheels/<id>` | Individual wheel control |
+| POST | `/api/robot/picker/gripper` | Open/close gripper |
+| POST | `/api/robot/picker/gripper_tilt` | Set tilt angle |
+| POST | `/api/robot/lifter/up` | Lift up |
+| POST | `/api/robot/lifter/down` | Lift down |
+| POST | `/api/robot/camera/tilt` | Camera tilt |
+| POST | `/api/robot/safety/perimeter` | Enable/disable virtual bumper |
+| GET | `/api/robot/safety/limit-switches` | Limit switch status |
+| POST | `/api/robot/sensor-publishing` | Enable/disable sensor data stream |
+| POST | `/api/robot/sequences/execute` | Execute saved sequence |
+| POST | `/api/robot/sequences/save` | Save movement sequence |
+| GET | `/api/robot/sequences/list` | List saved sequences |
+| GET | `/api/robot/position` | Robot position + sensor readings |
+| GET | `/api/feeds` | Sensor feed data |
+| WS | `/ws/sensors` | Real-time sensor WebSocket |
+
+### Automation Rules (`automation_api.py` — automation_bp)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/automations` | List all rules |
+| POST | `/api/automations` | Create rule |
+| GET | `/api/automations/<id>` | Get rule |
+| PUT | `/api/automations/<id>` | Update rule |
+| DELETE | `/api/automations/<id>` | Delete rule |
+| POST | `/api/automations/<id>/toggle` | Enable/disable |
+| POST | `/api/automations/<id>/run` | Execute rule now |
+| GET | `/api/automations/<id>/logs` | Rule execution logs |
+
+### AI Decision Engine (`automation_api.py` — ai_bp)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| POST | `/api/ai/start` | Start AI mode |
+| POST | `/api/ai/stop` | Stop AI mode |
+| GET | `/api/ai/status` | Current AI status |
+| POST | `/api/ai/analyze` | Trigger analysis |
+| GET | `/api/ai/decisions` | Decision history |
+| POST | `/api/ai/guidance` | Inject human guidance |
+| GET | `/api/ai/camera/snapshot` | Camera JPEG snapshot |
+
+### Waypoint Memory (`automation_api.py` — waypoint_bp)
+
+| Method | Endpoint | Purpose |
+|--------|----------|---------|
+| GET | `/api/waypoints/paths` | List saved paths |
+| POST | `/api/waypoints/paths` | Save path |
+| GET | `/api/waypoints/paths/<id>` | Get path details |
+| DELETE | `/api/waypoints/paths/<id>` | Delete path |
+| POST | `/api/waypoints/record` | Start recording |
+| POST | `/api/waypoints/stop` | Stop recording |
+| POST | `/api/waypoints/replay/<id>` | Replay path |
+| POST | `/api/waypoints/replay/stop` | Stop replay |
+| GET | `/api/waypoints/status` | Recording/replay status |
+
+## Data Flow
 
 ```
-ros2_ws/
-├── src/                          # Source code packages
-│   ├── my_robot_automation/     # Core automation and control
-│   ├── my_robot_bringup/        # System bringup and launch files
-│   ├── my_robot_description/    # Robot URDF model and Gazebo
-│   ├── my_robot_manipulation/   # Servo-based manipulation (minimal)
-│   └── my_robot_navigation/     # Navigation services (minimal)
-├── install/                      # Built packages (auto-generated)
-├── build/                        # Build artifacts (auto-generated)
-└── log/                         # Log files (auto-generated)
+┌──────────┐  HTTP/WS  ┌──────────┐  Serial  ┌──────────┐
+│ Frontend │──────────►│ Backend  │─────────►│ Arduino  │
+│ (TS)     │◄──────────│ (Flask)  │◄─────────│ Mega     │
+└──────────┘           └────┬─────┘          └──────────┘
+                            │
+                     ┌──────┴──────┐
+                     │             │
+                ┌────┴───┐  ┌─────┴────┐
+                │ Postgres│  │  Redis   │
+                │ (Prisma)│  │ (cache)  │
+                └────────┘  └──────────┘
 ```
 
-#### Package Dependencies
-
-**Core Dependencies** (configured in package.xml files):
-```xml
-<!-- ROS 2 Core -->
-<rclpy>
-<std_msgs>
-<geometry_msgs>
-<sensor_msgs>
-
-<!-- Navigation Stack -->
-<nav2_msgs>
-<tf2_ros>
-<tf2_geometry_msgs>
-
-<!-- Hardware Interface -->
-<rclpy>
-<std_srvs>
-<trajectory_msgs>
-
-<!-- Python Dependencies -->
-<python3-numpy>
-<python3-opencv>
-<python3-flask>
-<python3-websockets>
-<python3-paho-mqtt>
-```
-
-### Control System Architecture
-
-#### Direct Hardware Control
-
-The system uses direct hardware control rather than ROS2 Control framework for simplicity and real-time performance:
-
-**Motor Control**:
-- **Omni Wheels**: 3x DC motors controlled via TB6600 stepper drivers (GPIO-based PWM)
-- **Lifter**: DC motor with encoder feedback for vertical positioning
-- **Servos**: 5x servo motors for picker manipulation (direct PWM control)
-
-**Communication Interfaces**:
-- **GPIO**: Direct Raspberry Pi GPIO control for motors and sensors
-- **I2C**: IMU sensor communication
-- **USB**: RPLIDAR and camera interfaces
-- **Serial**: Optional serial device communication
-
-**Control Parameters**:
-```yaml
-# Motor control limits (configured in automation scripts)
-motor_limits:
-  max_speed: 1000      # steps/sec for stepper motors
-  acceleration: 500    # steps/sec²
-  microstepping: 16    # 1/16 microstepping
-
-servo_limits:
-  pwm_frequency: 50    # Hz
-  min_pulse: 500       # microseconds
-  max_pulse: 2500      # microseconds
-
-angular:
-  z:
-    max_velocity: 2.0    # rad/s
-    min_velocity: -2.0   # rad/s
-    max_acceleration: 4.0  # rad/s²
-```
-
-### Navigation Implementation
-
-#### Simplified Navigation System
-
-The current implementation uses simplified navigation rather than the full Nav2 stack for easier deployment and maintenance:
-
-**Navigation Methods**:
-- **Direct Pose Navigation**: Simple waypoint navigation with obstacle avoidance
-- **Patrol Routes**: Pre-defined waypoint sequences with return-to-start capability
-- **Obstacle Avoidance**: Basic reactive obstacle avoidance using LIDAR data
-
-**Navigation Parameters** (configured in automation scripts):
-```python
-# Navigation settings in robot_automation_server.py
-navigation_params = {
-    'max_linear_speed': 0.5,      # m/s
-    'max_angular_speed': 1.0,     # rad/s
-    'waypoint_tolerance': 0.1,    # meters
-    'obstacle_distance': 0.3,     # meters
-    'patrol_pause_time': 1.0      # seconds at waypoints
-}
-```
-
-**Future Nav2 Integration**:
-The system is designed to be compatible with Nav2 for advanced navigation features including:
-- SLAM mapping
-- Global path planning
-- Local obstacle avoidance
-- Localization with AMCL
-
-**Current Limitations**:
-- No global path planning
-- Basic obstacle avoidance only
-- No SLAM or mapping capabilities
-- Simple waypoint navigation
-
-    FollowPath:
-      plugin: "nav2_regulated_pure_pursuit_controller::RegulatedPurePursuitController"
-      desired_linear_vel: 0.5
-      lookahead_dist: 0.6
-      min_lookahead_dist: 0.3
-      max_lookahead_dist: 0.9
-      lookahead_time: 1.5
-      rotate_to_heading_angular_vel: 1.8
-      transform_tolerance: 0.1
-      use_velocity_scaled_lookahead_dist: false
-      min_approach_linear_velocity: 0.05
-      use_approach_linear_velocity_scaling: true
-      max_allowed_time_to_collision: 1.0
-      use_regulated_linear_velocity_scaling: true
-      use_cost_scaling: false
-      regulated_linear_scaling_min_radius: 0.9
-      regulated_linear_scaling_max_radius: 0.9
-      use_rotate_to_heading: true
-      rotate_to_heading_min_angle: 0.785
-      max_angular_accel: 3.2
-      cost_scaling_dist: 0.6
-      cost_scaling_gain: 1.0
-      inflation_cost_scaling_factor: 3.0
-      cost_scaling_dist_is_linear: true
-```
-
-### Sensor Configuration
-
-#### Direct Sensor Publishing
-
-The system uses direct sensor publishing without complex filtering pipelines for simplicity:
-
-**RPLIDAR A1 Configuration** (in `real_robot_sensor_actuator.py`):
-```python
-# RPLIDAR A1 380° scanning parameters
-lidar_config = {
-    'angle_min': -math.pi * 190/180,  # -190 degrees
-    'angle_max': math.pi * 190/180,   # +190 degrees
-    'angle_increment': math.pi / 180.0,  # 1 degree
-    'range_min': 0.1,
-    'range_max': 12.0,  # RPLIDAR A1 range
-    'frame_id': 'rplidar_a1'
-}
-```
-
-**Microsoft USB Camera Configuration**:
-```python
-# Camera publishing parameters
-camera_config = {
-    'width': 640,
-    'height': 480,
-    'encoding': 'rgb8',
-    'frame_rate': 30,
-    'frame_id': 'microsoft_camera'
-}
-```
-
-**IMU Configuration** (MPU6050/BNO055):
-```python
-# IMU publishing parameters
-imu_config = {
-    'frame_id': 'imu_link',
-    'publish_rate': 10,  # Hz
-    'use_magnetometer': False  # For MPU6050
-}
-```
-
-**Distance Sensors** (3x Laser-based):
-```python
-# Distance sensor parameters
-distance_config = {
-    'field_of_view': 0.1,  # ~5.7 degrees
-    'min_range': 0.02,
-    'max_range': 4.0,
-    'frame_ids': ['distance_front', 'distance_back_left', 'distance_back_right']
-}
-```
-
-#### Camera Configuration
-
-**Camera Parameters**:
-```yaml
-# Camera calibration and configuration
-camera_info_manager:
-  ros__parameters:
-    camera_name: "camera"
-    camera_info_url: "file://${ROS_HOME}/camera_info/camera.yaml"
-    frame_id: "camera_link"
-
-image_proc:
-  ros__parameters:
-    brightness: 0
-    contrast: 32
-    saturation: 32
-    hue: 0
-    gamma: 100
-    sharpness: 0
-    backlight_compensation: 0
-    exposure_auto: 3
-    exposure_absolute: 100
-    exposure_auto_priority: 0
-```
-
-## Docker Configuration
-
-### Container Optimization
-
-#### Production Container Settings
-
-```yaml
-# docker-compose.prod.yml
-services:
-  ros2-sim:
-    environment:
-      - ROS_DOMAIN_ID=42                    # Unique domain ID
-      - ROS_LOG_LEVEL=info                  # Reduce log verbosity
-      - DISPLAY=${DISPLAY}                  # GUI support
-      - QT_X11_NO_MITSHM=1                  # X11 optimization
-    deploy:
-      resources:
-        limits:
-          memory: 2G                        # Memory limit
-          cpus: '2.0'                       # CPU limit
-        reservations:
-          memory: 1G                        # Memory reservation
-          cpus: '1.0'                       # CPU reservation
-    restart: unless-stopped                # Auto-restart policy
-```
-
-#### Development Container Settings
-
-```yaml
-# docker-compose.dev.yml
-services:
-  ros2-sim:
-    environment:
-      - ROS_LOG_LEVEL=debug                 # Verbose logging for debugging
-      - GAZEBO_VERBOSE=1                    # Gazebo debug output
-      - DISPLAY=${DISPLAY}
-    volumes:
-      - ./ros2_ws/src:/root/ros2_ws/src     # Live code mounting
-      - /tmp/.X11-unix:/tmp/.X11-unix:rw    # X11 socket access
-```
-
-### Network Configuration
-
-#### ROS 2 Domain Setup
-
-```bash
-# Set ROS domain ID for multi-robot scenarios
-export ROS_DOMAIN_ID=42
-
-# Verify domain isolation
-ros2 topic list  # Should only show topics from same domain
-```
-
-#### Network Interface Configuration
-
-```yaml
-# Network interface priority for ROS 2
-# Edit /etc/ros/setup.bash or container environment
-
-# Prioritize Ethernet over WiFi for better performance
-export ROS_IP=192.168.1.100  # Static IP assignment
-export ROS_MASTER_URI=http://192.168.1.100:11311
-```
-
-## System Integration Configuration
-
-### Coordinate Frame Setup
-
-#### TF Tree Configuration
-
-```yaml
-# Static transform publishers
-base_to_laser_tf:
-  parent_frame: "base_link"
-  child_frame: "laser_frame"
-  translation: [0.0, 0.0, 0.2]
-  rotation: [0.0, 0.0, 0.0]
-
-base_to_imu_tf:
-  parent_frame: "base_link"
-  child_frame: "imu_link"
-  translation: [0.1, 0.0, 0.1]
-  rotation: [0.0, 0.0, 0.0]
-
-base_to_camera_tf:
-  parent_frame: "base_link"
-  child_frame: "camera_link"
-  translation: [0.2, 0.0, 0.3]
-  rotation: [0.0, 0.0, 0.0]
-```
-
-### Sensor Calibration
-
-#### LiDAR Calibration
-
-```bash
-# Calibrate LiDAR mounting angle
-ros2 run rplidar_ros rplidar_calibration
-
-# Adjust frame transformations if needed
-# Edit static transform publishers in launch files
-```
-
-#### IMU Calibration
-
-```bash
-# Calibrate IMU orientation
-ros2 run imu_filter_madgwick imu_calibration
-
-# Set magnetic declination for location
-ros2 param set /imu_filter_madgwick mag_declination 0.0
-```
-
-#### Camera Calibration
-
-```bash
-# Camera intrinsic calibration
-ros2 run camera_calibration cameracalibrator \
-  --size 8x6 --square 0.025 \
-  image:=/camera/image_raw \
-  camera:=/camera
-
-# Save calibration data
-ros2 run camera_calibration camera_calibration_parsers \
-  save /camera/camera_info/$(ros-args)
-```
-
-## Performance Tuning
-
-### Memory Optimization
-
-#### ROS 2 Memory Settings
-
-```yaml
-# Node memory configuration
-memory:
-  enable_monitoring: true
-  warning_threshold: 0.8
-  error_threshold: 0.9
-
-# Message queue optimization
-queues:
-  cmd_vel:
-    depth: 10
-    reliability: reliable
-    durability: volatile
-```
-
-#### Docker Memory Limits
-
-```yaml
-# Container memory constraints
-deploy:
-  resources:
-    limits:
-      memory: 2G
-    reservations:
-      memory: 1G
-```
-
-### CPU Optimization
-
-#### Real-time Scheduling
-
-```yaml
-# Set CPU affinity for critical nodes
-cpu_affinity:
-  controller_manager: "0-1"
-  sensor_nodes: "2-3"
-
-# Set scheduling policies
-scheduling_policy:
-  controller_manager: "SCHED_FIFO"
-  sensor_nodes: "SCHED_RR"
-```
-
-#### Thread Configuration
-
-```yaml
-# Optimize thread counts
-threading:
-  num_threads: 4
-  use_simd: true
-  thread_pool_size: 8
-```
-
-## Security Configuration
-
-### Network Security
-
-#### Firewall Configuration
-
-```bash
-# Allow necessary ports
-sudo ufw allow 8765/tcp    # WebSocket (Foxglove)
-sudo ufw allow 11311/tcp   # ROS Master (if used)
-
-# Enable firewall
-sudo ufw enable
-```
-
-### Data Security
-
-#### Secure Configuration
-
-```bash
-# Secure configuration files
-chmod 600 config/*.yaml
-chmod 700 scripts/*.sh
-
-# Encrypt sensitive data
-gpg --encrypt --recipient username config/secrets.yaml
-```
-
-## Log Configuration
-
-#### Structured Logging
-
-```yaml
-# Log format configuration
-logging:
-  format: "json"
-  level: "info"
-  output: "console"
-  rotation:
-    max_size: "100M"
-    max_age: "30d"
-    max_backups: 3
-```
-
-#### Log Aggregation
-
-```bash
-# Centralized logging setup
-# Forward container logs to central log server
-# Configure log rotation policies
-# Set up log analysis and alerting
-```
-
-## Environment-Specific Configuration
-
-### Development Environment
-
-#### Debug Configuration
-
-```yaml
-# Enable debug features for development
-environment:
-  - ROS_LOG_LEVEL=debug
-  - GAZEBO_VERBOSE=1
-
-# Mount source code for live editing
-volumes:
-  - ./ros2_ws/src:/root/ros2_ws/src
-```
-
-### Production Environment
-
-#### Performance Configuration
-
-```yaml
-# Optimize for production performance
-environment:
-  - ROS_LOG_LEVEL=warn
-
-# Resource constraints
-deploy:
-  resources:
-    limits:
-      memory: 2G
-      cpus: '2.0'
-```
-
-### Testing Environment
-
-#### Test Configuration
-
-```yaml
-# Enable test-specific features
-environment:
-  - TEST_MODE=true
-  - MOCK_SENSORS=true
-  - SIMULATION_SPEED=2.0
-
-# Test data generation
-# Automated test execution
-# Performance benchmarking
-```
-
-## Configuration Validation
-
-### Configuration Testing
-
-#### Syntax Validation
-
-```bash
-# Validate YAML configuration files
-python3 -c "import yaml; yaml.safe_load(open('config/controllers.yaml'))"
-
-# Validate ROS 2 launch files
-ros2 launch my_robot_bringup robot.launch.py --dry-run
-
-# Check Docker Compose configuration
-docker compose config
-```
-
-#### Functional Testing
-
-```bash
-# Test configuration with simulation
-ros2 launch my_robot_bringup gazebo_world.launch.py
-
-# Verify all topics are publishing
-ros2 topic list
-
-# Test sensor data quality
-ros2 topic echo /scan --once
-ros2 topic echo /imu/data --once
-
-# Validate control responsiveness
-ros2 topic pub /cmd_vel geometry_msgs/Twist "{linear: {x: 0.1}}" --once
-```
-
-### Performance Benchmarking
-
-#### Benchmarking Script
-
-```bash
-#!/bin/bash
-# performance-benchmark.sh
-
-echo "Starting performance benchmarks..."
-
-# Measure startup time
-START_TIME=$(date +%s.%N)
-docker compose up -d
-END_TIME=$(date +%s.%N)
-STARTUP_TIME=$(echo "$END_TIME - $START_TIME" | bc)
-echo "Startup time: $STARTUP_TIME seconds"
-
-# Measure topic throughput
-ros2 topic bw /cmd_vel
-ros2 topic bw /scan
-
-# Monitor resource usage
-docker stats --no-stream --format "table {{.Name}}\t{{.CPUPerc}}\t{{.MemUsage}}"
-```
-
-## Backup and Recovery
-
-### Configuration Backup
-
-#### Automated Backup
-
-```bash
-#!/bin/bash
-# config-backup.sh
-
-# Backup configuration files
-cp -r Autonomous_Mobile_Manipulator/ ~/backups/config/$(date +%Y%m%d)/
-
-# Backup ROS 2 workspace
-docker run --rm -v ros2_ws:/workspace alpine tar czf ~/backups/ros2_ws_$(date +%Y%m%d).tar.gz -C /workspace ./
-```
-
-### Configuration Recovery
-
-```bash
-# Restore from backup
-cp -r ~/backups/config/$(ls -t ~/backups/config/ | head -1)/* Autonomous_Mobile_Manipulator/
-
-# Restart services with restored configuration
-docker compose down
-docker compose up --build -d
-```
-
-## Troubleshooting Configuration Issues
-
-### Common Configuration Problems
-
-#### YAML Syntax Errors
-
-**Issue**: Invalid YAML formatting
-```bash
-# Validate YAML syntax
-python3 -c "import yaml; yaml.safe_load(open('config/file.yaml'))"
-
-# Check for common issues:
-# - Incorrect indentation
-# - Missing quotes around strings
-# - Invalid boolean values (true/false vs True/False)
-```
-
-#### ROS 2 Parameter Issues
-
-**Issue**: Parameters not loading correctly
-```bash
-# Check parameter loading
-ros2 param list /node_name
-
-# Verify parameter types
-ros2 param get /node_name parameter_name
-
-# Check parameter file paths
-ros2 launch my_robot_bringup robot.launch.py --show-args
-```
-
-#### Docker Configuration Issues
-
-**Issue**: Volume mounting problems
-```bash
-# Check volume permissions
-ls -la Autonomous_Mobile_Manipulator/
-
-# Verify Docker user permissions
-id $USER | grep docker
-
-# Test volume mounting
-docker run --rm -v $(pwd):/test alpine ls /test
-```
-
-## Advanced Configuration
-
-### Custom Controller Implementation
-
-#### PID Controller Tuning
-
-```yaml
-# Custom PID gains for differential drive
-pid_gains:
-  linear:
-    kp: 1.0
-    ki: 0.1
-    kd: 0.05
-    i_clamp: 1.0
-
-  angular:
-    kp: 2.0
-    ki: 0.2
-    kd: 0.1
-    i_clamp: 2.0
-```
-
-#### Trajectory Planning
-
-```yaml
-# Motion planning parameters
-trajectory:
-  max_velocity: 1.0
-  max_acceleration: 2.0
-  lookahead_distance: 0.6
-  goal_tolerance:
-    position: 0.1
-    orientation: 0.1
-```
-
-### Multi-Robot Configuration
-
-#### Fleet Configuration
-
-```yaml
-# Multi-robot setup
-robots:
-  robot_1:
-    id: 1
-    ros_domain_id: 1
-    ip_address: 192.168.1.101
-
-  robot_2:
-    id: 2
-    ros_domain_id: 2
-    ip_address: 192.168.1.102
-
-# Fleet management settings
-fleet:
-  coordinator_ip: 192.168.1.100
-  communication_protocol: "websocket"
-  heartbeat_interval: 1.0
-```
-
-## Support and Maintenance
-
-### Configuration Versioning
-
-#### Version Control Strategy
-
-```bash
-# Track configuration changes
-git add config/
-git commit -m "config: Update navigation parameters for improved performance
-
-- Increased lookahead distance from 0.5m to 0.6m
-- Adjusted PID gains for smoother motion
-- Updated sensor fusion weights"
-
-# Tag configuration versions
-git tag -a config-v1.2.0 -m "Configuration version 1.2.0"
-```
-
-### Configuration Documentation
-
-#### Parameter Documentation
-
-```markdown
-<!-- config/README.md -->
-# Configuration Parameter Reference
-
-## Navigation Parameters (`nav2_params.yaml`)
-
-### AMCL Parameters
-- `alpha1-5`: Sensor model parameters for laser scan matching
-- `max_particles`: Maximum number of particles for localization
-- `min_particles`: Minimum number of particles for localization
-
-### Controller Parameters
-- `desired_linear_vel`: Target linear velocity (m/s)
-- `lookahead_dist`: Lookahead distance for path following (m)
-- `max_angular_accel`: Maximum angular acceleration (rad/s²)
-```
-
-## Resources and References
-
-### Configuration References
-- [ROS 2 Parameter Tutorial](https://docs.ros.org/en/iron/Tutorials/Beginner-CLI-Tools/Understanding-ROS2-Parameters/Understanding-ROS2-Parameters.html)
-- [Nav2 Configuration Guide](https://navigation.ros.org/configuration/index.html)
-- [MoveIt2 Configuration](https://moveit.ros.org/moveit!/doc/tutorials/tutorials.html)
-
-### Best Practices
-- [ROS 2 Configuration Management](https://docs.ros.org/en/iron/How-To-Guides/Configuration-Management.html)
-- [Docker Compose Best Practices](https://docs.docker.com/compose/production/)
-
----
-
-*This software configuration guide ensures optimal setup and performance of the Autonomous Mobile Manipulator robot system through proper configuration management and tuning.*
+Sensor data flows: Mega serial → `mega_interface.py` → `sensor_manager.py` → Redis cache + WebSocket push to frontend. Backend also serves sensor data via REST (`/api/robot/sensors`).
+
+## Three Navigation Modes
+
+| Mode | Camera | Trigger | Fallback |
+|------|--------|---------|----------|
+| REPLAY | OFF | Saved waypoint match | — |
+| IFTTT | OFF | Sensor rules | — |
+| AI | ON | Camera + YOLOv8/API | Falls back to IFTTT |
+
+The AI decision engine (`ai_decision.py`) selects the best mode. If the camera fails or AI crashes, it falls back to IFTTT sensor rules.
+
+## Database Models (Prisma)
+
+| Model | Purpose |
+|-------|---------|
+| Automation | IFTTT-style sensor rules |
+| AutomationLog | Rule execution history |
+| SensorReading | Cached sensor snapshots |
+| RobotSession | Movement session tracking |
+| SavedPath | Waypoint paths for replay |
+| Waypoint | Individual waypoints within paths |
+| AiDecision | AI decision history with reasoning |
+
+Schema: `ros2_ws/src/my_robot_automation/prisma/schema.prisma`
