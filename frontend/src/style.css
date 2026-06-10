@@ -607,15 +607,122 @@ textarea:focus {
   border-color: var(--cds-border-interactive);
 }
 
+/* Emergency Stop Button */
+.emergency-stop-btn {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: var(--cds-support-error);
+  border: 3px solid #e02020;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 12px rgba(250, 77, 86, 0.4);
+  transition: transform 0.1s, box-shadow 0.15s;
+}
+
+.emergency-stop-btn:hover {
+  transform: scale(1.1);
+  box-shadow: 0 6px 20px rgba(250, 77, 86, 0.6);
+}
+
+.emergency-stop-btn:active,
+.emergency-stop-btn.active {
+  transform: scale(0.95);
+  box-shadow: 0 2px 8px rgba(250, 77, 86, 0.3);
+}
+
+/* Map */
+.map-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.map-header h2 {
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.map-status-row {
+  display: flex;
+  gap: 8px;
+}
+
+.map-badge {
+  font-size: 12px;
+  font-family: var(--font-mono);
+  padding: 4px 10px;
+  border-radius: var(--radius);
+  background: var(--cds-bg-tertiary);
+  color: var(--cds-text-secondary);
+}
+
+.map-canvas-wrap {
+  background: var(--cds-bg-secondary);
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  margin-bottom: 16px;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.map-canvas-wrap canvas {
+  border-radius: var(--radius);
+}
+
+.map-path-panel {
+  margin-bottom: 16px;
+}
+
+.map-path-panel select {
+  width: 100%;
+}
+
+.map-legend {
+  display: flex;
+  gap: 16px;
+  flex-wrap: wrap;
+  font-size: 12px;
+  color: var(--cds-text-secondary);
+}
+
+.map-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.map-legend-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
 /* Responsive */
 @media (max-width: 900px) {
   .grid--2, .grid--3 { grid-template-columns: 1fr; }
   .kpi-strip { flex-wrap: wrap; }
   .ai-grid { grid-template-columns: 1fr; }
+  .map-canvas-wrap canvas { width: 100%; height: auto; }
 }
 @media (max-width: 640px) {
   #sidebar { width: 56px; }
   .sidebar-header h1, .nav-label, .status-text { display: none; }
   .nav-item { justify-content: center; padding: 10px; }
   .nav-item span:first-child { margin: 0; }
+  .emergency-stop-btn { bottom: 12px; right: 12px; width: 48px; height: 48px; font-size: 20px; }
 }

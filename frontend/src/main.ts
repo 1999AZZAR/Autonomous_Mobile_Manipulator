@@ -6,17 +6,20 @@ import { initMovement, destroyMovement } from './components/movement';
 import { initManipulator, destroyManipulator } from './components/manipulator';
 import { initAutomations, destroyAutomations } from './components/automations';
 import { renderAiControl } from './components/ai-control';
+import { renderMap, destroyMap } from './components/map-view';
 import { initSystem, destroySystem } from './components/system';
+import { emergencyStop } from './api';
 
 const socket = new SensorSocket();
 
-const TABS = ['dashboard', 'movement', 'manipulator', 'automations', 'ai', 'system'] as const;
+const TABS = ['dashboard', 'movement', 'manipulator', 'map', 'automations', 'ai', 'system'] as const;
 type Tab = (typeof TABS)[number];
 
 const initFns: Record<Tab, (el: HTMLElement) => void> = {
   dashboard: initDashboard,
   movement: initMovement,
   manipulator: initManipulator,
+  map: renderMap,
   automations: initAutomations,
   ai: renderAiControl,
   system: initSystem,
@@ -26,6 +29,7 @@ const destroyFns: Record<Tab, () => void> = {
   dashboard: destroyDashboard,
   movement: destroyMovement,
   manipulator: destroyManipulator,
+  map: destroyMap,
   automations: destroyAutomations,
   ai: () => {},
   system: destroySystem,
@@ -82,3 +86,17 @@ if (defaultPanel) {
 
 // Connect WebSocket
 socket.connect();
+
+// Emergency stop button
+const estopBtn = document.getElementById('emergency-stop');
+if (estopBtn) {
+  estopBtn.addEventListener('click', async () => {
+    estopBtn.classList.add('active');
+    try {
+      await emergencyStop();
+    } catch {
+      // Best effort
+    }
+    setTimeout(() => estopBtn.classList.remove('active'), 1000);
+  });
+}

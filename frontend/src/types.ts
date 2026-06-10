@@ -149,3 +149,43 @@ export interface WaypointStatus {
   replaying: boolean;
   replay_index: number;
 }
+
+// --- Robot Position & Map ---
+
+export interface RobotPosition {
+  x: number;
+  y: number;
+  z: number;
+  roll: number;
+  pitch: number;
+  yaw: number;
+}
+
+export interface MapWaypoint {
+  x: number;
+  y: number;
+  heading: number;
+  order: number;
+}
+
+export interface SensorReadings {
+  laser_left_front: number;
+  laser_left_back: number;
+  laser_right_front: number;
+  laser_right_back: number;
+  laser_back_left: number;
+  laser_back_right: number;
+  ultra_front_left: number;
+  ultra_front_right: number;
+}
+
+// --- Automation Logs ---
+
+export interface AutomationLogEntry {
+  id: number;
+  automationId: number;
+  automationName: string;
+  triggerReason: string;
+  actionsExecuted: number;
+  timestamp: string;
+}

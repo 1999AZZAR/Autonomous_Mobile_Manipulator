@@ -36,6 +36,13 @@
                     </button>
                 </div>
                 <div class="nav-section">
+                    <span class="nav-label">Navigation</span>
+                    <button class="nav-item" data-tab="map">
+                        <span class="ph ph-map-trifold"></span>
+                        Map
+                    </button>
+                </div>
+                <div class="nav-section">
                     <span class="nav-label">Automation</span>
                     <button class="nav-item" data-tab="automations">
                         <span class="ph ph-lightning"></span>
@@ -65,9 +72,14 @@
             <div id="tab-dashboard" class="tab-panel active"></div>
             <div id="tab-movement" class="tab-panel"></div>
             <div id="tab-manipulator" class="tab-panel"></div>
+            <div id="tab-map" class="tab-panel"></div>
             <div id="tab-automations" class="tab-panel"></div>
+            <div id="tab-ai" class="tab-panel"></div>
             <div id="tab-system" class="tab-panel"></div>
         </main>
+        <button id="emergency-stop" class="emergency-stop-btn" title="Emergency Stop">
+            <span class="ph ph-hand-palm"></span>
+        </button>
     </div>
     <script type="module" src="/src/main.ts"></script>
 </body>

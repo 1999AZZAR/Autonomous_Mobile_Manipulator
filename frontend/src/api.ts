@@ -1,6 +1,6 @@
 // REST API client for the Python backend
 
-import type { Automation, SensorData, SystemStatus, AiStatus, AiDecision, SavedPath, WaypointStatus } from './types';
+import type { Automation, SensorData, SystemStatus, AiStatus, AiDecision, SavedPath, WaypointStatus, RobotPosition } from './types';
 
 const BASE = '/api';
 
@@ -189,4 +189,69 @@ export function stopReplay(): Promise<{ success: boolean }> {
 
 export function fetchWaypointStatus(): Promise<WaypointStatus> {
   return request('/waypoints/status');
+}
+
+// --- Robot Position & Movement ---
+
+export function fetchRobotPosition(): Promise<{ success: boolean; position: RobotPosition; orientation: { roll: number; pitch: number; yaw: number }; timestamp: number }> {
+  return request('/robot/position');
+}
+
+export function emergencyStop(): Promise<{ success: boolean }> {
+  return request('/robot/emergency-stop', { method: 'POST' });
+}
+
+export function moveRobot(direction: string, speed?: number, duration?: number): Promise<unknown> {
+  return request('/robot/move', {
+    method: 'POST',
+    body: JSON.stringify({ direction, speed, duration }),
+  });
+}
+
+export function turnRobot(direction: string, speed?: number): Promise<unknown> {
+  return request('/robot/turn', {
+    method: 'POST',
+    body: JSON.stringify({ direction, speed }),
+  });
+}
+
+export function stopRobot(): Promise<unknown> {
+  return request('/robot/stop', { method: 'POST' });
+}
+
+export function setSpeed(speed: number): Promise<unknown> {
+  return request('/robot/speed', {
+    method: 'POST',
+    body: JSON.stringify({ speed }),
+  });
+}
+
+export function toggleTurbo(): Promise<unknown> {
+  return request('/robot/turbo', { method: 'POST' });
+}
+
+// --- Feeds ---
+
+export function fetchAllFeeds(): Promise<Record<string, unknown>> {
+  return request('/feeds/all');
+}
+
+// --- Sequences ---
+
+export function fetchSequences(): Promise<{ sequences: string[] }> {
+  return request('/robot/sequences/list');
+}
+
+export function executeSequence(name: string): Promise<unknown> {
+  return request('/robot/sequences/execute', {
+    method: 'POST',
+    body: JSON.stringify({ name }),
+  });
+}
+
+export function saveSequence(name: string, steps: unknown[]): Promise<unknown> {
+  return request('/robot/sequences/save', {
+    method: 'POST',
+    body: JSON.stringify({ name, steps }),
+  });
 }

@@ -1,6 +1,6 @@
 // AI Decision Engine control panel + waypoint manager
 
-import { fetchAiStatus, startAiLoop, stopAiLoop, analyzeOnce, fetchAiDecisions, sendHumanGuidance, updateAiConfig, getCameraSnapshotUrl, fetchPaths, createPath, deletePath, recordWaypoint, stopRecording, startReplay, stopReplay, fetchWaypointStatus } from '../api';
+import { fetchAiStatus, startAiLoop, stopAiLoop, analyzeOnce, fetchAiDecisions, sendHumanGuidance, updateAiConfig, getCameraSnapshotUrl, fetchPaths, createPath, deletePath, recordWaypoint, stopRecording, startReplay, stopReplay, fetchWaypointStatus, fetchPath } from '../api';
 import type { AiStatus, AiDecision, SavedPath, WaypointStatus } from '../types';
 
 let pollTimer: ReturnType<typeof setInterval> | null = null;
@@ -156,11 +156,15 @@ export function renderAiControl(container: HTMLElement): void {
 
 async function refreshStatus(): Promise<void> {
   try {
-    const status = await fetchAiStatus();
+    const [status, wpStatus] = await Promise.all([
+      fetchAiStatus(),
+      fetchWaypointStatus().catch(() => null),
+    ]);
     const badge = document.getElementById('ai-mode-badge');
     const conf = document.getElementById('ai-conf-badge');
     const camStatus = document.getElementById('ai-cam-status');
     const camImg = document.getElementById('ai-cam-img') as HTMLImageElement;
+    const stopReplayBtn = document.getElementById('ai-wp-stop-replay');
 
     if (badge) badge.textContent = `Mode: ${status.mode.toUpperCase()}`;
     if (conf) {
@@ -176,6 +180,15 @@ async function refreshStatus(): Promise<void> {
       camImg.src = `${getCameraSnapshotUrl()}?t=${Date.now()}`;
     } else if (camImg) {
       camImg.src = '';
+    }
+
+    // Stop replay button visibility
+    if (stopReplayBtn) {
+      if (wpStatus && wpStatus.replaying) {
+        stopReplayBtn.style.display = '';
+      } else {
+        stopReplayBtn.style.display = 'none';
+      }
     }
   } catch {
     // Engine not available
@@ -247,6 +260,13 @@ function renderWaypointManager(container: HTMLElement): void {
   const addWpBtn = el('button', 'btn btn-secondary', '+ Waypoint');
   addWpBtn.onclick = async () => { await recordWaypoint(); };
   recRow.appendChild(addWpBtn);
+
+  const stopReplayBtn = el('button', 'btn btn-danger btn-sm', 'Stop Replay');
+  stopReplayBtn.style.display = 'none';
+  stopReplayBtn.id = 'ai-wp-stop-replay';
+  stopReplayBtn.onclick = async () => { await stopReplay(); };
+  recRow.appendChild(stopReplayBtn);
+
   panel.appendChild(recRow);
 
   // Path list
