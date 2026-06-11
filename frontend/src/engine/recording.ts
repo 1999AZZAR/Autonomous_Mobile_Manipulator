@@ -1,14 +1,14 @@
 // Session recording — capture all state changes to JSON
 
 import type { TwinState } from '../types/twin';
-import type { MockSensorData } from './mock-sensors';
+import type { SensorReadings } from '../types';
 
 export interface RecordingFrame {
   t: number;          // timestamp ms
   x: number;          // mm
   y: number;          // mm
   heading: number;    // deg
-  sensors: MockSensorData;
+  sensors: SensorReadings;
   gripperOpen: boolean;
   tiltAngle: number;
   lifterHeight: number;
@@ -68,7 +68,7 @@ export class SessionRecorder {
     };
   }
 
-  addFrame(state: TwinState, sensors: MockSensorData) {
+  addFrame(state: TwinState, sensors: SensorReadings) {
     if (!this.recording) return;
 
     this.frames.push({

@@ -6,13 +6,11 @@ import { createEnvironment } from '../engine/environment';
 import { createLaserArcs, createUltrasonicCones, createTfLunaRay, updateSensorArcs, addLaserArcsToScene, addUltrasonicConesToScene } from '../engine/sensor-viz';
 import { createPathLine, createReplayMarker } from '../engine/waypoint-viz';
 import { createCameraFrustum, createSensorLabel, updateSensorLabel } from '../engine/sensor-labels';
-import { PhysicsEngine } from '../engine/physics';
-import { MockSensorGenerator } from '../engine/mock-sensors';
 import { scenarioToObstacles, PRESETS, type Scenario } from '../engine/scenario';
 import { SessionRecorder, saveRecording, type Recording } from '../engine/recording';
 import { PlaybackEngine, type PlaybackProgress } from '../engine/playback';
 import { onTwinStateChange, getTwinState, updateTwinState } from '../state/twin-state';
-import { fetchRobotPosition, fetchSensors, fetchPath, moveRobot } from '../api';
+import { fetchRobotPosition, fetchSensors, fetchPath, sendContinuousCommand, syncSimObstacles, sendNavigationGoal } from '../api';
 import type { RobotModelParts } from '../types/twin';
 import type { SensorArcMesh } from '../engine/sensor-viz';
 import { WorldState } from '../state/world-state';
@@ -32,22 +30,16 @@ let cameraFrustum: any = null;
 let sensorLabels: Map<string, any> | null = null;
 let currentPathGroup: any = null;
 let replayMarker: any = null;
-let physics: PhysicsEngine | null = null;
-let mockSensors: MockSensorGenerator | null = null;
 let simMode: 'real' | 'simulation' = 'real';
 let simInterval: ReturnType<typeof setInterval> | null = null;
 let realPollInterval: ReturnType<typeof setInterval> | null = null;
+let simPollInterval: ReturnType<typeof setInterval> | null = null;
+let backendPosition = { x: 0, y: 0, heading: 0 };
 let recorder: SessionRecorder | null = null;
 let playback: PlaybackEngine | null = null;
 let occGrid: OccupancyGridRenderer | null = null;
 
 let targetMarker: THREE.Mesh | null = null;
-let moveTarget: { x: number; y: number } | null = null;
-let moveLoopId: ReturnType<typeof setInterval> | null = null;
-
-// Keyboard drive state
-const keyState: Record<string, boolean> = {};
-let keyDriveInterval: ReturnType<typeof setInterval> | null = null;
 
 function initHitPoints() {
   hitPoints = new Map<string, THREE.Mesh>();
@@ -113,8 +105,6 @@ export function initDigitalTwin(container: HTMLElement) {
   initHitPoints();
   setupClickToMove(scene);
 
-  physics = new PhysicsEngine();
-  mockSensors = new MockSensorGenerator();
   recorder = new SessionRecorder();
   playback = new PlaybackEngine();
 
@@ -130,7 +120,7 @@ export function initDigitalTwin(container: HTMLElement) {
     );
 
     // Heading
-    robotGroup.rotation.z = (state.heading * Math.PI) / 180;
+    robotGroup.rotation.z = -(state.heading * Math.PI) / 180;
 
     // Gripper
     updateGripper(state.gripperOpen, robotParts);
@@ -239,7 +229,6 @@ export function initDigitalTwin(container: HTMLElement) {
 
 export function destroyDigitalTwin() {
   stopRealPolling();
-  stopMoveLoop();
   stopKeyboardDrive();
 
   if (unsubscribe) {
@@ -261,11 +250,10 @@ export function destroyDigitalTwin() {
   currentPathGroup = null;
   replayMarker = null;
   containerEl = null;
-  moveTarget = null;
   targetMarker = null;
 }
 
-// --- Real-mode polling ---
+// --- Polling ---
 
 function startRealPolling() {
   stopRealPolling();
@@ -284,57 +272,25 @@ function stopRealPolling() {
 }
 
 export function refreshTwinData() {
-  // In simulation mode, position is managed by the physics engine — don't overwrite it
-  if (simMode === 'simulation') {
-    // Only fetch sensors in simulation mode (mock sensors handle this in sim loop,
-    // but this keeps sensor labels updated if needed)
-    fetchSensors()
-      .then((sensors) => {
-        if (simMode !== 'simulation') return; // mode may have changed during fetch
-        updateTwinState({
-          sensors: {
-            laser_left_front: sensors.laser_left_front,
-            laser_left_back: sensors.laser_left_back,
-            laser_right_front: sensors.laser_right_front,
-            laser_right_back: sensors.laser_right_back,
-            laser_back_left: sensors.laser_back_left,
-            laser_back_right: sensors.laser_back_right,
-            ultra_front_left: sensors.ultra_front_left,
-            ultra_front_right: sensors.ultra_front_right,
-            line_left: sensors.line_left,
-            line_center: sensors.line_center,
-            line_right: sensors.line_right,
-            tf_luna_distance: sensors.tf_luna_distance,
-          },
-        });
-      })
-      .catch(() => {});
-    return;
-  }
-
-  // Real mode — fetch both position and sensors from backend
-  fetchRobotPosition()
-    .then((pos) => {
-      if (simMode !== 'real') return; // mode may have changed during fetch
-      if (pos.success) {
+  if (simMode !== 'simulation') {
+    fetchRobotPosition()
+      .then((pos) => {
+        if (!pos.success) return;
+        backendPosition = { x: pos.position.x, y: pos.position.y, heading: pos.orientation.yaw };
         updateTwinState({
           position: {
-            x: pos.position.x,
-            y: pos.position.y,
-            z: pos.position.z,
-            roll: pos.orientation.roll,
-            pitch: pos.orientation.pitch,
-            yaw: pos.orientation.yaw,
+            x: pos.position.x, y: pos.position.y, z: pos.position.z,
+            roll: pos.orientation.roll, pitch: pos.orientation.pitch, yaw: pos.orientation.yaw,
           },
           heading: pos.orientation.yaw,
         });
-      }
-    })
-    .catch(() => {});
+      })
+      .catch(() => {});
+  }
 
   fetchSensors()
     .then((sensors) => {
-      if (simMode !== 'real') return;
+      if (simMode !== 'simulation') return;
       updateTwinState({
         sensors: {
           laser_left_front: sensors.laser_left_front,
@@ -427,33 +383,14 @@ function setupClickToMove(twinScene: TwinScene) {
     raycaster.ray.intersectPlane(groundPlane, intersection);
 
     if (intersection) {
-      const xMm = Math.round(intersection.x * 1000);
-      const yMm = Math.round(intersection.y * 1000);
-
+      const wx = intersection.x * 1000;
+      const wy = intersection.y * 1000;
       showTargetMarker(intersection.x, intersection.y);
 
       if (simMode === 'simulation') {
-        // Simulation: use physics engine to move toward target
-        startMoveToTarget(xMm, yMm);
+        startAutoDrive(wx, wy);
       } else {
-        // Real mode: send turn + move commands
-        const state = getTwinState();
-        const dx = xMm - state.position.x;
-        const dy = yMm - state.position.y;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < 50) return; // too close
-
-        const targetHeading = (Math.atan2(dx, dy) * 180) / Math.PI;
-        const headingDiff = ((targetHeading - state.heading + 540) % 360) - 180;
-
-        // Turn toward target, then move forward
-        if (Math.abs(headingDiff) > 5) {
-          const turnCmd = headingDiff > 0 ? 'tl' : 'tr';
-          moveRobot(turnCmd, Math.min(Math.abs(headingDiff), 90)).catch(() => {});
-        }
-        // Move forward for calculated duration (dist / speed)
-        const durationMs = Math.round((dist / 200) * 1000);
-        moveRobot('forward', 200, durationMs).catch(() => {});
+        sendNavigationGoal(wx, wy).catch(() => {});
       }
     }
   });
@@ -473,49 +410,6 @@ function setupClickToMove(twinScene: TwinScene) {
       showTargetMarker(intersection.x, intersection.y);
     }
   });
-}
-
-function startMoveToTarget(targetX: number, targetY: number) {
-  stopMoveLoop();
-  moveTarget = { x: targetX, y: targetY };
-
-  moveLoopId = setInterval(() => {
-    if (!physics || !moveTarget) {
-      stopMoveLoop();
-      return;
-    }
-
-    const state = getTwinState();
-    const dx = moveTarget.x - state.position.x;
-    const dy = moveTarget.y - state.position.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-
-    if (dist < 30) {
-      physics.command(0, 0, 0);
-      stopMoveLoop();
-      return;
-    }
-
-    // World-frame desired velocity, then rotate into robot-local frame
-    const speed = 300;
-    const worldVx = (dx / dist) * speed;
-    const worldVy = (dy / dist) * speed;
-    const h = (state.heading * Math.PI) / 180;
-    const cosH = Math.cos(h);
-    const sinH = Math.sin(h);
-    // Inverse rotation: robot_local = R(-h) * world
-    const localVx =  worldVx * cosH - worldVy * sinH;
-    const localVy =  worldVx * sinH + worldVy * cosH;
-    physics.command(localVx, localVy, 0);
-  }, 33);
-}
-
-function stopMoveLoop() {
-  if (moveLoopId) {
-    clearInterval(moveLoopId);
-    moveLoopId = null;
-  }
-  moveTarget = null;
 }
 
 function showTargetMarker(x: number, y: number) {
@@ -550,52 +444,177 @@ function showTargetMarker(x: number, y: number) {
 // --- Keyboard Drive ---
 
 const DRIVE_KEYS = ['w','s','a','d','q','e','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '];
+const MAX_SPEED = 300;      // mm/s
+const MAX_ROT_SPEED = 150;  // deg/s
 
 function setupKeyboardDrive() {
-  const onKeyDown = (e: KeyboardEvent) => {
+  const held = new Set<string>();
+  let interval: ReturnType<typeof setInterval> | null = null;
+
+  function update() {
+    if (simMode !== 'simulation') {
+      setVelocity(0, 0, 0);
+      sendContinuousCommand('s').catch(() => {});
+      return;
+    }
+
+    let vx = 0, vy = 0, omega = 0;
+    for (const key of held) {
+      if (key === ' ') { vx = 0; vy = 0; omega = 0; break; }
+      if (key === 'w' || key === 'ArrowUp') vy += MAX_SPEED;
+      if (key === 's' || key === 'ArrowDown') vy -= MAX_SPEED;
+      if (key === 'a') vx += MAX_SPEED;
+      if (key === 'd') vx -= MAX_SPEED;
+      if (key === 'ArrowLeft') omega += MAX_ROT_SPEED;
+      if (key === 'ArrowRight') omega -= MAX_ROT_SPEED;
+      if (key === 'q') omega += MAX_ROT_SPEED * 0.67;
+      if (key === 'e') omega -= MAX_ROT_SPEED * 0.67;
+    }
+
+    // Normalize diagonal to avoid sqrt(2)*speed
+    const linMag = Math.sqrt(vx * vx + vy * vy);
+    if (linMag > MAX_SPEED) {
+      vx = (vx / linMag) * MAX_SPEED;
+      vy = (vy / linMag) * MAX_SPEED;
+    }
+
+    setVelocity(vx, vy, omega);
+    sendBackendCommand(vx, vy, omega);
+  }
+
+  document.addEventListener('keydown', (e) => {
     if (!DRIVE_KEYS.includes(e.key)) return;
     e.preventDefault();
-    keyState[e.key] = true;
-  };
-  const onKeyUp = (e: KeyboardEvent) => {
-    delete keyState[e.key];
-  };
-  document.addEventListener('keydown', onKeyDown);
-  document.addEventListener('keyup', onKeyUp);
-
-  // Poll at 30 Hz — commands are in ROBOT-LOCAL frame (+vy = forward, +vx = strafe right)
-  keyDriveInterval = setInterval(() => {
-    if (simMode !== 'simulation' || !physics) return;
-    let vx = 0, vy = 0, omega = 0;
-    if (keyState['w'] || keyState['ArrowUp'])    vy =  350;  // forward
-    if (keyState['s'] || keyState['ArrowDown'])  vy = -350;  // backward
-    if (keyState['a'] || keyState['ArrowLeft'])  vx = -350;  // strafe left
-    if (keyState['d'] || keyState['ArrowRight']) vx =  350;  // strafe right
-    if (keyState['q']) omega =  120;                         // rotate CCW
-    if (keyState['e']) omega = -120;                         // rotate CW
-    if (keyState[' ']) vx = vy = omega = 0;                  // stop
-    // Only override physics when a key is actually held (don't send 0,0,0 every frame)
-    if (Object.keys(keyState).length > 0) {
-      physics.command(vx, vy, omega);
+    stopAutoDrive();
+    held.add(e.key);
+    if (!interval) {
+      interval = setInterval(update, 100);
     }
-  }, 33);
+    update();
+  });
+
+  document.addEventListener('keyup', (e) => {
+    held.delete(e.key);
+    if (held.size === 0 && interval) {
+      clearInterval(interval);
+      interval = null;
+      setVelocity(0, 0, 0);
+      sendContinuousCommand('s').catch(() => {});
+    } else {
+      update();
+    }
+  });
 }
 
 function stopKeyboardDrive() {
-  if (keyDriveInterval) {
-    clearInterval(keyDriveInterval);
-    keyDriveInterval = null;
-  }
-  Object.keys(keyState).forEach((k) => delete keyState[k]);
+  setVelocity(0, 0, 0);
+  sendContinuousCommand('s').catch(() => {});
 }
 
 // --- Simulation Mode ---
 
+// Robot coordinate convention: heading 0 = facing +Y, positive = CW (matches PhysicsEngine).
+// THREE.js rotation.z positive = CCW, so negate heading for visual.
+const ROBOT_RADIUS = 230; // mm, for collision
+
+let simVel = { vx: 0, vy: 0, omega: 0 };
+let simPos = { x: 0, y: 0, heading: 0 };
+let simObstacles: { x: number; y: number; w: number; h: number }[] = [];
+
+let autoTarget: { x: number; y: number } | null = null;
+let autoDriveInterval: ReturnType<typeof setInterval> | null = null;
+
+function setVelocity(vx: number, vy: number, omega: number) {
+  simVel = { vx, vy, omega };
+}
+
+function mapVelToCommand(vx: number, vy: number, omega: number): string {
+  if (Math.abs(omega) > 10) return omega > 0 ? 't' : 'y';
+  if (Math.abs(vy) > 10) return vy > 0 ? 'f' : 'b';
+  if (Math.abs(vx) > 10) return vx > 0 ? 'q' : 'e';
+  return 's';
+}
+
+function sendBackendCommand(vx: number, vy: number, omega: number) {
+  const cmd = mapVelToCommand(vx, vy, omega);
+  sendContinuousCommand(cmd).catch(() => {});
+}
+
+function simCheckCollision(x: number, y: number): boolean {
+  for (const obs of simObstacles) {
+    const hw = obs.w / 2 + ROBOT_RADIUS;
+    const hh = obs.h / 2 + ROBOT_RADIUS;
+    if (Math.abs(x - obs.x) < hw && Math.abs(y - obs.y) < hh) return true;
+  }
+  return false;
+}
+
+function simStep(dt: number) {
+  const { vx, vy, omega } = simVel;
+  const hRad = (simPos.heading * Math.PI) / 180;
+
+  // Transform robot-local (vx, vy) to world frame (heading 0 = +Y)
+  const worldVx = vx * Math.cos(hRad) + vy * Math.sin(hRad);
+  const worldVy = -vx * Math.sin(hRad) + vy * Math.cos(hRad);
+
+  const newX = simPos.x + worldVx * dt;
+  const newY = simPos.y + worldVy * dt;
+
+  if (!simCheckCollision(newX, newY)) {
+    simPos.x = newX;
+    simPos.y = newY;
+  }
+
+  simPos.heading = (simPos.heading + omega * dt + 360) % 360;
+}
+
+function startAutoDrive(tx: number, ty: number) {
+  stopAutoDrive();
+  autoTarget = { x: tx, y: ty };
+
+  autoDriveInterval = setInterval(() => {
+    if (!autoTarget) { stopAutoDrive(); return; }
+
+    const dx = autoTarget.x - simPos.x;
+    const dy = autoTarget.y - simPos.y;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+    if (dist < 50) { stopAutoDrive(); return; }
+
+    const bearingDeg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
+    const headingDiff = ((bearingDeg - simPos.heading + 540) % 360) - 180;
+
+    if (Math.abs(headingDiff) > 10) {
+      setVelocity(0, 0, headingDiff > 0 ? MAX_ROT_SPEED : -MAX_ROT_SPEED);
+      sendBackendCommand(0, 0, headingDiff > 0 ? MAX_ROT_SPEED : -MAX_ROT_SPEED);
+    } else {
+      setVelocity(0, MAX_SPEED, 0);
+      sendBackendCommand(0, MAX_SPEED, 0);
+    }
+  }, 100);
+}
+
+function stopAutoDrive() {
+  if (autoDriveInterval) {
+    clearInterval(autoDriveInterval);
+    autoDriveInterval = null;
+  }
+  autoTarget = null;
+  setVelocity(0, 0, 0);
+}
+
+function isMoving(): boolean {
+  return Math.abs(simVel.vx) > 1 || Math.abs(simVel.vy) > 1 || Math.abs(simVel.omega) > 1;
+}
+
 export function startSimulation(presetName?: string) {
-  if (!scene || !physics || !mockSensors) return;
+  if (!scene) return;
 
   simMode = 'simulation';
   stopRealPolling();
+  stopAutoDrive();
+
+  simPos = { ...backendPosition };
+  simObstacles = [];
 
   let scenario: Scenario | null = null;
   if (presetName) {
@@ -603,15 +622,9 @@ export function startSimulation(presetName?: string) {
     if (preset) scenario = preset.scenario;
   }
 
-  const obstacleMeshes: THREE.Mesh[] = [];
-
   if (scenario) {
-    physics.setState(scenario.robotStart);
-
     const obstacles = scenarioToObstacles(scenario);
-    physics.setObstacles(obstacles);
 
-    // Remove old obstacle meshes
     const oldMeshes: THREE.Mesh[] = [];
     scene.scene.children.forEach((child) => {
       if (child.userData.isObstacle) oldMeshes.push(child as THREE.Mesh);
@@ -622,7 +635,17 @@ export function startSimulation(presetName?: string) {
       (m.material as THREE.Material).dispose();
     });
 
-    // Create new obstacle meshes
+    simObstacles = obstacles.map((obs) => ({
+      x: obs.x, y: obs.y,
+      w: obs.type === 'cylinder' ? obs.width : obs.width,
+      h: obs.type === 'cylinder' ? obs.width : obs.depth,
+    }));
+
+    const backendObs = obstacles.map((obs) => ({
+      x: obs.x * 0.001, y: obs.y * 0.001, w: obs.width * 0.001, h: obs.depth * 0.001,
+    }));
+    syncSimObstacles(backendObs).catch(() => {});
+
     obstacles.forEach((obs) => {
       const geo = new THREE.BoxGeometry(obs.width * 0.001, obs.height * 0.001, obs.depth * 0.001);
       const mat = new THREE.MeshStandardMaterial({
@@ -637,114 +660,54 @@ export function startSimulation(presetName?: string) {
       mesh.receiveShadow = true;
       mesh.userData.isObstacle = true;
       scene!.scene.add(mesh);
-      obstacleMeshes.push(mesh);
     });
   }
 
-  // Pass obstacle meshes to mock sensor generator
-  mockSensors.setObstacleMeshes(obstacleMeshes);
+  if (simPollInterval) clearInterval(simPollInterval);
+  refreshTwinData();
+  simPollInterval = setInterval(() => refreshTwinData(), 100);
 
-  // Start simulation loop
   if (simInterval) clearInterval(simInterval);
-simInterval = setInterval(() => {
-    if (!physics || !mockSensors) return;
+  simInterval = setInterval(() => {
+    if (!robotGroup) return;
 
-    const simState = physics.step(1 / 30);
+    simStep(0.033);
 
-    let sensorData;
-    try {
-      sensorData = mockSensors.generate(simState, scene!.scene);
-    } catch {
-      sensorData = {
-        laser_left_front: 1500, laser_left_back: 1500,
-        laser_right_front: 1500, laser_right_back: 1500,
-        laser_back_left: 1500, laser_back_right: 1500,
-        ultra_front_left: 4000, ultra_front_right: 4000,
-        line_left: 1023, line_center: 1023, line_right: 1023,
-        imu_heading: simState.heading, imu_pitch: 0, imu_roll: 0,
-      };
-    }
-
-    // Update robot position and heading in scene
-    if (robotGroup) {
-      robotGroup.position.set(simState.x * 0.001, simState.y * 0.001, 0);
-      robotGroup.rotation.z = (simState.heading * Math.PI) / 180;
-    }
-
-    // Per-wheel spin — each wheel rotates proportional to its own tangential speed
-    if (robotParts) {
-      const [spFR, spFL, spBack] = physics.getWheelSpeeds();
-      const dt = 1 / 30;
-      robotParts.wheels[0].rotation.y += (spFR  / 45) * dt; // FR
-      robotParts.wheels[1].rotation.y += (spFL  / 45) * dt; // FL
-      robotParts.wheels[2].rotation.y += (spBack / 45) * dt; // Back
-    }
-
-    // Update twin state
     updateTwinState({
-      position: {
-        x: simState.x,
-        y: simState.y,
-        z: 0,
-        roll: 0,
-        pitch: 0,
-        yaw: simState.heading,
-      },
-      heading: simState.heading,
-      sensors: {
-        laser_left_front: sensorData.laser_left_front,
-        laser_left_back: sensorData.laser_left_back,
-        laser_right_front: sensorData.laser_right_front,
-        laser_right_back: sensorData.laser_right_back,
-        laser_back_left: sensorData.laser_back_left,
-        laser_back_right: sensorData.laser_back_right,
-        ultra_front_left: sensorData.ultra_front_left,
-        ultra_front_right: sensorData.ultra_front_right,
-        line_left: sensorData.line_left,
-        line_center: sensorData.line_center,
-        line_right: sensorData.line_right,
-        tf_luna_distance: sensorData.ultra_front_left,
-      },
+      position: { x: simPos.x, y: simPos.y, z: 0, roll: 0, pitch: 0, yaw: simPos.heading },
+      heading: simPos.heading,
     });
 
-    // Sync WorldState for map+twin interconnection
-    WorldState.update('sim', {
-      robotPosition: { x: simState.x, y: simState.y, heading: simState.heading },
-      robotPosition3D: {
-        x: simState.x, y: simState.y, z: 0,
-        roll: 0, pitch: 0, yaw: simState.heading,
-      },
-      sensors: {
-        laser_left_front: sensorData.laser_left_front,
-        laser_left_back: sensorData.laser_left_back,
-        laser_right_front: sensorData.laser_right_front,
-        laser_right_back: sensorData.laser_right_back,
-        laser_back_left: sensorData.laser_back_left,
-        laser_back_right: sensorData.laser_back_right,
-        ultra_front_left: sensorData.ultra_front_left,
-        ultra_front_right: sensorData.ultra_front_right,
-        line_left: sensorData.line_left,
-        line_center: sensorData.line_center,
-        line_right: sensorData.line_right,
-        tf_luna_distance: sensorData.ultra_front_left,
-      },
-    });
+    robotGroup.position.set(simPos.x * 0.001, simPos.y * 0.001, 0);
+    robotGroup.rotation.z = -(simPos.heading * Math.PI) / 180;
 
-    // Record frame if recording
-    if (recorder?.isRecording()) {
-      recorder.addFrame(getTwinState(), sensorData);
+    if (robotParts) {
+      const spin = isMoving() ? 1 : 0;
+      robotParts.wheels.forEach((w) => w.rotation.y += spin * 0.08);
     }
-  }, 33); // ~30 Hz
+
+    const state = getTwinState();
+    WorldState.update('sim', {
+      robotPosition: { x: simPos.x, y: simPos.y, heading: simPos.heading },
+      robotPosition3D: { x: simPos.x, y: simPos.y, z: 0, roll: 0, pitch: 0, yaw: simPos.heading },
+      sensors: state.sensors,
+    });
+
+    if (recorder?.isRecording()) {
+      recorder.addFrame(state, state.sensors);
+    }
+  }, 33);
 }
 
 export function stopSimulation() {
   simMode = 'real';
-  if (simInterval) {
-    clearInterval(simInterval);
-    simInterval = null;
-  }
-  physics?.stop();
-  stopMoveLoop();
+  setVelocity(0, 0, 0);
+  stopAutoDrive();
+  simPos = { x: 0, y: 0, heading: 0 };
+  simObstacles = [];
+  sendContinuousCommand('s').catch(() => {});
+  if (simPollInterval) { clearInterval(simPollInterval); simPollInterval = null; }
+  if (simInterval) { clearInterval(simInterval); simInterval = null; }
   startRealPolling();
   refreshTwinData();
 }
@@ -778,6 +741,12 @@ export function syncMapObstaclesToTwin(obstacles: Array<{ x: number; y: number; 
     mesh.userData.isMapObstacle = true;
     scene!.scene.add(mesh);
   });
+
+  // Sync to BackendSim
+  const backendObs = obstacles.map((o) => ({
+    x: o.x * 0.001, y: o.y * 0.001, w: o.width * 0.001, h: o.depth * 0.001,
+  }));
+  syncSimObstacles(backendObs).catch(() => {});
 }
 
 export function getSimulationMode(): 'real' | 'simulation' {
@@ -789,16 +758,16 @@ export function getSimulationPresets() {
 }
 
 export function commandSimulation(vx: number, vy: number, omega: number) {
-  if (simMode === 'simulation' && physics) {
-    physics.command(vx, vy, omega);
+  if (simMode === 'simulation') {
+    stopAutoDrive();
+    setVelocity(vx, vy, omega);
+    sendBackendCommand(vx, vy, omega);
   }
 }
 
 export function stopSimulationRobot() {
-  stopMoveLoop();
-  if (physics) {
-    physics.stop();
-  }
+  setVelocity(0, 0, 0);
+  sendContinuousCommand('s').catch(() => {});
 }
 
 // --- Recording ---

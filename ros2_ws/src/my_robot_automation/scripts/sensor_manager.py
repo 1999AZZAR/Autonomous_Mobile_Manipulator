@@ -54,6 +54,10 @@ class SensorManager:
         # IMU data
         self.imu_data = {}
         self.imu_initialized = False
+        self._imu_offset = {'x': 0.0, 'y': 0.0, 'z': 0.0}
+        self._imu_calibrated = False
+        self._imu_cal_samples: list = []
+        self._calibration_in_progress = False
 
     def read_all_sensors(self):
         """Read all available sensors and return structured data"""
@@ -265,15 +269,15 @@ class SensorManager:
         }
 
     def _get_simulated_imu_data(self):
-        """Return simulated IMU data"""
+        """Return simulated IMU data with calibration offset applied"""
         import math
         sim_time = time.time()
 
-        return {
+        data = {
             'orientation': {
-                'x': math.sin(sim_time * 0.05) * 5.0,  # Roll ±5°
-                'y': math.cos(sim_time * 0.05) * 3.0,  # Pitch ±3°
-                'z': 0.0  # Yaw
+                'x': math.sin(sim_time * 0.05) * 5.0,
+                'y': math.cos(sim_time * 0.05) * 3.0,
+                'z': 0.0
             },
             'angular_velocity': {
                 'x': math.sin(sim_time * 0.1) * 2.0,
@@ -283,10 +287,11 @@ class SensorManager:
             'linear_acceleration': {
                 'x': math.sin(sim_time * 0.08) * 0.5,
                 'y': math.cos(sim_time * 0.08) * 0.5,
-                'z': 9.81 + math.sin(sim_time * 0.1) * 0.2  # ~9.8 m/s² with variation
+                'z': 9.81 + math.sin(sim_time * 0.1) * 0.2
             },
             'temperature': 25.0 + math.sin(sim_time * 0.02) * 5.0
         }
+        return self._apply_imu_offset(data)
 
     def _update_sensor_health(self, sensor_name, status):
         """Update sensor health tracking"""
@@ -318,14 +323,43 @@ class SensorManager:
             return self._get_simulated_imu_data()
 
     def calibrate_imu(self):
-        """Calibrate IMU (simplified implementation)"""
-        if self.simulation_mode:
-            logger.info("[SIM] IMU calibration completed")
-            return True
+        """Calibrate IMU — records current readings as zero offset."""
+        try:
+            if self.simulation_mode:
+                from ml.backend_sim import get_backend_sim
+                sim = get_backend_sim()
+                sim.calibrate_heading()
+                self._imu_offset = {'x': 0.0, 'y': 0.0, 'z': 0.0}
+                self._imu_calibrated = True
+                logger.info("[SIM] IMU heading calibration done via BackendSim")
+                return True
 
-        # In a real implementation, this would perform actual calibration
-        logger.info("IMU calibration completed (simplified)")
-        return True
+            imu = self.read_imu_data()
+            if imu and 'orientation' in imu:
+                self._imu_offset = {
+                    'x': imu['orientation'].get('x', 0.0),
+                    'y': imu['orientation'].get('y', 0.0),
+                    'z': imu['orientation'].get('z', 0.0),
+                }
+                self._imu_calibrated = True
+                logger.info(f"IMU calibrated — zero offset: roll={self._imu_offset['x']:.2f} pitch={self._imu_offset['y']:.2f} yaw={self._imu_offset['z']:.2f}")
+                return True
+
+            logger.warning("IMU calibration failed — no IMU data available")
+            return False
+        except Exception as e:
+            logger.error(f"IMU calibration error: {e}")
+            return False
+
+    def _apply_imu_offset(self, imu_data: dict) -> dict:
+        if not self._imu_calibrated:
+            return imu_data
+        if 'orientation' not in imu_data:
+            return imu_data
+        imu_data['orientation']['x'] -= self._imu_offset['x']
+        imu_data['orientation']['y'] -= self._imu_offset['y']
+        imu_data['orientation']['z'] -= self._imu_offset['z']
+        return imu_data
 
     def cleanup(self):
         """Clean up sensor resources"""

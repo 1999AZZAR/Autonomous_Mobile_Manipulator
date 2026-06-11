@@ -1,6 +1,6 @@
 // Digital map — canvas-based robot position + waypoint + sensor + drawing + training
 
-import { fetchRobotPosition, fetchSensors, fetchPaths, fetchPath, fetchWaypointStatus } from '../api';
+import { fetchRobotPosition, fetchSensors, fetchPaths, fetchPath, fetchWaypointStatus, sendNavigationGoal } from '../api';
 import type { RobotPosition, SensorReadings, MapWaypoint, SavedPath } from '../types';
 import { WorldState } from '../state/world-state';
 import { syncMapObstaclesToTwin } from './digital-twin';
@@ -306,15 +306,20 @@ let lastMouse: { cx: number; cy: number } | null = null;
 
 function setupDrawing(canvasEl: HTMLCanvasElement) {
   canvasEl.addEventListener('mousedown', (e) => {
-    if (!mapMode.startsWith('draw') && mapMode !== 'erase') return;
     if (e.button !== 0) return;
     const rect = canvasEl.getBoundingClientRect();
     const cx = e.clientX - rect.left;
     const cy = e.clientY - rect.top;
     const [wx, wy] = canvasToWorld(cx, cy);
 
+    if (mapMode === 'navigate') {
+      sendNavigationGoal(wx, wy).catch(() => {});
+      return;
+    }
+
+    if (!mapMode.startsWith('draw') && mapMode !== 'erase') return;
+
     if (mapMode === 'erase') {
-      // Remove nearest element
       let minDist = 0.3;
       let minIdx = -1;
       drawnElements.forEach((el, i) => {

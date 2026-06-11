@@ -208,6 +208,13 @@ export function moveRobot(direction: string, speed?: number, duration?: number):
   });
 }
 
+export function sendNavigationGoal(x: number, y: number): Promise<{ success: boolean; message: string }> {
+  return request('/ml/navigate/goal', {
+    method: 'POST',
+    body: JSON.stringify({ x, y }),
+  });
+}
+
 export function turnRobot(direction: string, speed?: number): Promise<unknown> {
   return request('/robot/turn', {
     method: 'POST',
@@ -228,6 +235,26 @@ export function setSpeed(speed: number): Promise<unknown> {
 
 export function toggleTurbo(): Promise<unknown> {
   return request('/robot/turbo', { method: 'POST' });
+}
+
+// --- Simulation & IMU ---
+
+export function sendContinuousCommand(command: string): Promise<{ ok: boolean }> {
+  return request('/robot/command/continuous', {
+    method: 'POST',
+    body: JSON.stringify({ command }),
+  });
+}
+
+export function syncSimObstacles(obstacles: Array<{ x: number; y: number; w: number; h: number }>): Promise<{ success: boolean }> {
+  return request('/sim/obstacles', {
+    method: 'POST',
+    body: JSON.stringify({ obstacles }),
+  });
+}
+
+export function calibrateImu(): Promise<{ success: boolean }> {
+  return request('/robot/imu/calibrate', { method: 'POST' });
 }
 
 // --- Feeds ---

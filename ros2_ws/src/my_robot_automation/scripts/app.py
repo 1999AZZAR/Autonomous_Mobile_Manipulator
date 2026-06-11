@@ -41,6 +41,9 @@ class FlaskApp:
         self.safety_bypass = False
         self._ws_clients: list = []
         self._ws_lock = threading.Lock()
+        self._continuous_cmd = None
+        self._continuous_cmd_thread = None
+        self._continuous_cmd_lock = threading.Lock()
 
         logger.info(f"Mega interface: {type(mega_interface)}")
         logger.info(f"Sensor manager: {type(sensor_manager)}")
@@ -187,6 +190,38 @@ class FlaskApp:
                 return jsonify({'ok': True, 'command': cmd, 'enabled': enable})
             return jsonify({'error': 'mega not connected'}), 503
 
+        @self.app.route('/api/robot/imu/calibrate', methods=['POST'])
+        def imu_calibrate():
+            if self.sensors:
+                ok = self.sensors.calibrate_imu()
+                return jsonify({'success': ok, 'message': 'IMU calibrated' if ok else 'IMU calibration failed'})
+            return jsonify({'error': 'sensor manager unavailable'}), 503
+
+        @self.app.route('/api/robot/command/continuous', methods=['POST'])
+        def command_continuous():
+            data = request.get_json(silent=True) or {}
+            cmd = data.get('command', '')
+            with self._continuous_cmd_lock:
+                self._continuous_cmd = cmd
+                if cmd and cmd != 's' and (self._continuous_cmd_thread is None or not self._continuous_cmd_thread.is_alive()):
+                    self._continuous_cmd_thread = threading.Thread(target=self._run_continuous_command, daemon=True)
+                    self._continuous_cmd_thread.start()
+                elif not cmd or cmd == 's':
+                    self._continuous_cmd = None
+            return jsonify({'ok': True, 'command': cmd})
+
+        @self.app.route('/api/sim/obstacles', methods=['POST'])
+        def sim_set_obstacles():
+            data = request.get_json(silent=True) or {}
+            obstacles = data.get('obstacles', [])
+            try:
+                from ml.backend_sim import get_backend_sim
+                sim = get_backend_sim()
+                sim.set_obstacles(obstacles)
+                return jsonify({'success': True, 'count': len(obstacles)})
+            except ImportError:
+                return jsonify({'error': 'BackendSim not available'}), 503
+
         # Path Planning
         @self.app.route('/api/robot/sequences/execute', methods=['POST'])
         def execute_sequence():
@@ -253,6 +288,30 @@ class FlaskApp:
             """Flat sensor readings for the TS dashboard"""
             if self.sensors:
                 data = self.sensors.read_all_sensors()
+
+                # In sim mode, overlay BackendSim sensor data
+                if self.simulation_mode:
+                    try:
+                        from ml.backend_sim import get_backend_sim
+                        sim = get_backend_sim()
+                        s = sim.get_sensors()
+                        data.update({
+                            'laser_left_front': int(s.get('laser_left_front', data.get('laser_left_front', 1500))),
+                            'laser_left_back': int(s.get('laser_left_back', data.get('laser_left_back', 1500))),
+                            'laser_right_front': int(s.get('laser_right_front', data.get('laser_right_front', 1500))),
+                            'laser_right_back': int(s.get('laser_right_back', data.get('laser_right_back', 1500))),
+                            'laser_back_left': int(s.get('laser_back_left', data.get('laser_back_left', 1500))),
+                            'laser_back_right': int(s.get('laser_back_right', data.get('laser_back_right', 1500))),
+                            'ultra_front_left': int(s.get('ultra_front_left', data.get('ultra_front_left', 4000))),
+                            'ultra_front_right': int(s.get('ultra_front_right', data.get('ultra_front_right', 4000))),
+                            'line_left': int(s.get('line_left', data.get('line_left', 1023))),
+                            'line_center': int(s.get('line_center', data.get('line_center', 1023))),
+                            'line_right': int(s.get('line_right', data.get('line_right', 1023))),
+                            'tf_luna_distance': int(s.get('tf_luna_distance', data.get('tf_luna_distance', 1500))),
+                        })
+                    except ImportError:
+                        pass
+
                 data['mega_connected'] = self.mega.mega_connected if self.mega else False
                 return jsonify(data)
             return jsonify({'error': 'sensors unavailable'}), 503
@@ -1335,7 +1394,32 @@ class FlaskApp:
             }), 500
 
     def _get_current_position(self):
-        """Get current robot position from IMU tracking"""
+        """Get current robot position — BackendSim in sim mode, IMU in real."""
+        if self.simulation_mode:
+            try:
+                from ml.backend_sim import get_backend_sim
+                sim = get_backend_sim()
+                state = sim.get_state()
+                sensors = sim.get_sensors()
+                return jsonify({
+                    'success': True,
+                    'position': {'x': state['x'] * 1000, 'y': state['y'] * 1000, 'z': 0.0},
+                    'orientation': {
+                        'roll': sensors.get('imu_roll', 0),
+                        'pitch': sensors.get('imu_pitch', 0),
+                        'yaw': state['heading'],
+                    },
+                    'initialized': True,
+                    'simulation': True,
+                    'total_distance': state['total_distance'],
+                    'collisions': state['collisions'],
+                    'steps': state['steps'],
+                    'heading': state['heading'],
+                    'timestamp': time.time(),
+                })
+            except ImportError:
+                pass
+
         try:
             if self.main_app and hasattr(self.main_app, 'get_current_position'):
                 position_data = self.main_app.get_current_position()
@@ -1478,6 +1562,16 @@ class FlaskApp:
                 'error': str(e),
                 'timestamp': time.time()
             }), 500
+
+    def _run_continuous_command(self):
+        while True:
+            with self._continuous_cmd_lock:
+                cmd = self._continuous_cmd
+            if not cmd or cmd == 's':
+                break
+            if self.mega:
+                self.mega.send_command_to_mega(cmd)
+            time.sleep(1.0 / 30.0)
 
     def run(self, host=FLASK_HOST, port=FLASK_PORT, debug=FLASK_DEBUG):
         """Run the Flask application"""

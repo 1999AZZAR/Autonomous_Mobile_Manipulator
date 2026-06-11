@@ -53,12 +53,22 @@ class AutonomousMobileManipulator:
 
     def __init__(self, simulation_mode=None):
         self.simulation_mode = simulation_mode if simulation_mode is not None else DEFAULT_SIMULATION_MODE
+        self._force_hardware = False
 
         logger.info(f"Starting Autonomous Mobile Manipulator (simulation_mode={self.simulation_mode})")
 
         # Initialize components
         self.mega_interface = MegaInterface(simulation_mode=self.simulation_mode)
         self.sensor_manager = SensorManager(simulation_mode=self.simulation_mode, mega_interface=self.mega_interface)
+
+        # Auto-detect MEGA — if not found and not forced hardware, enable sim mode
+        if not simulation_mode and not self.mega_interface.mega_connected:
+            if not self._force_hardware:
+                logger.info("No MEGA detected — auto-switching to SIMULATION mode")
+                self.simulation_mode = True
+                self.sensor_manager.simulation_mode = True
+            else:
+                logger.warning("MEGA not found but --hardware was forced — continuing without sim fallback")
 
         # Initialize navigation state for IMU-based waypoint navigation
         self.current_position = [0.0, 0.0, 0.0]  # [x, y, z] in ENU coordinates (meters)
@@ -153,6 +163,9 @@ class AutonomousMobileManipulator:
         logger.info("AI decision engine, waypoint, and ML API registered")
 
         logger.info("Path planning components initialized")
+
+        # Auto-calibrate IMU on startup
+        self._auto_calibrate_imu()
 
         # Start IMU position tracking for coordinate-based navigation
         # Start IMU position tracking for waypoint navigation (works with simulated IMU data)
@@ -439,6 +452,19 @@ class AutonomousMobileManipulator:
 
         logger.info("Cleanup completed")
 
+    def _auto_calibrate_imu(self):
+        try:
+            if self.simulation_mode:
+                from ml.backend_sim import get_backend_sim
+                sim = get_backend_sim()
+                sim.calibrate_heading()
+                logger.info("BackendSim heading calibrated to 0°")
+            if self.sensor_manager:
+                self.sensor_manager.calibrate_imu()
+                logger.info("SensorManager IMU calibration done")
+        except Exception as e:
+            logger.warning(f"IMU auto-calibration skipped: {e}")
+
     def reset_position(self):
         """Reset robot position to origin for waypoint navigation"""
         try:
@@ -488,6 +514,7 @@ def main():
 
         # Create and run the application
         app = AutonomousMobileManipulator(simulation_mode=simulation_mode)
+        app._force_hardware = args.hardware
         app.run()
 
     except KeyboardInterrupt:

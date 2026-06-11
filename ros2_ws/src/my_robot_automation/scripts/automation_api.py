@@ -4,7 +4,9 @@ Flask blueprint for IFTTT automation engine REST API.
 """
 
 from flask import Blueprint, request, jsonify
+
 import logging
+import math
 import time
 from automation_engine import _run_async
 
@@ -973,10 +975,111 @@ def ml_sim_step():
     """Run a single command step through BackendSimulation."""
     data = request.get_json(silent=True) or {}
     cmd = data.get('command', 's')
+    dt = data.get('dt', 1.0/30.0)
     try:
         from ml.backend_sim import get_backend_sim
         sim = get_backend_sim()
-        sensors = sim.step(cmd)
+        sim.step(cmd, dt)
+        sensors = sim.get_sensors()
         return jsonify({'sensors': sensors, 'state': sim.get_state()})
     except ImportError:
         return jsonify({'error': 'BackendSimulation not available'}), 503
+
+
+@ml_bp.route('/sim/obstacles', methods=['POST'])
+def ml_sim_obstacles():
+    """Set obstacles for BackendSimulation (synced from map)."""
+    data = request.get_json(silent=True) or {}
+    obstacles = data.get('obstacles', [])
+    try:
+        from ml.backend_sim import get_backend_sim
+        sim = get_backend_sim()
+        sim.set_obstacles(obstacles)
+        return jsonify({'success': True, 'count': len(obstacles)})
+    except ImportError:
+        return jsonify({'error': 'BackendSimulation not available'}), 503
+
+
+@ml_bp.route('/sim/calibrate', methods=['POST'])
+def ml_sim_calibrate():
+    """Calibrate BackendSim heading (zero current heading)."""
+    try:
+        from ml.backend_sim import get_backend_sim
+        sim = get_backend_sim()
+        sim.calibrate_heading()
+        return jsonify({'success': True})
+    except ImportError:
+        return jsonify({'error': 'BackendSimulation not available'}), 503
+
+
+# --- Navigation Goal ---
+
+_nav_goal = None
+
+
+@ml_bp.route('/navigate/goal', methods=['POST'])
+def ml_nav_set_goal():
+    """Set a navigation goal for the robot to navigate toward."""
+    global _nav_goal
+    data = request.get_json(silent=True) or {}
+    x = data.get('x')
+    y = data.get('y')
+    if x is None or y is None:
+        return jsonify({'error': 'x and y required'}), 400
+    _nav_goal = {
+        'x': float(x),
+        'y': float(y),
+        'set_at': time.time(),
+        'reached': False,
+        'label': data.get('label', ''),
+    }
+    try:
+        from ml.backend_sim import get_backend_sim
+        sim = get_backend_sim()
+        state = sim.get_state()
+        dx = float(x) - state['x']
+        dy = float(y) - state['y']
+        _nav_goal['distance'] = round(math.sqrt(dx*dx + dy*dy), 2)
+        _nav_goal['heading_to_goal'] = round(math.degrees(math.atan2(dy, dx)), 1)
+        sim.navigate_to(float(x), float(y))
+    except Exception:
+        _nav_goal['distance'] = 0
+        _nav_goal['heading_to_goal'] = 0
+    logger.info(f"Navigation goal set: ({x}, {y}), dist={_nav_goal['distance']}m")
+    return jsonify({'success': True, 'goal': _nav_goal})
+
+
+@ml_bp.route('/navigate/goal', methods=['GET'])
+def ml_nav_get_goal():
+    """Get current navigation goal and progress."""
+    global _nav_goal
+    if not _nav_goal:
+        return jsonify({'goal': None})
+    try:
+        from ml.backend_sim import get_backend_sim
+        sim = get_backend_sim()
+        state = sim.get_state()
+        dx = _nav_goal['x'] - state['x']
+        dy = _nav_goal['y'] - state['y']
+        remaining = round(math.sqrt(dx*dx + dy*dy), 2)
+        start_dist = _nav_goal.get('distance', remaining)
+        progress = round(max(0, min(100, (1 - remaining / max(start_dist, 0.01)) * 100)), 1)
+        _nav_goal['remaining_distance'] = remaining
+        _nav_goal['progress_pct'] = progress
+        _nav_goal['heading_to_goal'] = round(math.degrees(math.atan2(dy, dx)), 1)
+        _nav_goal['robot_position'] = {'x': round(state['x'], 3), 'y': round(state['y'], 3)}
+        if remaining < 0.3 and not _nav_goal.get('reached'):
+            _nav_goal['reached'] = True
+            _nav_goal['reached_at'] = time.time()
+            logger.info("Navigation goal REACHED!")
+    except Exception:
+        pass
+    return jsonify({'goal': _nav_goal})
+
+
+@ml_bp.route('/navigate/goal', methods=['DELETE'])
+def ml_nav_clear_goal():
+    """Clear the current navigation goal."""
+    global _nav_goal
+    _nav_goal = None
+    return jsonify({'success': True})
