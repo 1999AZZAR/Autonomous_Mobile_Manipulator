@@ -16,7 +16,7 @@ from mega_interface import MegaInterface
 from sensor_manager import SensorManager
 from path_planning import GridMap, PathPlanner, MovementSequence, WaypointNavigator
 from automation_engine import AutomationEngine
-from automation_api import automation_bp, init_automation_api, ai_bp, waypoint_bp, init_ai_api, init_waypoint_api
+from automation_api import automation_bp, init_automation_api, ai_bp, waypoint_bp, init_ai_api, init_waypoint_api, ml_bp, init_ml_api
 from camera_service import CameraService
 from waypoint_memory import WaypointMemory
 from ai_decision import AIDecisionEngine
@@ -143,12 +143,14 @@ class AutonomousMobileManipulator:
         self.ai_engine.api_key = AI_OPENAI_API_KEY
         self.ai_engine.loop_interval = AI_LOOP_INTERVAL
 
-        # Register AI + waypoint API endpoints
+        # Register AI + waypoint + ML API endpoints
         init_ai_api(self.ai_engine)
         init_waypoint_api(self.waypoint_memory)
+        init_ml_api(self.ai_engine)
         self.flask_app.app.register_blueprint(ai_bp)
         self.flask_app.app.register_blueprint(waypoint_bp)
-        logger.info("AI decision engine and waypoint API registered")
+        self.flask_app.app.register_blueprint(ml_bp)
+        logger.info("AI decision engine, waypoint, and ML API registered")
 
         logger.info("Path planning components initialized")
 

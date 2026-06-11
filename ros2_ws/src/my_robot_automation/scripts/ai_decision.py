@@ -59,6 +59,7 @@ class DecisionMode:
     REPLAY = "replay"
     IFTTT = "ifttt"
     AI = "ai"
+    OFFLINE_AI = "offline_ai"
 
 
 class AIDecisionEngine:
@@ -89,18 +90,35 @@ class AIDecisionEngine:
         self.human_guidance = ""
 
         # AI backend config
-        self.backend = os.environ.get('AI_BACKEND', 'hybrid')  # local, api, hybrid
+        self.backend = os.environ.get('AI_BACKEND', 'hybrid')  # local, api, hybrid, offline_ai
         self.api_model = os.environ.get('AI_MODEL', 'gpt-4o')
         self.api_key = os.environ.get('OPENAI_API_KEY', '')
         self.yolo_model = None  # loaded lazily
+
+        # Offline MLP engine (used when backend=offline_ai)
+        self.offline_engine = None
 
         # Thread control
         self._thread = None
         self._lock = threading.Lock()
 
     def initialize(self, db_client):
-        """Set Prisma client."""
+        """Set Prisma client and initialize offline engine."""
         self.db = db_client
+        try:
+            from ml.inference_engine import OfflineDecisionEngine
+            self.offline_engine = OfflineDecisionEngine(
+                camera_service=self.camera,
+                automation_engine=self.automation,
+                mega_interface=self.mega,
+                sensor_manager=self.sensors,
+                waypoint_memory=self.waypoints,
+            )
+            self.offline_engine.initialize(db_client)
+        except ImportError as e:
+            logger.debug(f"Offline engine not available: {e}")
+        except Exception as e:
+            logger.error(f"Failed to init offline engine: {e}")
 
     def start(self, task_goal: str = "", interval: float = None) -> dict:
         """Start the decision loop."""
@@ -222,19 +240,25 @@ class AIDecisionEngine:
             result = self._execute_replay(sensor_data, task_goal)
         elif mode == DecisionMode.AI:
             result = self._execute_ai(sensor_data, task_goal)
+        elif mode == DecisionMode.OFFLINE_AI:
+            result = self._execute_offline_ai(sensor_data, task_goal)
         else:
             result = self._execute_ifttt(sensor_data, task_goal)
 
-        # 4. Log decision
+        # 4. Execute actions if any
+        if result.get('actions') and self.mega:
+            self._execute_actions(result['actions'])
+
+        # 5. Log decision
         latency_ms = int((time.time() - start_time) * 1000)
         result['latency_ms'] = latency_ms
         result['mode'] = mode
         result['timestamp'] = datetime.now().isoformat()
 
-        # 5. Save to database
+        # 6. Save to database
         self._log_decision(result, sensor_data, task_goal)
 
-        # 6. Update history
+        # 7. Update history
         self.decision_history.append(result)
         if len(self.decision_history) > self.max_history:
             self.decision_history.pop(0)
@@ -243,6 +267,10 @@ class AIDecisionEngine:
 
     def _select_mode(self, sensor_data: dict, task_goal: str) -> str:
         """Select the best navigation mode based on context."""
+        # If backend is explicitly offline_ai, prefer it
+        if self.backend == 'offline_ai' and self.offline_engine and self.offline_engine.model_loaded:
+            return DecisionMode.OFFLINE_AI
+
         # If there's a saved path and task matches → REPLAY
         if self.waypoints and task_goal:
             paths = self.waypoints.list_paths()
@@ -253,13 +281,19 @@ class AIDecisionEngine:
         # If task goal mentions visual reasoning or object detection → AI
         visual_keywords = ['see', 'look', 'find', 'detect', 'identify', 'object', 'person', 'color', 'where']
         if any(kw in task_goal.lower() for kw in visual_keywords):
+            if self.offline_engine and self.offline_engine.model_loaded:
+                return DecisionMode.OFFLINE_AI
             return DecisionMode.AI
 
-        # If no task goal or simple navigation → IFTTT
+        # If no task goal or simple navigation → IFTTT or offline_ai
         if not task_goal:
+            if self.offline_engine and self.offline_engine.model_loaded:
+                return DecisionMode.OFFLINE_AI
             return DecisionMode.IFTTT
 
-        # Default: AI mode for complex tasks
+        # Default: offline_ai if available, else API AI
+        if self.offline_engine and self.offline_engine.model_loaded:
+            return DecisionMode.OFFLINE_AI
         return DecisionMode.AI
 
     def _execute_replay(self, sensor_data: dict, task_goal: str) -> dict:
@@ -325,6 +359,25 @@ class AIDecisionEngine:
             'confidence': 0.8,
             'continue': True,
         }
+
+    def _execute_offline_ai(self, sensor_data: dict, task_goal: str) -> dict:
+        """Execute offline MLP inference mode. Fully local, no API call."""
+        if not self.offline_engine:
+            return self._execute_ifttt(sensor_data, task_goal)
+
+        camera_frame = None
+        if task_goal and self.camera:
+            try:
+                camera_frame = self.camera.capture_base64()
+            except Exception:
+                pass
+
+        result = self.offline_engine.analyze(
+            sensor_data=sensor_data,
+            camera_frame=camera_frame,
+            task_goal=task_goal or '',
+        )
+        return result
 
     def _read_sensors(self) -> dict:
         """Read current sensor data from cache."""

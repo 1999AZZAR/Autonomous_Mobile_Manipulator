@@ -8,6 +8,16 @@ import logging
 import time
 from automation_engine import _run_async
 
+try:
+    from ml.pattern_extractor import PatternExtractor, AutomationDraft
+    from ml.rule_generator import RuleGenerator
+    ML_AVAILABLE = True
+except ImportError:
+    PatternExtractor = None
+    AutomationDraft = None
+    RuleGenerator = None
+    ML_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 automation_bp = Blueprint('automation', __name__, url_prefix='/api')
@@ -671,3 +681,207 @@ def waypoint_status():
         'replaying': _waypoint_memory.replaying,
         'replay_index': _waypoint_memory.replay_index,
     })
+
+
+# ============================================================
+# ML / Training API
+# ============================================================
+
+ml_bp = Blueprint('ml', __name__, url_prefix='/api/ml')
+_ml_engine = None
+_ml_collector = None
+_ml_pattern_extractor = None
+_ml_rule_generator = None
+
+
+def init_ml_api(ai_engine):
+    """Set ML API references from the AI engine's offline engine."""
+    global _ml_engine, _ml_collector, _ml_pattern_extractor, _ml_rule_generator
+    if not ML_AVAILABLE:
+        return
+    if ai_engine and hasattr(ai_engine, 'offline_engine') and ai_engine.offline_engine:
+        _ml_engine = ai_engine.offline_engine
+        _ml_collector = _ml_engine.collector
+        _ml_pattern_extractor = PatternExtractor(_ml_collector)
+        _ml_rule_generator = RuleGenerator(_ml_pattern_extractor)
+
+
+# --- Model ---
+
+@ml_bp.route('/model/status', methods=['GET'])
+def ml_model_status():
+    """Get ML model status."""
+    if not _ml_engine:
+        return jsonify({'loaded': False, 'error': 'Not initialized'})
+    return jsonify(_ml_engine.get_model_info())
+
+
+@ml_bp.route('/model/predict', methods=['POST'])
+def ml_model_predict():
+    """Run a single MLP prediction with given sensor data."""
+    if not _ml_engine or not _ml_engine.model_loaded:
+        return jsonify({'error': 'Model not loaded'}), 503
+    data = request.get_json(silent=True) or {}
+    sensor_data = data.get('sensor_data', {})
+    camera_frame = data.get('camera_frame')
+    result = _ml_engine.analyze(
+        sensor_data=sensor_data,
+        camera_frame=camera_frame,
+        task_goal=data.get('task_goal', ''),
+    )
+    return jsonify(result)
+
+
+@ml_bp.route('/model/load', methods=['POST'])
+def ml_model_load():
+    """Load a specific model by name."""
+    if not _ml_engine:
+        return jsonify({'error': 'Not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    name = data.get('name', 'mlp_decision')
+    _ml_engine.load_model(
+        model_path=data.get('model_path'),
+        config_path=data.get('config_path'),
+    )
+    return jsonify({'success': True, ** _ml_engine.get_model_info()})
+
+
+@ml_bp.route('/model/export', methods=['POST'])
+def ml_model_export():
+    """Export model in specified format (pt, onnx)."""
+    if not _ml_engine:
+        return jsonify({'error': 'Not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    fmt = data.get('format', 'onnx')
+    if fmt == 'onnx':
+        path = _ml_engine.model_path.replace('.pt', '.onnx')
+        _ml_engine.model.export_onnx(path)
+        return jsonify({'success': True, 'path': path, 'format': fmt})
+    return jsonify({'error': f'Unsupported format: {fmt}'}), 400
+
+
+# --- Training Data ---
+
+@ml_bp.route('/data/stats', methods=['GET'])
+def ml_data_stats():
+    """Get training data statistics."""
+    if not _ml_collector:
+        return jsonify({'error': 'Collector not initialized'}), 503
+    return jsonify(_ml_collector.get_stats())
+
+
+@ml_bp.route('/data/export', methods=['GET'])
+def ml_data_export():
+    """Export training data as JSON."""
+    if not _ml_collector:
+        return jsonify({'error': 'Collector not initialized'}), 503
+    session_id = request.args.get('session_id')
+    limit = request.args.get('limit', 1000, type=int)
+    frames = _ml_collector.get_frames(session_id=session_id, limit=limit)
+    return jsonify({'frames': frames, 'count': len(frames)})
+
+
+@ml_bp.route('/data/session/<session_id>', methods=['DELETE'])
+def ml_data_delete_session(session_id):
+    """Delete a training session."""
+    if not _ml_collector:
+        return jsonify({'error': 'Collector not initialized'}), 503
+    _ml_collector.delete_session(session_id)
+    return jsonify({'success': True})
+
+
+# --- Patterns & Rules ---
+
+@ml_bp.route('/patterns', methods=['GET'])
+def ml_patterns():
+    """Get recurring patterns from training data."""
+    if not _ml_pattern_extractor:
+        return jsonify({'error': 'Initializing'}), 503
+    min_count = request.args.get('min_count', 5, type=int)
+    patterns = _ml_pattern_extractor.find_recurring_patterns(min_count=min_count)
+    return jsonify({
+        'patterns': [p.to_dict() for p in patterns],
+        'count': len(patterns),
+    })
+
+
+@ml_bp.route('/rules/generate', methods=['POST'])
+def ml_rules_generate():
+    """Generate automation drafts from patterns."""
+    if not _ml_rule_generator:
+        return jsonify({'error': 'Initializing'}), 503
+    data = request.get_json(silent=True) or {}
+    min_count = data.get('min_count', 5)
+    drafts = _ml_rule_generator.generate_from_patterns(min_count=min_count)
+    return jsonify({
+        'drafts': [d.to_dict() for d in drafts],
+        'count': len(drafts),
+    })
+
+
+@ml_bp.route('/rules/dry-run', methods=['POST'])
+def ml_rules_dry_run():
+    """Dry-run a specific draft against historical data."""
+    if not _ml_rule_generator:
+        return jsonify({'error': 'Initializing'}), 503
+    data = request.get_json(silent=True) or {}
+    from ml.pattern_extractor import AutomationDraft
+    draft = AutomationDraft(
+        name=data.get('name', 'draft'),
+        trigger_type=data.get('triggerType', 'sensor'),
+        condition_match=data.get('conditionMatch', 'ALL'),
+        conditions=data.get('conditions', []),
+        actions=data.get('actions', []),
+        source='api',
+        confidence=data.get('confidence', 0.7),
+    )
+    return jsonify(_ml_rule_generator.dry_run(draft))
+
+
+@ml_bp.route('/rules/apply', methods=['POST'])
+def ml_rules_apply():
+    """Apply a draft as a real automation rule."""
+    if not _ml_rule_generator or not _automation_engine:
+        return jsonify({'error': 'Not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    from ml.pattern_extractor import AutomationDraft
+    draft = AutomationDraft(
+        name=data.get('name', 'draft'),
+        trigger_type=data.get('triggerType', 'sensor'),
+        condition_match=data.get('conditionMatch', 'ALL'),
+        conditions=data.get('conditions', []),
+        actions=data.get('actions', []),
+        source='api',
+        confidence=data.get('confidence', 0.7),
+    )
+    rule = _ml_rule_generator.apply_draft(draft)
+    if not rule:
+        return jsonify({'error': 'Rule rejected (duplicate or rate limited)'}), 409
+
+    try:
+        created = _run_async(_automation_engine.db.automation.create(data={
+            'name': rule['name'],
+            'isActive': rule['enabled'],
+            'triggerType': rule['triggerType'],
+            'conditionMatch': rule['conditionMatch'],
+            'aiGenerated': rule['aiGenerated'],
+        }))
+        for cond in rule['conditions']:
+            _run_async(_automation_engine.db.automationcondition.create(data={
+                'automationId': created.id,
+                'feedName': cond['feed'],
+                'operator': cond['op'],
+                'threshold': cond['threshold'],
+            }))
+        for act in rule['actions']:
+            _run_async(_automation_engine.db.automationaction.create(data={
+                'automationId': created.id,
+                'actionType': act.get('type', 'move'),
+                'actionValue': act.get('value', ''),
+                'actionOrder': 0,
+            }))
+        _automation_engine.reload_rules()
+        return jsonify({'success': True, 'id': created.id, 'name': rule['name']})
+    except Exception as e:
+        logger.error(f"Failed to apply rule: {e}")
+        return jsonify({'error': str(e)}), 500
