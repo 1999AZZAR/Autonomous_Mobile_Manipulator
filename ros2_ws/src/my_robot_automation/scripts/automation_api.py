@@ -889,3 +889,94 @@ def ml_rules_apply():
     except Exception as e:
         logger.error(f"Failed to apply rule: {e}")
         return jsonify({'error': str(e)}), 500
+
+
+# --- Training ---
+
+_sim_trainer_instance = None
+
+
+@ml_bp.route('/train/start', methods=['POST'])
+def ml_train_start():
+    """Start simulation training in background thread."""
+    global _sim_trainer_instance
+    try:
+        from ml.sim_trainer import SimulationTrainer
+        from ml.mlp_model import MLPDecisionModel
+        from ml.training_collector import TrainingCollector
+
+        data = request.get_json(silent=True) or {}
+        model = MLPDecisionModel()
+        collector = TrainingCollector()
+        trainer = SimulationTrainer(model, collector)
+
+        scenario = data.get('scenario', 'obstacle_course')
+        episodes = data.get('episodes', 50)
+        result = trainer.start_training(scenario, episodes)
+        if result.get('success'):
+            _sim_trainer_instance = trainer
+        return jsonify(result)
+    except Exception as e:
+        logger.error(f"Failed to start training: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@ml_bp.route('/train/stop', methods=['POST'])
+def ml_train_stop():
+    """Stop running simulation training."""
+    global _sim_trainer_instance
+    if _sim_trainer_instance:
+        _sim_trainer_instance.stop_training()
+        _sim_trainer_instance = None
+        return jsonify({'success': True})
+    return jsonify({'error': 'No training running'}), 400
+
+
+@ml_bp.route('/train/status', methods=['GET'])
+def ml_train_status():
+    """Get simulation training status."""
+    global _sim_trainer_instance
+    if _sim_trainer_instance:
+        return jsonify(_sim_trainer_instance.get_stats())
+    return jsonify({'running': False})
+
+
+# --- Simulation State ---
+
+@ml_bp.route('/sim/state', methods=['GET'])
+def ml_sim_state():
+    """Get BackendSimulation physics state (position, obstacles, sensors)."""
+    try:
+        from ml.backend_sim import get_backend_sim
+        sim = get_backend_sim()
+        state = sim.get_state()
+        sensors = sim.get_sensors()
+        return jsonify({'state': state, 'sensors': sensors})
+    except ImportError:
+        return jsonify({'error': 'BackendSimulation not available'}), 503
+
+
+@ml_bp.route('/sim/reset', methods=['POST'])
+def ml_sim_reset():
+    """Reset BackendSimulation to initial state."""
+    data = request.get_json(silent=True) or {}
+    try:
+        from ml.backend_sim import reset_backend_sim
+        reset_backend_sim(data.get('obstacles'))
+        return jsonify({'success': True})
+    except ImportError:
+        return jsonify({'error': 'BackendSimulation not available'}), 503
+
+
+@ml_bp.route('/sim/step', methods=['POST'])
+def ml_sim_step():
+    """Run a single command step through BackendSimulation."""
+    data = request.get_json(silent=True) or {}
+    cmd = data.get('command', 's')
+    try:
+        from ml.backend_sim import get_backend_sim
+        sim = get_backend_sim()
+        sensors = sim.step(cmd)
+        return jsonify({'sensors': sensors, 'state': sim.get_state()})
+    except ImportError:
+        return jsonify({'error': 'BackendSimulation not available'}), 503

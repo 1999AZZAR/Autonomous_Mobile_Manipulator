@@ -575,18 +575,20 @@ class AIDecisionEngine:
 
             if action_type in cmd_map:
                 cmd = cmd_map[action_type].get(value)
+                if not cmd and len(value) == 1:
+                    cmd = value
                 if cmd:
-                    self.mega.send_command(cmd)
+                    self.mega.send_command_to_mega(cmd)
                     logger.debug(f"AI action: {action_type}={value} → '{cmd}'")
             elif action_type == 'speed':
                 try:
                     speed_val = int(float(value))
-                    self.mega.send_command(f'sp{max(0, min(100, speed_val))}')
+                    self.mega.send_command_to_mega(f'sp{max(0, min(100, speed_val))}')
                 except (ValueError, TypeError):
                     pass
             elif action_type == 'turn' and value.startswith('angle_'):
                 angle = value.replace('angle_', '')
-                self.mega.send_command(f'ta{angle}')
+                self.mega.send_command_to_mega(f'ta{angle}')
 
     def _rule_based_from_yolo(self, detections: List[dict], sensor_data: dict, task_goal: str) -> dict:
         """Fallback: map YOLO detections to actions using simple rules."""

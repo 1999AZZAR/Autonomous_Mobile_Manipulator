@@ -174,76 +174,93 @@ class SensorManager:
         return sensor_data
 
     def _get_simulated_sensor_data(self):
-        """Return simulated sensor data for testing"""
-        import math
-        import random
+        """Return physics-based simulated sensor data from BackendSimulation"""
+        try:
+            from ml.backend_sim import get_backend_sim
+            sim = get_backend_sim()
+            sensors = sim.get_sensors()
 
-        # Simulate some variation
-        sim_time = time.time()
+            s = sensors
+            return {
+                'laser_left_front': s.get('laser_left_front', 1500),
+                'laser_left_back': s.get('laser_left_back', 1500),
+                'laser_right_front': s.get('laser_right_front', 1500),
+                'laser_right_back': s.get('laser_right_back', 1500),
+                'laser_back_left': s.get('laser_back_left', 1500),
+                'laser_back_right': s.get('laser_back_right', 1500),
+                'ultra_front_left': s.get('ultra_front_left', 4000),
+                'ultra_front_right': s.get('ultra_front_right', 4000),
+                'line_left': s.get('line_left', 0),
+                'line_center': s.get('line_center', 1),
+                'line_right': s.get('line_right', 0),
+                'imu_heading': s.get('imu_heading', 0.0),
+                'imu_pitch': s.get('imu_pitch', 0.0),
+                'imu_roll': s.get('imu_roll', 0.0),
+                'tf_luna_distance': 0,
+                'mega_connected': False,
+                'laser_sensors': {
+                    'left_front': s.get('laser_left_front', 1500),
+                    'left_back': s.get('laser_left_back', 1500),
+                    'right_front': s.get('laser_right_front', 1500),
+                    'right_back': s.get('laser_right_back', 1500),
+                    'back_left': s.get('laser_back_left', 1500),
+                    'back_right': s.get('laser_back_right', 1500),
+                },
+                'ultrasonic_sensors': {
+                    'front_left': s.get('ultra_front_left', 4000),
+                    'front_right': s.get('ultra_front_right', 4000),
+                },
+                'line_sensors': {
+                    'left': bool(s.get('line_left', 0)),
+                    'center': bool(s.get('line_center', 1)),
+                    'right': bool(s.get('line_right', 0)),
+                },
+                'imu': {
+                    'orientation': {
+                        'x': s.get('imu_roll', 0.0),
+                        'y': s.get('imu_pitch', 0.0),
+                        'z': s.get('imu_heading', 0.0),
+                    },
+                    'angular_velocity': {'x': 0.0, 'y': 0.0, 'z': 0.0},
+                    'linear_acceleration': {'x': 0.0, 'y': 0.0, 'z': 9.81},
+                    'temperature': 25.0,
+                },
+            }
+        except ImportError:
+            return self._fallback_simulated_data()
 
-        # Generate sensor values in mm
-        laser_left_front = 800 + random.randint(-100, 100)
-        laser_left_back = 750 + random.randint(-100, 100)
-        laser_right_front = 850 + random.randint(-100, 100)
-        laser_right_back = 700 + random.randint(-100, 100)
-        laser_back_left = 600 + random.randint(-100, 100)
-        laser_back_right = 650 + random.randint(-100, 100)
-        ultra_front_left = 500 + random.randint(-50, 50)
-        ultra_front_right = 550 + random.randint(-50, 50)
-
+    def _fallback_simulated_data(self):
+        """Fallback if BackendSimulation not available"""
+        import math, random
+        t = time.time()
+        lf = 800 + random.randint(-100, 100)
+        lb = 750 + random.randint(-100, 100)
+        rf = 850 + random.randint(-100, 100)
+        rb = 700 + random.randint(-100, 100)
+        bl = 600 + random.randint(-100, 100)
+        br = 650 + random.randint(-100, 100)
+        uf = 500 + random.randint(-50, 50)
+        ur = 550 + random.randint(-50, 50)
         return {
-            # Flat keys for frontend dashboard
-            'laser_left_front': laser_left_front,
-            'laser_left_back': laser_left_back,
-            'laser_right_front': laser_right_front,
-            'laser_right_back': laser_right_back,
-            'laser_back_left': laser_back_left,
-            'laser_back_right': laser_back_right,
-            'ultra_front_left': ultra_front_left,
-            'ultra_front_right': ultra_front_right,
-            'line_left': 0,
-            'line_center': 1,
-            'line_right': 0,
-            'imu_heading': 0.0,
-            'imu_pitch': math.sin(sim_time * 0.1) * 3.0,
-            'imu_roll': math.cos(sim_time * 0.1) * 5.0,
-            'tf_luna_distance': 0,
+            'laser_left_front': lf, 'laser_left_back': lb,
+            'laser_right_front': rf, 'laser_right_back': rb,
+            'laser_back_left': bl, 'laser_back_right': br,
+            'ultra_front_left': uf, 'ultra_front_right': ur,
+            'line_left': 0, 'line_center': 1, 'line_right': 0,
+            'imu_heading': 0.0, 'imu_pitch': math.sin(t * 0.1) * 3.0,
+            'imu_roll': math.cos(t * 0.1) * 5.0, 'tf_luna_distance': 0,
             'mega_connected': False,
-            # Nested keys for internal control systems
             'laser_sensors': {
-                'left_front': laser_left_front,
-                'left_back': laser_left_back,
-                'right_front': laser_right_front,
-                'right_back': laser_right_back,
-                'back_left': laser_back_left,
-                'back_right': laser_back_right,
+                'left_front': lf, 'left_back': lb, 'right_front': rf,
+                'right_back': rb, 'back_left': bl, 'back_right': br,
             },
-            'ultrasonic_sensors': {
-                'front_left': ultra_front_left,
-                'front_right': ultra_front_right,
-            },
-            'line_sensors': {
-                'left': False,
-                'center': True,
-                'right': False,
-            },
+            'ultrasonic_sensors': {'front_left': uf, 'front_right': ur},
+            'line_sensors': {'left': False, 'center': True, 'right': False},
             'imu': {
-                'orientation': {
-                    'x': math.sin(sim_time * 0.05) * 5.0,
-                    'y': math.cos(sim_time * 0.05) * 3.0,
-                    'z': 0.0,
-                },
-                'angular_velocity': {
-                    'x': math.sin(sim_time * 0.1) * 2.0,
-                    'y': math.cos(sim_time * 0.1) * 1.5,
-                    'z': 0.0,
-                },
-                'linear_acceleration': {
-                    'x': 0.0,
-                    'y': 0.0,
-                    'z': 9.81,
-                },
-                'temperature': 25.0 + math.sin(sim_time * 0.01) * 2.0,
+                'orientation': {'x': 0.0, 'y': 0.0, 'z': 0.0},
+                'angular_velocity': {'x': 0.0, 'y': 0.0, 'z': 0.0},
+                'linear_acceleration': {'x': 0.0, 'y': 0.0, 'z': 9.81},
+                'temperature': 25.0,
             },
         }
 

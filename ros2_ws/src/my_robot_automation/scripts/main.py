@@ -57,7 +57,7 @@ class AutonomousMobileManipulator:
         logger.info(f"Starting Autonomous Mobile Manipulator (simulation_mode={self.simulation_mode})")
 
         # Initialize components
-        self.mega_interface = MegaInterface()
+        self.mega_interface = MegaInterface(simulation_mode=self.simulation_mode)
         self.sensor_manager = SensorManager(simulation_mode=self.simulation_mode, mega_interface=self.mega_interface)
 
         # Initialize navigation state for IMU-based waypoint navigation
@@ -158,6 +158,10 @@ class AutonomousMobileManipulator:
         # Start IMU position tracking for waypoint navigation (works with simulated IMU data)
         threading.Thread(target=self._imu_position_tracking, daemon=True).start()
         logger.info("IMU position tracking started for waypoint navigation")
+
+        # Auto-start autonomous navigation in simulation mode
+        if self.simulation_mode:
+            self._auto_start_simulation()
 
         logger.info("All components initialized successfully")
 
@@ -270,6 +274,65 @@ class AutonomousMobileManipulator:
                     position_initialized = False
                     consecutive_errors = 0
                 time.sleep(0.5)  # Back off on errors
+
+    def _auto_start_simulation(self):
+        """Auto-start autonomous navigation in simulation mode."""
+        def _start():
+            import os, json, time as _time, shutil
+            _time.sleep(3.0)
+
+            model_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'models')
+            model_path = os.path.join(model_dir, 'mlp_decision.pt')
+            model_best = os.path.join(model_dir, 'mlp_decision_best.pt')
+
+            if not os.path.exists(model_path) and os.path.exists(model_best):
+                os.makedirs(model_dir, exist_ok=True)
+                shutil.copy2(model_best, model_path)
+                logger.info("Copied mlp_decision_best.pt → mlp_decision.pt")
+
+            has_model = os.path.exists(model_path)
+
+            if not has_model and self.ai_engine.offline_engine:
+                logger.info("No MLP model found. Starting auto-train with sim trainer...")
+                try:
+                    from ml.sim_trainer import SimulationTrainer
+                    from ml.mlp_model import MLPDecisionModel
+                    from ml.training_collector import TrainingCollector
+                    model = MLPDecisionModel()
+                    collector = TrainingCollector()
+                    trainer = SimulationTrainer(model, collector)
+                    result = trainer.start_training('obstacle_course', 30)
+                    if result.get('success'):
+                        logger.info("Auto-training started (30 episodes). Waiting...")
+                        while trainer.running:
+                            _time.sleep(5)
+                        logger.info("Auto-training complete!")
+                        if os.path.exists(model_best) and not os.path.exists(model_path):
+                            shutil.copy2(model_best, model_path)
+                            logger.info("Copied best model to mlp_decision.pt")
+                except Exception as e:
+                    logger.error(f"Auto-train failed: {e}")
+
+            if self.ai_engine.offline_engine:
+                self.ai_engine.offline_engine._try_load_model()
+                if self.ai_engine.offline_engine.model_loaded:
+                    logger.info("MLP model loaded successfully.")
+                else:
+                    logger.warning("MLP model NOT loaded — will fall back to IFTTT rules.")
+
+            if not self.ai_engine.running:
+                logger.info("Auto-starting AI decision loop (offline_ai)...")
+                self.ai_engine.backend = 'offline_ai'
+                self.ai_engine.loop_interval = 1.5
+                result = self.ai_engine.start(task_goal="Explore the environment autonomously, avoid obstacles")
+                if result.get('success'):
+                    logger.info("AI decision loop auto-started! Robot is now autonomous.")
+                else:
+                    logger.warning(f"Auto-start AI failed: {result.get('error')}")
+            else:
+                logger.info("AI decision loop already running.")
+
+        threading.Thread(target=_start, daemon=True, name='auto-start-sim').start()
 
     def get_current_position(self):
         """Get current robot position and orientation"""

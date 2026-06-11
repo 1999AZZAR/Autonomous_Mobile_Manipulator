@@ -16,7 +16,10 @@ logger = logging.getLogger(__name__)
 class MegaInterface:
     """Enhanced serial communication interface with Arduino Mega"""
 
-    def __init__(self, auto_reconnect=True, max_reconnect_attempts=5, reconnect_interval=5.0):
+    def __init__(self, auto_reconnect=True, max_reconnect_attempts=5, reconnect_interval=5.0, simulation_mode=False):
+        self.simulation_mode = simulation_mode
+        self._sim_backend = None
+
         # Connection state
         self.mega_serial: Optional[serial.Serial] = None
         self.mega_connected = False
@@ -275,6 +278,9 @@ class MegaInterface:
 
     def send_command_to_mega(self, command: str) -> bool:
         """Send command to Arduino Mega with enhanced error handling"""
+        if self.simulation_mode:
+            return self._sim_command(command)
+
         with self._lock:
             if not self.mega_connected or not self.mega_serial:
                 logger.warning(f"Cannot send command '{command}' - Mega not connected")
@@ -316,6 +322,34 @@ class MegaInterface:
                 self.stats['commands_failed'] += 1
                 self._handle_connection_loss()
                 return False
+
+    def _sim_command(self, command: str) -> bool:
+        """Route command through BackendSimulation physics engine."""
+        try:
+            from ml.backend_sim import get_backend_sim
+            sim = get_backend_sim()
+            movement_commands = {'f', 'b', 'q', 'e', 'z', 'x', 't', 'y', 's'}
+            if command in movement_commands:
+                sim.step(command)
+                self.stats['commands_sent'] += 1
+                return True
+            elif command.startswith('sp'):
+                return True
+            elif command in ('no', 'nc', 'nh'):
+                return True
+            elif command.startswith('ta'):
+                return True
+            elif command == 's':
+                sim.step('s')
+                self.stats['commands_sent'] += 1
+                return True
+            return True
+        except ImportError:
+            logger.debug("BackendSimulation not available for sim command routing")
+            return True
+        except Exception as e:
+            logger.error(f"Sim command error: {e}")
+            return False
 
     def control_gripper(self, command):
         """Send gripper control command to Mega"""

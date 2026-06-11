@@ -19,10 +19,10 @@ NUM_CLASSES = len(COMMANDS)
 
 
 class MLPDecisionModel(nn.Module):
-    def __init__(self, input_dim: int = 125, hidden_dims: List[int] = None):
+    def __init__(self, input_dim: int = 205, hidden_dims: List[int] = None):
         super().__init__()
         if hidden_dims is None:
-            hidden_dims = [128, 64, 32]
+            hidden_dims = [256, 128, 64]
 
         layers = []
         prev = input_dim
@@ -65,7 +65,7 @@ class MLPDecisionModel(nn.Module):
         self.load_state_dict(torch.load(path, map_location='cpu'))
         self.eval()
 
-    def export_onnx(self, path: str, input_dim: int = 125):
+    def export_onnx(self, path: str, input_dim: int = 205):
         self.eval()
         dummy = torch.randn(1, input_dim)
         torch.onnx.export(
@@ -77,7 +77,7 @@ class MLPDecisionModel(nn.Module):
         )
 
     @staticmethod
-    def create_dummy(input_dim: int = 125):
+    def create_dummy(input_dim: int = 205):
         if not TORCH_AVAILABLE:
             return None
         return MLPDecisionModel(input_dim=input_dim)
