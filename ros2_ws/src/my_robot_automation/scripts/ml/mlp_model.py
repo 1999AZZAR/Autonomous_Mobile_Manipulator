@@ -2,9 +2,16 @@ import json
 import numpy as np
 from typing import Optional, List, Dict
 
-import torch
-import torch.nn as nn
-import torch.nn.functional as F
+try:
+    import torch
+    import torch.nn as nn
+    import torch.nn.functional as F
+    TORCH_AVAILABLE = True
+except ImportError:
+    torch = None
+    nn = None
+    F = None
+    TORCH_AVAILABLE = False
 
 
 COMMANDS = ['f', 'b', 'q', 'e', 'z', 'x', 't', 'y', 's']
@@ -68,6 +75,12 @@ class MLPDecisionModel(nn.Module):
             dynamic_axes={'features': {0: 'batch'}},
             opset_version=14,
         )
+
+    @staticmethod
+    def create_dummy(input_dim: int = 125):
+        if not TORCH_AVAILABLE:
+            return None
+        return MLPDecisionModel(input_dim=input_dim)
 
     @staticmethod
     def save_config(path: str, input_dim: int, hidden_dims: List[int],

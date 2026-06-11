@@ -106,6 +106,10 @@ class AIDecisionEngine:
         """Set Prisma client and initialize offline engine."""
         self.db = db_client
         try:
+            import sys, os
+            _scripts_dir = os.path.join(os.path.dirname(__file__))
+            if _scripts_dir not in sys.path:
+                sys.path.insert(0, _scripts_dir)
             from ml.inference_engine import OfflineDecisionEngine
             self.offline_engine = OfflineDecisionEngine(
                 camera_service=self.camera,

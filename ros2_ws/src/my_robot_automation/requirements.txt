@@ -10,5 +10,7 @@ psycopg2-binary>=2.9.9
 redis>=5.0.0
 httpx>=0.27.0
 opencv-python-headless>=4.8.0
+# torch is installed via Dockerfile (CPU-only for Docker, comment-out for GPU)
+# pip3 install torch --index-url https://download.pytorch.org/whl/cpu
 # ultralytics: install separately with --break-system-packages on target hardware
 # pip3 install --break-system-packages ultralytics

@@ -9,6 +9,10 @@ import time
 from automation_engine import _run_async
 
 try:
+    import sys, os
+    _scripts_dir = os.path.join(os.path.dirname(__file__))
+    if _scripts_dir not in sys.path:
+        sys.path.insert(0, _scripts_dir)
     from ml.pattern_extractor import PatternExtractor, AutomationDraft
     from ml.rule_generator import RuleGenerator
     ML_AVAILABLE = True
