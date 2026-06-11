@@ -15,6 +15,8 @@ import { onTwinStateChange, getTwinState, updateTwinState } from '../state/twin-
 import { fetchRobotPosition, fetchSensors, fetchPath, moveRobot } from '../api';
 import type { RobotModelParts } from '../types/twin';
 import type { SensorArcMesh } from '../engine/sensor-viz';
+import { WorldState } from '../state/world-state';
+import { createOccupancyGridRenderer, type OccupancyGridRenderer } from '../engine/occupancy-grid';
 import * as THREE from 'three';
 
 let scene: TwinScene | null = null;
@@ -37,6 +39,7 @@ let simInterval: ReturnType<typeof setInterval> | null = null;
 let realPollInterval: ReturnType<typeof setInterval> | null = null;
 let recorder: SessionRecorder | null = null;
 let playback: PlaybackEngine | null = null;
+let occGrid: OccupancyGridRenderer | null = null;
 
 let targetMarker: THREE.Mesh | null = null;
 let moveTarget: { x: number; y: number } | null = null;
@@ -68,6 +71,14 @@ export function initDigitalTwin(container: HTMLElement) {
   scene.scene.add(robotGroup);
 
   createEnvironment(scene.scene);
+
+  occGrid = createOccupancyGridRenderer(scene.scene);
+  occGrid.setVisible(false);
+  WorldState.subscribe('digital-twin', (state) => {
+    if (occGrid) {
+      occGrid.updateGrid(state.occupancyGrid, state.gridWidth, state.gridHeight, state.gridOriginX, state.gridOriginY);
+    }
+  });
 
   laserArcs = createLaserArcs();
   ultraCones = createUltrasonicCones();
@@ -696,6 +707,29 @@ simInterval = setInterval(() => {
       },
     });
 
+    // Sync WorldState for map+twin interconnection
+    WorldState.update('sim', {
+      robotPosition: { x: simState.x, y: simState.y, heading: simState.heading },
+      robotPosition3D: {
+        x: simState.x, y: simState.y, z: 0,
+        roll: 0, pitch: 0, yaw: simState.heading,
+      },
+      sensors: {
+        laser_left_front: sensorData.laser_left_front,
+        laser_left_back: sensorData.laser_left_back,
+        laser_right_front: sensorData.laser_right_front,
+        laser_right_back: sensorData.laser_right_back,
+        laser_back_left: sensorData.laser_back_left,
+        laser_back_right: sensorData.laser_back_right,
+        ultra_front_left: sensorData.ultra_front_left,
+        ultra_front_right: sensorData.ultra_front_right,
+        line_left: sensorData.line_left,
+        line_center: sensorData.line_center,
+        line_right: sensorData.line_right,
+        tf_luna_distance: sensorData.ultra_front_left,
+      },
+    });
+
     // Record frame if recording
     if (recorder?.isRecording()) {
       recorder.addFrame(getTwinState(), sensorData);
@@ -713,6 +747,37 @@ export function stopSimulation() {
   stopMoveLoop();
   startRealPolling();
   refreshTwinData();
+}
+
+export function showOccupancyGrid(visible: boolean) {
+  occGrid?.setVisible(visible);
+}
+
+export function syncMapObstaclesToTwin(obstacles: Array<{ x: number; y: number; width: number; height: number; depth: number }>) {
+  if (!scene) return;
+  const oldMeshes: THREE.Mesh[] = [];
+  scene.scene.children.forEach((child) => {
+    if (child.userData.isMapObstacle) oldMeshes.push(child as THREE.Mesh);
+  });
+  oldMeshes.forEach((m) => {
+    scene!.scene.remove(m);
+    m.geometry.dispose();
+    (m.material as THREE.Material).dispose();
+  });
+
+  obstacles.forEach((obs) => {
+    const geo = new THREE.BoxGeometry(obs.width * 0.001, obs.height * 0.001, obs.depth * 0.001);
+    const mat = new THREE.MeshStandardMaterial({
+      color: 0x6666ff,
+      roughness: 0.6,
+      transparent: true,
+      opacity: 0.6,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.set(obs.x * 0.001, obs.y * 0.001, (obs.depth * 0.001) / 2);
+    mesh.userData.isMapObstacle = true;
+    scene!.scene.add(mesh);
+  });
 }
 
 export function getSimulationMode(): 'real' | 'simulation' {

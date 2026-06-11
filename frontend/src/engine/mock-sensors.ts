@@ -1,5 +1,3 @@
-// Mock sensor data generation — raycast against obstacles to produce realistic readings
-
 import * as THREE from 'three';
 import type { KinematicState } from './physics';
 
@@ -50,11 +48,58 @@ export interface MockSensorData {
   imu_roll: number;
 }
 
+export interface NoiseConfig {
+  laserSigma: number;
+  ultraSigma: number;
+  lineFlipProb: number;
+  dropoutProb: number;
+  headingDriftDegPerSec: number;
+  ultraCrosstalkThreshold: number;
+  ultraCrosstalkInfluence: number;
+}
+
+const DEFAULT_NOISE: NoiseConfig = {
+  laserSigma: 15,
+  ultraSigma: 30,
+  lineFlipProb: 0.02,
+  dropoutProb: 0.02,
+  headingDriftDegPerSec: 0.5,
+  ultraCrosstalkThreshold: 200,
+  ultraCrosstalkInfluence: 0.15,
+};
+
+let noiseConfig: NoiseConfig = { ...DEFAULT_NOISE };
+let accumulatedDrift = 0;
+
+export function setNoiseConfig(cfg: Partial<NoiseConfig>) {
+  Object.assign(noiseConfig, cfg);
+}
+
+export function resetNoiseConfig() {
+  noiseConfig = { ...DEFAULT_NOISE };
+  accumulatedDrift = 0;
+}
+
+function gaussianNoise(sigma: number): number {
+  let u = 0, v = 0;
+  while (u === 0) u = Math.random();
+  while (v === 0) v = Math.random();
+  return sigma * Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
+}
+
+function applyNoise(reading: number, sigma: number, maxVal: number, dropout: boolean): number {
+  if (dropout && Math.random() < noiseConfig.dropoutProb) return maxVal;
+  const noisy = reading + gaussianNoise(sigma);
+  return Math.round(Math.max(0, Math.min(maxVal, noisy)));
+}
+
 export class MockSensorGenerator {
   private config: MockSensorConfig;
   private raycaster = new THREE.Raycaster();
   private groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
   private obstacleMeshes: THREE.Mesh[] = [];
+  private lastHeading = 0;
+  private driftAccum = 0;
 
   constructor(config?: Partial<MockSensorConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -69,34 +114,53 @@ export class MockSensorGenerator {
     const rx = robotState.x;
     const ry = robotState.y;
 
+    const dt = 1 / 30;
+    this.driftAccum += gaussianNoise(noiseConfig.headingDriftDegPerSec * dt);
+    this.driftAccum = Math.max(-2, Math.min(2, this.driftAccum));
+
     const sensors: Record<string, number> = {};
 
-    // Laser sensors — raycast from robot-relative positions
+    const rawLasers: Record<string, number> = {};
     this.config.laserPositions.forEach((pos) => {
       const worldX = rx + pos.x * Math.cos(headingRad) - pos.y * Math.sin(headingRad);
       const worldY = ry + pos.x * Math.sin(headingRad) + pos.y * Math.cos(headingRad);
       const rayAngle = headingRad + pos.angle;
-
       const dist = this.castRay(worldX, worldY, rayAngle, LASER_MAX_MM, scene);
-      sensors[pos.name] = dist;
+      rawLasers[pos.name] = dist;
+      sensors[pos.name] = applyNoise(dist, noiseConfig.laserSigma, LASER_MAX_MM, true);
     });
 
-    // Ultrasonic sensors
+    const rawUltras: Record<string, number> = {};
     this.config.ultraPositions.forEach((pos) => {
       const worldX = rx + pos.x * Math.cos(headingRad) - pos.y * Math.sin(headingRad);
       const worldY = ry + pos.x * Math.sin(headingRad) + pos.y * Math.cos(headingRad);
       const rayAngle = headingRad + pos.angle;
-
       const dist = this.castRay(worldX, worldY, rayAngle, ULTRASOUND_MAX_MM, scene);
-      sensors[pos.name] = dist;
+      rawUltras[pos.name] = dist;
+      sensors[pos.name] = applyNoise(dist, noiseConfig.ultraSigma, ULTRASOUND_MAX_MM, true);
     });
 
-    // Line sensors — binary based on distance from origin (mock floor line at y=0)
-    const lineThreshold = 150; // mm from center line
+    if (rawUltras['ultra_front_left'] < noiseConfig.ultraCrosstalkThreshold &&
+        rawUltras['ultra_front_right'] < noiseConfig.ultraCrosstalkThreshold) {
+      const crosstalk = noiseConfig.ultraCrosstalkInfluence *
+        Math.abs(sensors['ultra_front_left'] - sensors['ultra_front_right']);
+      sensors['ultra_front_left'] = Math.round(
+        sensors['ultra_front_left'] + crosstalk * (Math.random() > 0.5 ? 1 : -1)
+      );
+      sensors['ultra_front_right'] = Math.round(
+        sensors['ultra_front_right'] + crosstalk * (Math.random() > 0.5 ? 1 : -1)
+      );
+    }
+
+    const lineThreshold = 150;
     this.config.linePositions.forEach((pos, i) => {
       const worldY = ry + pos.y * Math.cos(headingRad) + pos.x * Math.sin(headingRad);
       const keys = ['line_left', 'line_center', 'line_right'] as const;
-      sensors[keys[i]] = Math.abs(worldY) < lineThreshold ? 0 : 1023;
+      let raw = Math.abs(worldY) < lineThreshold ? 0 : 1023;
+      if (Math.abs(worldY - lineThreshold) < 20 && Math.random() < noiseConfig.lineFlipProb) {
+        raw = raw === 0 ? 1023 : 0;
+      }
+      sensors[keys[i]] = raw;
     });
 
     return {
@@ -111,7 +175,7 @@ export class MockSensorGenerator {
       line_left: sensors['line_left'] ?? 1023,
       line_center: sensors['line_center'] ?? 1023,
       line_right: sensors['line_right'] ?? 1023,
-      imu_heading: robotState.heading,
+      imu_heading: robotState.heading + this.driftAccum,
       imu_pitch: 0,
       imu_roll: 0,
     };
@@ -127,19 +191,14 @@ export class MockSensorGenerator {
     if (scene) {
       const intersects = this.raycaster.intersectObjects(scene.children, true);
       for (const hit of intersects) {
-        if (hit.distance > 0.01) {
-          return Math.round(hit.distance * MM_PER_M);
-        }
+        if (hit.distance > 0.01) return Math.round(hit.distance * MM_PER_M);
       }
     }
 
-    // Fallback: check against obstacle meshes
     if (this.obstacleMeshes.length > 0) {
       const intersects = this.raycaster.intersectObjects(this.obstacleMeshes);
       for (const hit of intersects) {
-        if (hit.distance > 0.01) {
-          return Math.round(hit.distance * MM_PER_M);
-        }
+        if (hit.distance > 0.01) return Math.round(hit.distance * MM_PER_M);
       }
     }
 

@@ -2,6 +2,8 @@
 
 import { fetchRobotPosition, fetchSensors, fetchPaths, fetchPath, fetchWaypointStatus } from '../api';
 import type { RobotPosition, SensorReadings, MapWaypoint, SavedPath } from '../types';
+import { WorldState } from '../state/world-state';
+import { syncMapObstaclesToTwin } from './digital-twin';
 
 let canvas: HTMLCanvasElement | null = null;
 let ctx: CanvasRenderingContext2D | null = null;
@@ -272,6 +274,7 @@ function markOccupied(wx: number, wy: number) {
   const [gx, gy] = cell;
   const idx = gy * GRID_W + gx;
   occupancyGrid[idx] = Math.min(occupancyGrid[idx] + 0.15, 1);
+  WorldState.setOccupancyCell(gx, gy, occupancyGrid[idx] > 0.5);
 }
 
 function markFree(wx: number, wy: number) {
@@ -280,7 +283,23 @@ function markFree(wx: number, wy: number) {
   const [gx, gy] = cell;
   const idx = gy * GRID_W + gx;
   occupancyGrid[idx] = Math.max(occupancyGrid[idx] - 0.05, 0);
+  WorldState.setOccupancyCell(gx, gy, occupancyGrid[idx] > 0.5);
 }
+
+function syncOccupancyGridToWorld() {
+  for (let gy = 0; gy < GRID_H; gy++) {
+    for (let gx = 0; gx < GRID_W; gx++) {
+      const idx = gy * GRID_W + gx;
+      if (idx < occupancyGrid.length) {
+        WorldState.setOccupancyCell(gx, gy, occupancyGrid[idx] > 0.5);
+      }
+    }
+  }
+}
+
+export function getOccupancyGrid() { return occupancyGrid; }
+export function getGridDims() { return { w: GRID_W, h: GRID_H }; }
+export function isTrainingActive() { return trainingActive; }
 
 // --- Drawing interaction ---
 let lastMouse: { cx: number; cy: number } | null = null;
@@ -339,7 +358,26 @@ function setupDrawing(canvasEl: HTMLCanvasElement) {
     drawStart = null;
     lastMouse = null;
     render();
+    syncDrawnElementsToWorld();
   });
+}
+
+function syncDrawnElementsToWorld() {
+  const obstacles = drawnElements
+    .filter((e) => e.type === 'obstacle' || e.type === 'wall')
+    .map((e) => ({
+      x: ((e.x1 + e.x2) / 2) * 1000,
+      y: ((e.y1 + e.y2) / 2) * 1000,
+      width: Math.abs(e.x1 - e.x2) * 1000,
+      height: 300,
+      depth: Math.abs(e.y1 - e.y2) * 1000,
+    }));
+  WorldState.removeAllObstacles();
+  obstacles.forEach((o) => WorldState.addObstacle(o));
+  WorldState.update('map-draw', {
+    obstacles: WorldState.get().obstacles,
+  });
+  syncMapObstaclesToTwin(obstacles);
 }
 
 // --- Polling ---
@@ -355,10 +393,18 @@ async function pollData(): Promise<void> {
         x: posResp.position.x, y: posResp.position.y, z: posResp.position.z,
         roll: posResp.orientation.roll, pitch: posResp.orientation.pitch, yaw: posResp.orientation.yaw,
       };
+      WorldState.update('real', {
+        robotPosition: { x: posResp.position.x, y: posResp.position.y, heading: posResp.orientation.yaw },
+        robotPosition3D: posResp.position,
+      });
     }
     sensors = sens;
+    WorldState.update('real', { sensors });
     wpStatus = { ...wpStatus, ...status };
-    if (trainingActive) trainFromSensors();
+    if (trainingActive) {
+      trainFromSensors();
+      syncOccupancyGridToWorld();
+    }
   } catch { /* silent */ }
   render();
 }
