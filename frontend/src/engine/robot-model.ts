@@ -1,254 +1,289 @@
-// Robot mesh builder — hexagonal chassis, 3 omni wheels, sensors, gripper+lifter assembly
+// Robot 3D model — hexagonal chassis, 3 omni wheels, 6 IR sensors, 2 ultrasonic,
+// 3 line sensors, vertical lifter mast with carriage + tilting gripper arm.
+//
+// Coordinate system (Z-up, matches ROS2):
+//   +Y = FRONT   +X = RIGHT   +Z = UP
+//   Body: hexagon, vertex pointing in +Y (front is a point, not a flat face)
+//   Body occupies z = 0 → 0.12  (12cm tall)
 
 import * as THREE from 'three';
 import type { RobotModelParts } from '../types/twin';
 
-const COLORS = {
-  body:       0x6e9ef5,   // bright cornflower blue
-  bodyAccent: 0x99bbff,   // lighter blue
-  wheel:      0x7788aa,   // medium slate
-  gripper:    0xe8eeff,   // near-white
-  laser:      0x00ff88,
-  ultrasonic: 0x44ddff,
-  line:       0xffcc00,
-  heading:    0xff4444,
-  lifter:     0xffaa33,   // bright orange — masts/arm stand out clearly
-};
+// ─── Material factory ────────────────────────────────────────────────────────
+function mkMat(
+  color: number,
+  emissive: number,
+  emissiveIntensity: number,
+  roughness = 0.55
+): THREE.MeshStandardMaterial {
+  return new THREE.MeshStandardMaterial({
+    color,
+    emissive,
+    emissiveIntensity,
+    roughness,
+    metalness: 0,
+  });
+}
+
+// Hex body vertices (pointy-top, vertex at +Y):
+//   angle offset = -π/6  → vertex at 90° = +Y direction
+const HEX_R = 0.22; // hexagon circumradius (m)
+const BODY_H = 0.12; // body height (m)
+const WHEEL_DIST = 0.26; // centre-to-wheel distance (m)
 
 export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts } {
   const group = new THREE.Group();
 
-  // === BODY — hexagonal prism ===
+  // ── 1. BODY ──────────────────────────────────────────────────────────────
   const bodyShape = new THREE.Shape();
-  const sides = 6;
-  const radius = 0.22;
-  for (let i = 0; i <= sides; i++) {
-    const angle = (i / sides) * Math.PI * 2 - Math.PI / 6;
-    const x = Math.cos(angle) * radius;
-    const y = Math.sin(angle) * radius;
-    if (i === 0) bodyShape.moveTo(x, y);
-    else bodyShape.lineTo(x, y);
+  for (let i = 0; i <= 6; i++) {
+    const a = (i / 6) * Math.PI * 2 - Math.PI / 6; // -30° offset → vertex at 90° = +Y
+    const x = Math.cos(a) * HEX_R;
+    const y = Math.sin(a) * HEX_R;
+    i === 0 ? bodyShape.moveTo(x, y) : bodyShape.lineTo(x, y);
   }
-  const bodyGeo = new THREE.ExtrudeGeometry(bodyShape, { depth: 0.12, bevelEnabled: false });
-  const bodyMat = new THREE.MeshStandardMaterial({
-    color: COLORS.body,
-    roughness: 0.5,
-    metalness: 0,
-    emissive: 0x1a2a60,
-    emissiveIntensity: 0.4,
-  });
-  const body = new THREE.Mesh(bodyGeo, bodyMat);
+  const body = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(bodyShape, { depth: BODY_H, bevelEnabled: false }),
+    mkMat(0x5588ee, 0x1a2a60, 0.45)
+  );
   body.rotation.x = -Math.PI / 2;
-  body.position.z = 0.06;
+  body.position.z = BODY_H / 2; // centre at z=0.06
   body.castShadow = true;
   group.add(body);
 
-  // === WHEELS — 3 omni wheels at 120° spacing ===
+  // ── 2. WHEELS — Motor 2 (FR @ 30°), Motor 3 (FL @ 150°), Motor 4 (Back @ 270°) ──
   const wheels: THREE.Mesh[] = [];
-  const wheelRadius = 0.04;
-  const wheelWidth = 0.03;
-  const wheelDist = 0.25;
-  // FR at 30°, FL at 150°, Back at 270° — matches Motor2/Motor3/Motor4 physical positions
-  const wheelAngles = [Math.PI / 6, (5 * Math.PI) / 6, (3 * Math.PI) / 2];
+  const WHEEL_ANGLES = [
+    Math.PI / 6,          // FR  30°
+    (5 * Math.PI) / 6,   // FL  150°
+    (3 * Math.PI) / 2,   // Back 270°
+  ];
 
-  wheelAngles.forEach((angle) => {
-    const geo = new THREE.CylinderGeometry(wheelRadius, wheelRadius, wheelWidth, 16);
-    const mat = new THREE.MeshStandardMaterial({ color: COLORS.wheel, roughness: 0.7, metalness: 0, emissive: 0x223344, emissiveIntensity: 0.3 });
-    const wheel = new THREE.Mesh(geo, mat);
-    const wx = Math.cos(angle) * wheelDist;
-    const wy = Math.sin(angle) * wheelDist;
-    wheel.position.set(wx, wy, wheelRadius);
+  WHEEL_ANGLES.forEach((angle) => {
+    const wx = Math.cos(angle) * WHEEL_DIST;
+    const wy = Math.sin(angle) * WHEEL_DIST;
+
+    // Wheel tyre
+    const wheel = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.045, 0.045, 0.028, 16),
+      mkMat(0x445566, 0x1a2233, 0.35, 0.8)
+    );
+    wheel.position.set(wx, wy, 0.045);
     wheel.rotation.z = angle - Math.PI / 2; // axle points radially outward
     wheel.castShadow = true;
     group.add(wheel);
     wheels.push(wheel);
 
-    const bracketGeo = new THREE.BoxGeometry(0.01, 0.04, 0.06);
-    const bracketMat = new THREE.MeshStandardMaterial({ color: COLORS.lifter, roughness: 0.6, metalness: 0, emissive: 0x334455, emissiveIntensity: 0.3 });
-    const bracket = new THREE.Mesh(bracketGeo, bracketMat);
-    bracket.position.set(wx * 0.85, wy * 0.85, 0.06);
+    // Hub cap accent
+    const hub = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.018, 0.018, 0.030, 8),
+      mkMat(0x7799bb, 0x334455, 0.3)
+    );
+    hub.position.set(wx, wy, 0.045);
+    hub.rotation.z = angle - Math.PI / 2;
+    group.add(hub);
+
+    // Mount bracket from body edge to wheel
+    const bx = Math.cos(angle) * (HEX_R - 0.02);
+    const by = Math.sin(angle) * (HEX_R - 0.02);
+    const bracket = new THREE.Mesh(
+      new THREE.BoxGeometry(0.022, 0.022, 0.075),
+      mkMat(0x334455, 0x112233, 0.25)
+    );
+    bracket.position.set(
+      bx + (wx - bx) * 0.5,
+      by + (wy - by) * 0.5,
+      0.055
+    );
     group.add(bracket);
   });
 
-  // === HEADING ARROW ===
-  const arrowShape = new THREE.Shape();
-  arrowShape.moveTo(0, 0.08);
-  arrowShape.lineTo(-0.025, 0.02);
-  arrowShape.lineTo(0.025, 0.02);
-  arrowShape.closePath();
-  const arrowGeo = new THREE.ExtrudeGeometry(arrowShape, { depth: 0.005, bevelEnabled: false });
-  const arrowMat = new THREE.MeshStandardMaterial({ color: COLORS.heading, emissive: COLORS.heading, emissiveIntensity: 0.3 });
-  const headingArrow = new THREE.Mesh(arrowGeo, arrowMat);
-  headingArrow.position.set(0, 0.18, 0.13);
+  // ── 3. HEADING ARROW (front indicator, bright red) ───────────────────────
+  const arrowS = new THREE.Shape();
+  arrowS.moveTo(0, 0.065); arrowS.lineTo(-0.02, 0.015); arrowS.lineTo(0.02, 0.015);
+  arrowS.closePath();
+  const headingArrow = new THREE.Mesh(
+    new THREE.ExtrudeGeometry(arrowS, { depth: 0.006, bevelEnabled: false }),
+    mkMat(0xff3333, 0xff3333, 0.7)
+  );
+  headingArrow.position.set(0, 0.14, 0.125);
   group.add(headingArrow);
 
-  // === LASER SENSORS — 6 positions ===
+  // ── 4. IR DISTANCE SENSORS (6 Sharp GP2Y0A02YK0F) ───────────────────────
+  // Hexagon flat face centres (body radius at mid-edge ≈ 0.22 * cos(30°) = 0.190):
+  //   Right face (A2/A9):  x=+0.190, y=0        normals face +X
+  //   Left  face (A0/A1):  x=-0.190, y=0        normals face -X
+  //   Back-right (A10):    back-right diagonal   normals face 330° (= +X, -Y diagonal)
+  //   Back-left  (A11):    back-left  diagonal   normals face 210° (= -X, -Y diagonal)
+  //
+  //  Two sensors per side, offset ±40mm along the face.
   const laserSensors: THREE.Mesh[] = [];
-  const laserPositions = [
-    { x: 0.18, y: 0.1, angle: 0.4 },
-    { x: 0.18, y: -0.1, angle: -0.4 },
-    { x: -0.18, y: 0.1, angle: Math.PI - 0.4 },
-    { x: -0.18, y: -0.1, angle: Math.PI + 0.4 },
-    { x: 0.08, y: -0.2, angle: -Math.PI / 2 - 0.3 },
-    { x: -0.08, y: -0.2, angle: -Math.PI / 2 + 0.3 },
+  const FACE_R = HEX_R * Math.cos(Math.PI / 6); // ≈ 0.190 — mid-edge apothem
+
+  // [x, y, rotation-z] — rotation-z aligns sensor to face outward from that face
+  const IR_DEFS: [number, number, number][] = [
+    // IR Right 1 (A2)  — right face, front half
+    [ FACE_R,  0.045, 0],
+    // IR Right 2 (A9)  — right face, back half
+    [ FACE_R, -0.045, 0],
+    // IR Left 1 (A0)   — left face, front half
+    [-FACE_R,  0.045, Math.PI],
+    // IR Left 2 (A1)   — left face, back half
+    [-FACE_R, -0.045, Math.PI],
+    // IR Back 1 (A10)  — back-right face
+    [ 0.09, -0.175, -Math.PI * 2 / 3],
+    // IR Back 2 (A11)  — back-left face
+    [-0.09, -0.175,  Math.PI * 2 / 3],
   ];
 
-  laserPositions.forEach((lp) => {
-    const geo = new THREE.BoxGeometry(0.03, 0.02, 0.015);
-    const mat = new THREE.MeshStandardMaterial({ color: COLORS.laser, emissive: COLORS.laser, emissiveIntensity: 0.2 });
-    const sensor = new THREE.Mesh(geo, mat);
-    sensor.position.set(lp.x, lp.y, 0.12);
-    sensor.rotation.z = lp.angle;
-    sensor.castShadow = true;
-    group.add(sensor);
-    laserSensors.push(sensor);
+  IR_DEFS.forEach(([x, y, rz]) => {
+    const s = new THREE.Mesh(
+      new THREE.BoxGeometry(0.028, 0.016, 0.014),
+      mkMat(0x00ff88, 0x00ff88, 0.6)
+    );
+    s.position.set(x, y, 0.085);
+    s.rotation.z = rz;
+    group.add(s);
+    laserSensors.push(s);
   });
 
-  // === ULTRASONIC SENSORS — 2 front ===
+  // ── 5. ULTRASONIC SENSORS — HC-SR04, front-left & front-right ───────────
+  // Placed on the two front diagonal faces.
+  // Front-right face midpoint: (0.095, 0.165). Face normal at 30° from +X.
+  // Front-left  face midpoint: (-0.095, 0.165). Face normal at 150°.
   const ultraSensors: THREE.Mesh[] = [];
   [
-    { x: 0.08, y: 0.2 },
-    { x: -0.08, y: 0.2 },
-  ].forEach((up) => {
-    const geo = new THREE.CylinderGeometry(0.015, 0.015, 0.02, 8);
-    const mat = new THREE.MeshStandardMaterial({ color: COLORS.ultrasonic, emissive: COLORS.ultrasonic, emissiveIntensity: 0.2 });
-    const sensor = new THREE.Mesh(geo, mat);
-    sensor.position.set(up.x, up.y, 0.1);
-    sensor.rotation.x = Math.PI / 2;
-    sensor.castShadow = true;
-    group.add(sensor);
-    ultraSensors.push(sensor);
+    { x:  0.095, y: 0.165, rz: -Math.PI / 6 },  // Ultrasonic FR (D24/D25)
+    { x: -0.095, y: 0.165, rz:  Math.PI / 6 },  // Ultrasonic FL (D22/D23)
+  ].forEach(({ x, y, rz }) => {
+    const s = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.013, 0.013, 0.020, 10),
+      mkMat(0x44ddff, 0x44ddff, 0.55)
+    );
+    s.position.set(x, y, 0.085);
+    s.rotation.x = Math.PI / 2;
+    s.rotation.z = rz;
+    group.add(s);
+    ultraSensors.push(s);
   });
 
-  // === LINE SENSORS — 3 bottom dots ===
+  // ── 6. LINE SENSORS (A6/A7/A8) — 3 in a row at the front underside ──────
   const lineSensors: THREE.Mesh[] = [];
-  [-0.06, 0, 0.06].forEach((lx) => {
-    const geo = new THREE.CircleGeometry(0.008, 8);
-    const mat = new THREE.MeshStandardMaterial({ color: COLORS.line, emissive: COLORS.line, emissiveIntensity: 0.4 });
-    const sensor = new THREE.Mesh(geo, mat);
-    sensor.position.set(lx, 0.15, 0.001);
-    sensor.rotation.x = -Math.PI / 2;
-    group.add(sensor);
-    lineSensors.push(sensor);
+  [-0.048, 0, 0.048].forEach((lx) => {
+    const s = new THREE.Mesh(
+      new THREE.CircleGeometry(0.010, 8),
+      mkMat(0xffcc00, 0xffcc00, 0.7)
+    );
+    s.position.set(lx, 0.15, 0.002);
+    s.rotation.x = -Math.PI / 2;
+    group.add(s);
+    lineSensors.push(s);
   });
 
-  // === LIFTER MASTS — tall static vertical structure on front face ===
-  const mastHeight = 0.30;
-  const mastMat = new THREE.MeshStandardMaterial({
-    color: COLORS.lifter, roughness: 0.5, metalness: 0,
-    emissive: 0x884400, emissiveIntensity: 0.45,
-  });
-  [-0.042, 0.042].forEach((rx) => {
+  // ── 7. LIFTER MASTS — 2 tall vertical orange poles at the front ─────────
+  // They start at z=0 (chassis) and rise to z=0.40 (well above body top at 0.12).
+  // Placed at y=0.19 (just inside the front vertex at y=0.22) and x=±0.052.
+  const MAST_H    = 0.42;
+  const MAST_BOT  = 0.00;
+  const MAST_TOP  = MAST_BOT + MAST_H;
+  const MAST_CY   = MAST_BOT + MAST_H / 2; // z centre of mast cylinder
+  const MAST_Y    = 0.19;                   // front placement
+  const MAST_X    = 0.052;                  // half-gap between the two masts
+  const mastMat   = mkMat(0xff9900, 0x883300, 0.6, 0.4);
+
+  [-MAST_X, MAST_X].forEach((mx) => {
     const mast = new THREE.Mesh(
-      new THREE.CylinderGeometry(0.012, 0.012, mastHeight, 8),  // 12mm — clearly visible
+      new THREE.CylinderGeometry(0.013, 0.013, MAST_H, 8),
       mastMat
     );
-    mast.position.set(rx, 0.22, 0.04 + mastHeight / 2); // center z=0.19
-    mast.rotation.x = Math.PI / 2; // vertical along Z
+    mast.position.set(mx, MAST_Y, MAST_CY);
+    mast.rotation.x = Math.PI / 2; // cylinder axis → Z (vertical)
     mast.castShadow = true;
     group.add(mast);
   });
-  // Top cross-beam
+
+  // Top cross-beam connecting the two masts
   const crossBeam = new THREE.Mesh(
-    new THREE.BoxGeometry(0.115, 0.022, 0.022),
+    new THREE.BoxGeometry(MAST_X * 2 + 0.035, 0.022, 0.022),
     mastMat
   );
-  crossBeam.position.set(0, 0.22, 0.04 + mastHeight);
+  crossBeam.position.set(0, MAST_Y, MAST_TOP);
   group.add(crossBeam);
 
-  // === CARRIAGE — slides up/down on masts, does NOT tilt ===
-  const carriageMat = new THREE.MeshStandardMaterial({
-    color: COLORS.bodyAccent, roughness: 0.5, metalness: 0,
-    emissive: 0x884400, emissiveIntensity: 0.45,
-  });
+  // ── 8. CARRIAGE — slides vertically on masts, does NOT tilt ─────────────
+  // Initial z driven by updateLifter(50) → z = 0.18 + 0.5×0.18 = 0.27
   const carriage = new THREE.Mesh(
-    new THREE.BoxGeometry(0.11, 0.03, 0.055),
-    carriageMat
+    new THREE.BoxGeometry(MAST_X * 2 + 0.030, 0.028, 0.060),
+    mkMat(0xffcc33, 0x885500, 0.55, 0.45)
   );
-  carriage.position.set(0, 0.22, 0.20); // initial (lifterHeight=50 → z=0.20)
+  carriage.position.set(0, MAST_Y, 0.27); // initial position (lifterHeight 50%)
   carriage.castShadow = true;
   group.add(carriage);
 
-  // === GRIPPER ASSEMBLY — arm in +Z, tilts around X at carriage height ===
+  // ── 9. GRIPPER ASSEMBLY — pivot at carriage height, arm extends in +Z ───
+  //  Tilt formula: rotation.x = -(angle × π/180)
+  //    0°  → arm points up (+Z)
+  //    90° → arm points forward (+Y)
+  //    180°→ arm points down (-Z, reaching floor)
   const gripperAssembly = new THREE.Group();
-  gripperAssembly.position.set(0, 0.235, 0.20);
-  gripperAssembly.rotation.x = 0; // 0° = arm straight up (+Z), matches tiltAngle=0 default
+  gripperAssembly.position.set(0, MAST_Y + 0.020, 0.27);
 
-  // Tilt servo housing (the pivot point)
-  const servoGeo = new THREE.BoxGeometry(0.026, 0.018, 0.026);
-  const servoMat = new THREE.MeshStandardMaterial({
-    color: COLORS.lifter, roughness: 0.4, metalness: 0,
-    emissive: 0x884400, emissiveIntensity: 0.4,
-  });
-  const servoMesh = new THREE.Mesh(servoGeo, servoMat);
+  // Tilt servo housing (the pivot block)
+  const servoMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.028, 0.020, 0.028),
+    mkMat(0xff9900, 0x883300, 0.5, 0.4)
+  );
   gripperAssembly.add(servoMesh);
 
-  // Arm column — extends in +Z (upward) from the pivot
-  const armColMat = new THREE.MeshStandardMaterial({
-    color: COLORS.lifter, roughness: 0.5, metalness: 0,
-    emissive: 0x884400, emissiveIntensity: 0.4,
-  });
+  // Arm column — extends in +Z from the servo pivot
   const armColumn = new THREE.Mesh(
-    new THREE.BoxGeometry(0.014, 0.014, 0.10),
-    armColMat
+    new THREE.BoxGeometry(0.016, 0.016, 0.115),
+    mkMat(0xff9900, 0x883300, 0.5, 0.4)
   );
-  armColumn.position.set(0, 0, 0.055); // spans local z=0.005 to z=0.105
+  armColumn.position.set(0, 0, 0.060); // centre at z=0.060 → spans z=0.002..0.118
   armColumn.castShadow = true;
   gripperAssembly.add(armColumn);
 
-  // Gripper base crossbar at tip of arm column
-  const gripperBaseMat = new THREE.MeshStandardMaterial({
-    color: COLORS.gripper, roughness: 0.4, metalness: 0,
-    emissive: 0x445577, emissiveIntensity: 0.3,
-  });
+  // Gripper base crossbar at arm tip
   const gripperBase = new THREE.Mesh(
-    new THREE.BoxGeometry(0.065, 0.018, 0.013),
-    gripperBaseMat
+    new THREE.BoxGeometry(0.068, 0.018, 0.014),
+    mkMat(0xddeeff, 0x334455, 0.3)
   );
-  gripperBase.position.set(0, 0, 0.108);
+  gripperBase.position.set(0, 0, 0.122);
   gripperBase.castShadow = true;
   gripperAssembly.add(gripperBase);
 
-  // Gripper fingers — extend further in +Z, open/close in ±X
-  const fingerMat = new THREE.MeshStandardMaterial({
-    color: COLORS.gripper, roughness: 0.4, metalness: 0,
-    emissive: 0x445566, emissiveIntensity: 0.25,
-  });
-  const leftFinger = new THREE.Mesh(
-    new THREE.BoxGeometry(0.009, 0.016, 0.042),
-    fingerMat
-  );
-  leftFinger.position.set(-0.022, 0, 0.132);
+  // Fingers (open/close in ±X, extend further in +Z)
+  const fingerGeo = new THREE.BoxGeometry(0.010, 0.015, 0.045);
+  const fingerMat = mkMat(0xddeeff, 0x334455, 0.3);
+
+  const leftFinger = new THREE.Mesh(fingerGeo, fingerMat);
+  leftFinger.position.set(-0.024, 0, 0.146);
   leftFinger.castShadow = true;
   gripperAssembly.add(leftFinger);
 
-  const rightFinger = new THREE.Mesh(
-    new THREE.BoxGeometry(0.009, 0.016, 0.042),
-    fingerMat
-  );
-  rightFinger.position.set(0.022, 0, 0.132);
+  const rightFinger = new THREE.Mesh(fingerGeo, fingerMat);
+  rightFinger.position.set(0.024, 0, 0.146);
   rightFinger.castShadow = true;
   gripperAssembly.add(rightFinger);
 
-  // Camera on servo housing (points forward +Y)
-  const camera = new THREE.Mesh(
-    new THREE.BoxGeometry(0.024, 0.014, 0.018),
-    new THREE.MeshStandardMaterial({ color: 0x223344 })
+  // Camera (on servo housing front, dark box facing +Y)
+  const camMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.026, 0.014, 0.019),
+    new THREE.MeshStandardMaterial({ color: 0x223344, roughness: 0.6 })
   );
-  camera.position.set(-0.02, 0.018, 0);
-  gripperAssembly.add(camera);
+  camMesh.position.set(-0.018, 0.018, 0.002);
+  gripperAssembly.add(camMesh);
 
-  // TF-Luna beside camera
-  const tfLuna = new THREE.Mesh(
-    new THREE.BoxGeometry(0.012, 0.010, 0.012),
-    new THREE.MeshStandardMaterial({ color: 0x44aacc, emissive: 0x22aacc, emissiveIntensity: 0.35 })
+  // TF-Luna (cyan box beside camera)
+  const tfMesh = new THREE.Mesh(
+    new THREE.BoxGeometry(0.013, 0.011, 0.013),
+    mkMat(0x44bbdd, 0x22aacc, 0.4)
   );
-  tfLuna.position.set(0.02, 0.018, 0);
-  gripperAssembly.add(tfLuna);
+  tfMesh.position.set(0.018, 0.018, 0.002);
+  gripperAssembly.add(tfMesh);
 
   group.add(gripperAssembly);
-
-  group.position.set(0, 0, 0);
 
   return {
     group,
@@ -267,37 +302,39 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
   };
 }
 
+// ─── Actuator update functions ────────────────────────────────────────────────
+
 export function updateGripper(open: boolean, parts: RobotModelParts) {
-  const gap = open ? 0.025 : 0.005;
-  parts.gripper.left.position.x = -gap;
-  parts.gripper.right.position.x = gap;
+  const gap = open ? 0.028 : 0.006;
+  parts.gripper.left.position.x  = -gap;
+  parts.gripper.right.position.x =  gap;
 }
 
 export function updateTiltServo(angle: number, parts: RobotModelParts) {
-  // Arm extends in +Z. rotation.x = 0 → vertical up (0°), -π/2 → forward (90°), -π → down (180°)
-  const rad = -(angle * Math.PI) / 180;
-  parts.gripperAssembly.rotation.x = rad;
+  // 0° = arm up (+Z vertical), 90° = arm forward (+Y), 180° = arm down (-Z)
+  parts.gripperAssembly.rotation.x = -(angle * Math.PI) / 180;
 }
 
 export function updateLifter(height: number, parts: RobotModelParts) {
-  const clamped = Math.max(0, Math.min(100, height));
-  const z = 0.10 + (clamped / 100) * 0.20; // travels z=0.10 → z=0.30 along the mast
-  parts.carriage.position.z = z;           // carriage stays upright
-  parts.gripperAssembly.position.z = z;    // arm tilts from same height
+  const h = Math.max(0, Math.min(100, height));
+  const z = 0.18 + (h / 100) * 0.18; // range z=0.18 (bottom) → z=0.36 (top)
+  parts.carriage.position.z       = z;
+  parts.gripperAssembly.position.z = z;
 }
 
-export function updateLineSensors(readings: { line_left: number; line_center: number; line_right: number }, parts: RobotModelParts) {
+export function updateLineSensors(
+  readings: { line_left: number; line_center: number; line_right: number },
+  parts: RobotModelParts
+) {
   const threshold = 512;
-  const values = [readings.line_left, readings.line_center, readings.line_right];
-  parts.lineSensors.forEach((sensor, i) => {
-    const mat = sensor.material as THREE.MeshStandardMaterial;
-    mat.emissiveIntensity = values[i] < threshold ? 0.8 : 0.2;
-    mat.color.setHex(values[i] < threshold ? 0xffcc00 : COLORS.line);
+  [readings.line_left, readings.line_center, readings.line_right].forEach((v, i) => {
+    const m = parts.lineSensors[i].material as THREE.MeshStandardMaterial;
+    const on = v < threshold;
+    m.emissiveIntensity = on ? 1.0 : 0.5;
+    m.color.setHex(on ? 0xffffff : 0xffcc00);
   });
 }
 
 export function updateWheelRotation(speed: number, parts: RobotModelParts) {
-  parts.wheels.forEach((wheel) => {
-    wheel.rotation.y += speed * 0.01;
-  });
+  parts.wheels.forEach((w) => { w.rotation.y += speed * 0.012; });
 }

@@ -34,19 +34,19 @@ export function createScene(container: HTMLElement): TwinScene {
   scene.background = new THREE.Color(0x1a1a2e);
   scene.fog = new THREE.Fog(0x1a1a2e, 20, 50);
 
-  // Camera — positioned in front of the robot so the arm assembly is always in view
+  // Camera — low elevation so vertical mast poles look tall, not like dots from above
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
-  camera.position.set(2, 5, 4);
-  camera.lookAt(0, 0, 0.1);
+  camera.position.set(1.5, 5.5, 2.2);
+  camera.lookAt(0, 0, 0.2);
 
   // Controls
   const controls = new OrbitControls(camera, renderer.domElement);
   controls.enableDamping = true;
   controls.dampingFactor = 0.08;
-  controls.minDistance = 2;
+  controls.minDistance = 1;
   controls.maxDistance = 20;
-  controls.maxPolarAngle = Math.PI / 2.1;
-  controls.target.set(0, 0, 0.1);
+  controls.maxPolarAngle = Math.PI / 1.9;
+  controls.target.set(0, 0, 0.2);
   controls.update();
 
   // Lighting — bright enough to see all robot faces

@@ -19,8 +19,8 @@ export function initTwinControls(parent: HTMLElement) {
     </div>
     <div class="twin-control-section">
       <h4>Camera Tilt</h4>
-      <input type="range" id="tilt-slider" min="0" max="145" value="60" class="twin-slider" />
-      <span class="twin-slider-value" id="tilt-value">60°</span>
+      <input type="range" id="tilt-slider" min="0" max="145" value="45" class="twin-slider" />
+      <span class="twin-slider-value" id="tilt-value">45°</span>
     </div>
     <div class="twin-control-section">
       <h4>Lifter</h4>

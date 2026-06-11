@@ -83,14 +83,14 @@ export function initDigitalTwin(container: HTMLElement) {
 
   sensorLabels = new Map();
   const labelPositions: Record<string, THREE.Vector3> = {
-    laser_left_front: new THREE.Vector3(0.18, 0.1, 0.22),
-    laser_left_back: new THREE.Vector3(0.18, -0.1, 0.22),
-    laser_right_front: new THREE.Vector3(-0.18, 0.1, 0.22),
-    laser_right_back: new THREE.Vector3(-0.18, -0.1, 0.22),
-    laser_back_left: new THREE.Vector3(0.08, -0.2, 0.22),
-    laser_back_right: new THREE.Vector3(-0.08, -0.2, 0.22),
-    ultra_front_left: new THREE.Vector3(0.08, 0.2, 0.18),
-    ultra_front_right: new THREE.Vector3(-0.08, 0.2, 0.18),
+    laser_left_front:  new THREE.Vector3(-0.19,  0.045, 0.22), // IR Left 1  (A0) — left face
+    laser_left_back:   new THREE.Vector3(-0.19, -0.045, 0.22), // IR Left 2  (A1) — left face
+    laser_right_front: new THREE.Vector3( 0.19,  0.045, 0.22), // IR Right 1 (A2) — right face
+    laser_right_back:  new THREE.Vector3( 0.19, -0.045, 0.22), // IR Right 2 (A9) — right face
+    laser_back_left:   new THREE.Vector3(-0.09, -0.175, 0.22), // IR Back 2  (A11) — back-left
+    laser_back_right:  new THREE.Vector3( 0.09, -0.175, 0.22), // IR Back 1  (A10) — back-right
+    ultra_front_left:  new THREE.Vector3(-0.095, 0.165, 0.18), // Ultrasonic FL (D22/D23)
+    ultra_front_right: new THREE.Vector3( 0.095, 0.165, 0.18), // Ultrasonic FR (D24/D25)
   };
 
   Object.entries(labelPositions).forEach(([key, pos]) => {

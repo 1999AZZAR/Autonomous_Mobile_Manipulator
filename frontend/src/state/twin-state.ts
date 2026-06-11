@@ -21,7 +21,7 @@ const defaultState: TwinState = {
     tf_luna_distance: 1500,
   },
   gripperOpen: true,
-  tiltAngle: 60,   // 60° = arm angled forward, clearly visible from any camera angle
+  tiltAngle: 45,   // 45° = arm tilted forward 45°, clearly visible arm angle
   lifterHeight: 50,
   connected: false,
   mode: 'idle',
