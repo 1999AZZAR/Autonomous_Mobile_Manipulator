@@ -1,161 +1,144 @@
-// Simple kinematic simulation — position, velocity, collision detection
+// Kinematic simulation for a 3-wheel holonomic omni robot.
+//
+// Robot frame: +Y = forward, +X = right, +Z = up (Z-up, ROS2 convention).
+// Wheels:  FR at 30° (Motor2), FL at 150° (Motor3), Back at 270° (Motor4).
+//
+// For a 3-wheel omni robot the velocity of each wheel is:
+//   v_wheel_i = -sin(θ_i) * vx_robot + cos(θ_i) * vy_robot + R * omega
+// where θ_i is the wheel angle, R is the robot radius, vx/vy are robot-local,
+// and omega is the rotation rate (rad/s).
+//
+// Movement commands (vx, vy, omega) are given in the ROBOT frame.
+// The physics engine transforms them to world frame using the heading.
 
-import type { Obstacle, TwinState } from '../types/twin';
+import type { Obstacle } from '../types/twin';
 
-const MM_PER_M = 1000;
-const DT_DEFAULT = 1 / 60; // 60 Hz
+const DEG2RAD = Math.PI / 180;
 
 export interface KinematicState {
-  x: number;       // mm
-  y: number;       // mm
-  heading: number;  // degrees
-  vx: number;       // mm/s
-  vy: number;       // mm/s
-  omega: number;    // deg/s
+  x: number;       // mm  (world)
+  y: number;       // mm  (world)
+  heading: number; // degrees (world, 0=facing +Y)
+  vx: number;      // mm/s (robot local, +X = right)
+  vy: number;      // mm/s (robot local, +Y = forward)
+  omega: number;   // deg/s (positive = CCW / left turn)
 }
 
 export interface SimulationConfig {
   maxSpeed: number;        // mm/s
   maxAngularSpeed: number; // deg/s
-  acceleration: number;    // mm/s^2
-  deceleration: number;    // mm/s^2
-  turnSpeed: number;       // deg/s
+  acceleration: number;    // mm/s² (how fast velocity ramps up)
+  deceleration: number;    // mm/s² (how fast it brakes)
 }
 
 const DEFAULT_CONFIG: SimulationConfig = {
-  maxSpeed: 500,
-  maxAngularSpeed: 120,
-  acceleration: 400,
-  deceleration: 600,
-  turnSpeed: 90,
+  maxSpeed:        500,
+  maxAngularSpeed: 150,
+  acceleration:    600,
+  deceleration:    900,
 };
+
+// 3 wheel angles in the robot frame (degrees from +X axis, CCW)
+const WHEEL_ANGLES_DEG = [30, 150, 270]; // FR, FL, Back
 
 export class PhysicsEngine {
   private state: KinematicState = { x: 0, y: 0, heading: 0, vx: 0, vy: 0, omega: 0 };
   private config: SimulationConfig;
   private obstacles: Obstacle[] = [];
-  private targetCommand: { vx: number; vy: number; omega: number } | null = null;
-  private robotRadius = 220; // mm (hexagonal body ~0.22m)
+  private targetVx  = 0;  // robot local
+  private targetVy  = 0;
+  private targetOmega = 0;
+  private robotRadius = 230; // mm
 
   constructor(config?: Partial<SimulationConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
   }
 
-  getState(): Readonly<KinematicState> {
-    return this.state;
-  }
+  getState(): Readonly<KinematicState> { return this.state; }
+  setState(s: KinematicState)          { this.state = { ...s }; }
+  setObstacles(obs: Obstacle[])        { this.obstacles = obs; }
 
-  setState(s: KinematicState) {
-    this.state = { ...s };
-  }
-
-  setObstacles(obstacles: Obstacle[]) {
-    this.obstacles = obstacles;
-  }
-
+  /** Command in robot-local frame: +vx=strafe-right, +vy=forward, +omega=CCW */
   command(vx: number, vy: number, omega: number) {
-    this.targetCommand = { vx, vy, omega };
+    this.targetVx    = vx;
+    this.targetVy    = vy;
+    this.targetOmega = omega;
   }
 
   stop() {
-    this.targetCommand = { vx: 0, vy: 0, omega: 0 };
+    this.targetVx = this.targetVy = this.targetOmega = 0;
   }
 
-  step(dt: number = DT_DEFAULT): KinematicState {
-    if (this.targetCommand) {
-      // Smooth acceleration toward target velocity
-      const accel = this.config.acceleration * dt;
-      const decel = this.config.deceleration * dt;
+  step(dt: number): KinematicState {
+    const { acceleration: accel, deceleration: decel, maxSpeed, maxAngularSpeed } = this.config;
 
-      // X velocity
-      const dvx = this.targetCommand.vx - this.state.vx;
-      if (Math.abs(dvx) > 0) {
-        const limit = dvx > 0 ? accel : decel;
-        this.state.vx += Math.sign(dvx) * Math.min(Math.abs(dvx), limit);
-      }
+    // Ramp robot-local velocities toward target
+    this.state.vx    = ramp(this.state.vx,    this.targetVx,    accel * dt, decel * dt);
+    this.state.vy    = ramp(this.state.vy,    this.targetVy,    accel * dt, decel * dt);
+    this.state.omega = ramp(this.state.omega, this.targetOmega, maxAngularSpeed * dt * 3, maxAngularSpeed * dt * 3);
 
-      // Y velocity
-      const dvy = this.targetCommand.vy - this.state.vy;
-      if (Math.abs(dvy) > 0) {
-        const limit = dvy > 0 ? accel : decel;
-        this.state.vy += Math.sign(dvy) * Math.min(Math.abs(dvy), limit);
-      }
+    // Clamp
+    this.state.vx    = clamp(this.state.vx,    -maxSpeed,        maxSpeed);
+    this.state.vy    = clamp(this.state.vy,    -maxSpeed,        maxSpeed);
+    this.state.omega = clamp(this.state.omega, -maxAngularSpeed, maxAngularSpeed);
 
-      // Angular velocity
-      const domega = this.targetCommand.omega - this.state.omega;
-      if (Math.abs(domega) > 0) {
-        const limit = this.config.turnSpeed * dt;
-        this.state.omega += Math.sign(domega) * Math.min(Math.abs(domega), limit);
-      }
-    } else {
-      // Decelerate to stop
-      const decel = this.config.deceleration * dt;
-      this.state.vx = decelerate(this.state.vx, decel);
-      this.state.vy = decelerate(this.state.vy, decel);
-      this.state.omega = decelerate(this.state.omega, this.config.turnSpeed * dt);
-    }
+    // Rotate robot-local velocity into world frame
+    const h = this.state.heading * DEG2RAD;
+    const cosH = Math.cos(h);
+    const sinH = Math.sin(h);
+    // robot +Y = forward, which maps to world (+cosH·Y + sinH·X ... wait:
+    // heading 0 = facing world +Y. +vy_robot → world +Y, +vx_robot → world +X at heading=0.
+    // After rotation by heading:
+    //   world_x = vx*cos(h) - vy*sin(h)   ... but heading is CCW from +Y so:
+    //   world_x = vx*cos(h) + vy*sin(h)
+    //   world_y = -vx*sin(h) + vy*cos(h)
+    // Let's verify: heading=0, vy=1 → world_x=0, world_y=1 ✓ (forward = +Y)
+    //               heading=90, vy=1 → world_x=1, world_y=0 ✓ (forward = +X after 90°CCW turn)
+    const worldVx = this.state.vx * cosH + this.state.vy * sinH;
+    const worldVy = -this.state.vx * sinH + this.state.vy * cosH;
 
-    // Clamp speeds
-    this.state.vx = clamp(this.state.vx, -this.config.maxSpeed, this.config.maxSpeed);
-    this.state.vy = clamp(this.state.vy, -this.config.maxSpeed, this.config.maxSpeed);
-    this.state.omega = clamp(this.state.omega, -this.config.maxAngularSpeed, this.config.maxAngularSpeed);
+    const newX       = this.state.x       + worldVx * dt;
+    const newY       = this.state.y       + worldVy * dt;
+    const newHeading = (this.state.heading + this.state.omega * dt + 360) % 360;
 
-    // Integrate position
-    const newX = this.state.x + this.state.vx * dt;
-    const newY = this.state.y + this.state.vy * dt;
-    const newHeading = this.state.heading + this.state.omega * dt;
-
-    // Collision detection
+    // Simple AABB collision
     if (!this.checkCollision(newX, newY)) {
       this.state.x = newX;
       this.state.y = newY;
     } else {
-      // Stop on collision
-      this.state.vx = 0;
-      this.state.vy = 0;
+      this.state.vx = this.state.vy = 0;
     }
-
-    // Normalize heading
-    this.state.heading = ((newHeading % 360) + 360) % 360;
+    this.state.heading = newHeading;
 
     return { ...this.state };
   }
 
+  /** Per-wheel speed (mm/s) for spinning the 3 wheel meshes */
+  getWheelSpeeds(): [number, number, number] {
+    return WHEEL_ANGLES_DEG.map((deg) => {
+      const a = deg * DEG2RAD;
+      // Omni wheel tangential speed: -sin(a)*vx + cos(a)*vy + R*omega_rad
+      return -Math.sin(a) * this.state.vx
+           +  Math.cos(a) * this.state.vy
+           + (this.robotRadius * 0.001) * (this.state.omega * DEG2RAD);
+    }) as [number, number, number];
+  }
+
   private checkCollision(x: number, y: number): boolean {
     for (const obs of this.obstacles) {
-      const ox = obs.x;
-      const oy = obs.y;
-      const hw = obs.width / 2 + this.robotRadius;
+      const hw = obs.width  / 2 + this.robotRadius;
       const hh = (obs.type === 'cylinder' ? obs.width : obs.height) / 2 + this.robotRadius;
-
-      if (Math.abs(x - ox) < hw && Math.abs(y - oy) < hh) {
-        return true;
-      }
+      if (Math.abs(x - obs.x) < hw && Math.abs(y - obs.y) < hh) return true;
     }
     return false;
   }
-
-  // Odometry: simulate wheel encoder deltas
-  getOdometryDelta(dt: number): { dl: number; dr: number; db: number } {
-    const headingRad = (this.state.heading * Math.PI) / 180;
-    // Transform global velocity to robot frame
-    const vrx = this.state.vx * Math.cos(headingRad) + this.state.vy * Math.sin(headingRad);
-    const vry = -this.state.vx * Math.sin(headingRad) + this.state.vy * Math.cos(headingRad);
-
-    // 3-wheel omni: each wheel sees different component
-    const wheelAngles = [0, (2 * Math.PI) / 3, (4 * Math.PI) / 3];
-    const deltas = wheelAngles.map((a) => {
-      const vWheel = vrx * Math.cos(a) + vry * Math.sin(a);
-      return vWheel * dt; // mm per tick
-    });
-
-    return { dl: deltas[0], dr: deltas[1], db: deltas[2] };
-  }
 }
 
-function decelerate(v: number, decel: number): number {
-  if (Math.abs(v) < decel) return 0;
-  return v - Math.sign(v) * decel;
+function ramp(current: number, target: number, accel: number, decel: number): number {
+  const diff = target - current;
+  if (Math.abs(diff) < 0.5) return target;
+  const limit = diff > 0 ? accel : decel;
+  return current + Math.sign(diff) * Math.min(Math.abs(diff), limit);
 }
 
 function clamp(v: number, min: number, max: number): number {

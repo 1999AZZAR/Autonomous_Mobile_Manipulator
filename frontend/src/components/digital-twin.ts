@@ -452,17 +452,22 @@ function startMoveToTarget(targetX: number, targetY: number) {
     const dist = Math.sqrt(dx * dx + dy * dy);
 
     if (dist < 30) {
-      // Reached target
       physics.command(0, 0, 0);
       stopMoveLoop();
       return;
     }
 
-    // Move toward target at 200 mm/s
-    const speed = 200;
-    const vx = (dx / dist) * speed;
-    const vy = (dy / dist) * speed;
-    physics.command(vx, vy, 0);
+    // World-frame desired velocity, then rotate into robot-local frame
+    const speed = 300;
+    const worldVx = (dx / dist) * speed;
+    const worldVy = (dy / dist) * speed;
+    const h = (state.heading * Math.PI) / 180;
+    const cosH = Math.cos(h);
+    const sinH = Math.sin(h);
+    // Inverse rotation: robot_local = R(-h) * world
+    const localVx =  worldVx * cosH - worldVy * sinH;
+    const localVy =  worldVx * sinH + worldVy * cosH;
+    physics.command(localVx, localVy, 0);
   }, 33);
 }
 
@@ -519,21 +524,19 @@ function setupKeyboardDrive() {
   document.addEventListener('keydown', onKeyDown);
   document.addEventListener('keyup', onKeyUp);
 
-  // Poll at 20 Hz and push velocity to physics
+  // Poll at 30 Hz — commands are in ROBOT-LOCAL frame (+vy = forward, +vx = strafe right)
   keyDriveInterval = setInterval(() => {
     if (simMode !== 'simulation' || !physics) return;
     let vx = 0, vy = 0, omega = 0;
-    if (keyState['w'] || keyState['ArrowUp'])    vy =  300;
-    if (keyState['s'] || keyState['ArrowDown'])  vy = -300;
-    if (keyState['a'] || keyState['ArrowLeft'])  vx = -300;
-    if (keyState['d'] || keyState['ArrowRight']) vx =  300;
-    if (keyState['q']) omega =  90;
-    if (keyState['e']) omega = -90;
-    if (keyState[' ']) { vx = 0; vy = 0; omega = 0; }
-    if (vx !== 0 || vy !== 0 || omega !== 0 || keyState[' ']) {
-      physics.command(vx, vy, omega);
-    }
-  }, 50);
+    if (keyState['w'] || keyState['ArrowUp'])    vy =  350;  // forward
+    if (keyState['s'] || keyState['ArrowDown'])  vy = -350;  // backward
+    if (keyState['a'] || keyState['ArrowLeft'])  vx = -350;  // strafe left
+    if (keyState['d'] || keyState['ArrowRight']) vx =  350;  // strafe right
+    if (keyState['q']) omega =  120;                         // rotate CCW
+    if (keyState['e']) omega = -120;                         // rotate CW
+    if (keyState[' ']) vx = vy = omega = 0;                  // stop
+    physics.command(vx, vy, omega);
+  }, 33);
 }
 
 function stopKeyboardDrive() {
@@ -607,10 +610,19 @@ export function startSimulation(presetName?: string) {
     const simState = physics.step(1 / 30);
     const sensorData = mockSensors.generate(simState, scene!.scene);
 
-    // Update robot in scene
+    // Update robot position and heading in scene
     if (robotGroup) {
       robotGroup.position.set(simState.x * 0.001, simState.y * 0.001, 0);
       robotGroup.rotation.z = (simState.heading * Math.PI) / 180;
+    }
+
+    // Per-wheel spin — each wheel rotates proportional to its own tangential speed
+    if (robotParts) {
+      const [spFR, spFL, spBack] = physics.getWheelSpeeds();
+      const dt = 1 / 30;
+      robotParts.wheels[0].rotation.y += (spFR  / 45) * dt; // FR
+      robotParts.wheels[1].rotation.y += (spFL  / 45) * dt; // FL
+      robotParts.wheels[2].rotation.y += (spBack / 45) * dt; // Back
     }
 
     // Update twin state
@@ -639,12 +651,6 @@ export function startSimulation(presetName?: string) {
         tf_luna_distance: sensorData.ultra_front_left,
       },
     });
-
-    // Wheel rotation — use velocity magnitude from physics
-    const velMag = Math.sqrt(simState.vx ** 2 + simState.vy ** 2);
-    if (robotParts) {
-      updateWheelRotation(velMag > 1 ? 1 : 0, robotParts);
-    }
 
     // Record frame if recording
     if (recorder?.isRecording()) {
