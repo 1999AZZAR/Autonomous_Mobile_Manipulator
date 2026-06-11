@@ -34,8 +34,11 @@ export function createScene(container: HTMLElement): TwinScene {
   scene.background = new THREE.Color(0x1a1a2e);
   scene.fog = new THREE.Fog(0x1a1a2e, 20, 50);
 
-  // Camera — low elevation so vertical mast poles look tall, not like dots from above
+  // Camera — Z-up world (ROS2 convention): robot body/wheels/masts are built
+  // flat in XY, extruded upward in +Z. Tell Three.js's camera that Z is "up"
+  // so the XY plane renders as the horizontal floor, not a vertical wall.
   const camera = new THREE.PerspectiveCamera(50, width / height, 0.1, 100);
+  camera.up.set(0, 0, 1);
   camera.position.set(1.5, 5.5, 2.2);
   camera.lookAt(0, 0, 0.2);
 
@@ -73,7 +76,7 @@ export function createScene(container: HTMLElement): TwinScene {
   const hemi = new THREE.HemisphereLight(0x8899cc, 0x445566, 1.0);
   scene.add(hemi);
 
-  // Ground plane — 10x10m
+  // Ground plane — 10x10m. PlaneGeometry lies in XY by default — already the floor.
   const groundGeo = new THREE.PlaneGeometry(10, 10);
   const groundMat = new THREE.MeshStandardMaterial({
     color: 0x2a2a3e,
@@ -81,13 +84,13 @@ export function createScene(container: HTMLElement): TwinScene {
     metalness: 0.0,
   });
   const ground = new THREE.Mesh(groundGeo, groundMat);
-  ground.rotation.x = -Math.PI / 2;
   ground.position.z = -0.001;
   ground.receiveShadow = true;
   scene.add(ground);
 
-  // Grid — 1m spacing
+  // Grid — 1m spacing. GridHelper defaults to the XZ plane; rotate into XY.
   const gridHelper = new THREE.GridHelper(10, 10, 0x444466, 0x333355);
+  gridHelper.rotation.x = Math.PI / 2;
   gridHelper.position.z = 0.001;
   scene.add(gridHelper);
 

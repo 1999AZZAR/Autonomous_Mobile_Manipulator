@@ -46,8 +46,8 @@ export function createRobotModel(): { group: THREE.Group; parts: RobotModelParts
     new THREE.ExtrudeGeometry(bodyShape, { depth: BODY_H, bevelEnabled: false }),
     mkMat(0x5588ee, 0x1a2a60, 0.45)
   );
-  body.rotation.x = -Math.PI / 2;
-  body.position.z = BODY_H / 2; // centre at z=0.06
+  // No rotation — body lies flat in XY, extruded upward in +Z (0 → BODY_H).
+  // Front vertex at (0, HEX_R) = +Y direction. Matches wheels/sensors/arm.
   body.castShadow = true;
   group.add(body);
 
