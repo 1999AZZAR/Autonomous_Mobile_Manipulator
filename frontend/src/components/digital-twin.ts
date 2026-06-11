@@ -207,13 +207,10 @@ export function initDigitalTwin(container: HTMLElement) {
       cameraFrustum.visible = state.mode === 'ai';
     }
 
-    // Wheel rotation — use velocity magnitude
-    const vel = Math.sqrt(
-      (state.position.x !== 0 ? 1 : 0) ** 2 +
-      (state.position.y !== 0 ? 1 : 0) ** 2
-    );
-    // In sim mode, read velocity from physics; in real mode, approximate from position changes
-    updateWheelRotation(vel > 0 ? 1 : 0, robotParts);
+    // Wheel rotation — only update in real mode (sim mode handles this in the sim loop)
+    if (simMode === 'real') {
+      updateWheelRotation(1, robotParts);
+    }
   });
 
   // Initial data fetch
@@ -276,8 +273,38 @@ function stopRealPolling() {
 }
 
 export function refreshTwinData() {
+  // In simulation mode, position is managed by the physics engine — don't overwrite it
+  if (simMode === 'simulation') {
+    // Only fetch sensors in simulation mode (mock sensors handle this in sim loop,
+    // but this keeps sensor labels updated if needed)
+    fetchSensors()
+      .then((sensors) => {
+        if (simMode !== 'simulation') return; // mode may have changed during fetch
+        updateTwinState({
+          sensors: {
+            laser_left_front: sensors.laser_left_front,
+            laser_left_back: sensors.laser_left_back,
+            laser_right_front: sensors.laser_right_front,
+            laser_right_back: sensors.laser_right_back,
+            laser_back_left: sensors.laser_back_left,
+            laser_back_right: sensors.laser_back_right,
+            ultra_front_left: sensors.ultra_front_left,
+            ultra_front_right: sensors.ultra_front_right,
+            line_left: sensors.line_left,
+            line_center: sensors.line_center,
+            line_right: sensors.line_right,
+            tf_luna_distance: sensors.tf_luna_distance,
+          },
+        });
+      })
+      .catch(() => {});
+    return;
+  }
+
+  // Real mode — fetch both position and sensors from backend
   fetchRobotPosition()
     .then((pos) => {
+      if (simMode !== 'real') return; // mode may have changed during fetch
       if (pos.success) {
         updateTwinState({
           position: {
@@ -296,6 +323,7 @@ export function refreshTwinData() {
 
   fetchSensors()
     .then((sensors) => {
+      if (simMode !== 'real') return;
       updateTwinState({
         sensors: {
           laser_left_front: sensors.laser_left_front,
@@ -535,7 +563,10 @@ function setupKeyboardDrive() {
     if (keyState['q']) omega =  120;                         // rotate CCW
     if (keyState['e']) omega = -120;                         // rotate CW
     if (keyState[' ']) vx = vy = omega = 0;                  // stop
-    physics.command(vx, vy, omega);
+    // Only override physics when a key is actually held (don't send 0,0,0 every frame)
+    if (Object.keys(keyState).length > 0) {
+      physics.command(vx, vy, omega);
+    }
   }, 33);
 }
 
@@ -604,11 +635,24 @@ export function startSimulation(presetName?: string) {
 
   // Start simulation loop
   if (simInterval) clearInterval(simInterval);
-  simInterval = setInterval(() => {
+simInterval = setInterval(() => {
     if (!physics || !mockSensors) return;
 
     const simState = physics.step(1 / 30);
-    const sensorData = mockSensors.generate(simState, scene!.scene);
+
+    let sensorData;
+    try {
+      sensorData = mockSensors.generate(simState, scene!.scene);
+    } catch {
+      sensorData = {
+        laser_left_front: 1500, laser_left_back: 1500,
+        laser_right_front: 1500, laser_right_back: 1500,
+        laser_back_left: 1500, laser_back_right: 1500,
+        ultra_front_left: 4000, ultra_front_right: 4000,
+        line_left: 1023, line_center: 1023, line_right: 1023,
+        imu_heading: simState.heading, imu_pitch: 0, imu_roll: 0,
+      };
+    }
 
     // Update robot position and heading in scene
     if (robotGroup) {

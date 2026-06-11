@@ -939,6 +939,13 @@ textarea:focus {
   font-size: 11px;
 }
 
+.move-btn.active {
+  background: var(--cds-interactive);
+  border-color: var(--cds-interactive);
+  color: white;
+  box-shadow: 0 0 6px var(--cds-interactive);
+}
+
 .stop-btn {
   background: var(--cds-support-error);
   border-color: var(--cds-support-error);

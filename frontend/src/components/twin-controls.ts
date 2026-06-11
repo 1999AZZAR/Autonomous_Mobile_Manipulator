@@ -6,6 +6,7 @@ import { loadWaypointPath, clearWaypointPath, startSimulation, stopSimulation, g
 import { loadAllRecordings, type Recording } from '../engine/recording';
 
 let containerEl: HTMLElement | null = null;
+let activeMovementCmd: string | null = null;
 
 export function initTwinControls(parent: HTMLElement) {
   if (containerEl) return;
@@ -316,39 +317,77 @@ export function initTwinControls(parent: HTMLElement) {
     });
   });
 
-  // Movement buttons
+  // Movement buttons — click-to-toggle (click once to start, click again or click Stop to stop)
+  const SIM_CMD_MAP: Record<string, { vx: number; vy: number; omega: number }> = {
+    f: { vx: 0, vy: 300, omega: 0 },
+    b: { vx: 0, vy: -300, omega: 0 },
+    q: { vx: -212, vy: 212, omega: 0 },
+    e: { vx: 212, vy: 212, omega: 0 },
+    z: { vx: -212, vy: -212, omega: 0 },
+    x: { vx: 212, vy: -212, omega: 0 },
+    t: { vx: 0, vy: 0, omega: 90 },
+    y: { vx: 0, vy: 0, omega: -90 },
+    s: { vx: 0, vy: 0, omega: 0 },
+  };
+
+  function stopActiveMovement() {
+    if (!activeMovementCmd) return;
+    activeMovementCmd = null;
+    if (getSimulationMode() === 'simulation') {
+      stopSimulationRobot();
+    } else {
+      sendMovementCommand('s').catch(() => {});
+    }
+    containerEl?.querySelectorAll('.move-btn').forEach((b) => b.classList.remove('active'));
+  }
+
+  function handleMovementClick(cmd: string) {
+    if (cmd === 's') {
+      stopActiveMovement();
+      return;
+    }
+
+    // If same command clicked again, stop
+    if (activeMovementCmd === cmd) {
+      stopActiveMovement();
+      return;
+    }
+
+    // Stop any previous movement
+    stopActiveMovement();
+
+    activeMovementCmd = cmd;
+
+    // Highlight active button
+    containerEl?.querySelectorAll('.move-btn').forEach((b) => b.classList.remove('active'));
+    containerEl?.querySelector(`.move-btn[data-cmd="${cmd}"]`)?.classList.add('active');
+
+    if (getSimulationMode() === 'simulation') {
+      const vel = SIM_CMD_MAP[cmd];
+      if (vel) commandSimulation(vel.vx, vel.vy, vel.omega);
+    } else {
+      sendMovementCommand(cmd).catch(() => {});
+    }
+  }
+
+  let lastTouchTime = 0;
+
   containerEl.querySelectorAll('.move-btn').forEach((btn) => {
-    btn.addEventListener('mousedown', () => {
-      const cmd = (btn as HTMLElement).dataset.cmd;
-      if (cmd) {
-        if (getSimulationMode() === 'simulation') {
-          // Map commands to simulation velocities
-          const cmdMap: Record<string, { vx: number; vy: number; omega: number }> = {
-            f: { vx: 0, vy: 300, omega: 0 },
-            b: { vx: 0, vy: -300, omega: 0 },
-            q: { vx: -212, vy: 212, omega: 0 },
-            e: { vx: 212, vy: 212, omega: 0 },
-            z: { vx: -212, vy: -212, omega: 0 },
-            x: { vx: 212, vy: -212, omega: 0 },
-            t: { vx: 0, vy: 0, omega: 90 },
-            y: { vx: 0, vy: 0, omega: -90 },
-            s: { vx: 0, vy: 0, omega: 0 },
-          };
-          const vel = cmdMap[cmd];
-          if (vel) commandSimulation(vel.vx, vel.vy, vel.omega);
-        } else {
-          sendMovementCommand(cmd).catch(() => {});
-        }
-      }
-    });
-    btn.addEventListener('mouseup', () => {
-      if ((btn as HTMLElement).dataset.cmd !== 's') {
-        if (getSimulationMode() === 'simulation') {
-          stopSimulationRobot();
-        } else {
-          sendMovementCommand('s').catch(() => {});
-        }
-      }
+    const cmd = (btn as HTMLElement).dataset.cmd;
+    if (!cmd) return;
+
+    // Touch events — fire immediately, suppress subsequent click
+    btn.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      lastTouchTime = Date.now();
+      handleMovementClick(cmd);
+    }, { passive: false });
+
+    // Mouse click — skip if a touch just fired (<100ms ago)
+    btn.addEventListener('click', (e) => {
+      e.preventDefault();
+      if (Date.now() - lastTouchTime < 100) return;
+      handleMovementClick(cmd);
     });
   });
 
@@ -359,6 +398,12 @@ export function initTwinControls(parent: HTMLElement) {
       await sendMovementCommand('x');
     } catch {}
   });
+
+  // Sync mode label with actual state (initDigitalTwin auto-starts simulation)
+  if (getSimulationMode() === 'simulation') {
+    simModeLabel.textContent = 'SIMULATION';
+    simModeLabel.style.color = 'var(--cds-support-warning)';
+  }
 }
 
 export function destroyTwinControls() {
