@@ -395,12 +395,20 @@ class MegaInterface:
     def move_robot(self, direction, speed=0.5, duration=0.0):
         """Move robot in specified direction.
         If duration > 0, auto-stops after that many seconds.
+        
+        Args:
+            direction: 'forward', 'backward', 'forward-left', 'forward-right',
+                       'backward-left', 'backward-right'
+            speed: 0.0-1.0 (maps to Mega speed 50-100%)
+            duration: seconds before auto-stop (0 = no auto-stop)
         """
         commands = {
             'forward': 'f',
             'backward': 'b',
-            'left': 'l',
-            'right': 'r'
+            'forward-left': 'q',
+            'forward-right': 'e',
+            'backward-left': 'z',
+            'backward-right': 'x'
         }
 
         mega_command = commands.get(direction.lower())
@@ -426,19 +434,98 @@ class MegaInterface:
         """Stop robot movement"""
         return self.send_command_to_mega('s')
 
-    def turn_robot(self, direction, speed=0.5):
-        """Turn robot in specified direction"""
-        commands = {
-            'left': 'q',
-            'right': 'e'
-        }
-
+    def turn_robot(self, direction, speed=0.5, angle=90.0, get_heading_fn=None):
+        """Turn robot using IMU. Blocks until target angle reached.
+        
+        Args:
+            direction: 'left' or 'right'
+            speed: 0.0-1.0 (maps to Mega speed 50-100%)
+            angle: target angle in degrees (default 90)
+            get_heading_fn: callable returning current heading in degrees.
+                           If None, falls back to time-based stop.
+        Returns:
+            True if completed, False on error
+        """
+        commands = {'left': 't', 'right': 'y'}
         mega_command = commands.get(direction.lower())
-        if mega_command:
-            return self.send_command_to_mega(mega_command)
-        else:
+        if not mega_command:
             logger.error(f"Unknown turn direction: {direction}")
             return False
+
+        # Set speed
+        speed_percent = int(speed * 100)
+        self.set_speed(speed_percent)
+
+        # Start rotation
+        success = self.send_command_to_mega(mega_command)
+        if not success:
+            return False
+
+        # If no IMU heading function, use time-based fallback
+        if get_heading_fn is None:
+            duration = angle / 90.0 * 1.5  # rough estimate: 1.5s per 90 degrees
+            time.sleep(duration)
+            return self.stop_robot()
+
+        # IMU-based: monitor heading until target reached
+        import math
+        start_heading = get_heading_fn()
+        if start_heading is None:
+            logger.warning("IMU heading unavailable, falling back to time-based")
+            time.sleep(angle / 90.0 * 1.5)
+            return self.stop_robot()
+
+        # Calculate target heading
+        if direction.lower() == 'left':
+            target_heading = start_heading + angle
+        else:
+            target_heading = start_heading - angle
+
+        # Normalize to -180..180
+        while target_heading > 180:
+            target_heading -= 360
+        while target_heading < -180:
+            target_heading += 360
+
+        logger.info(f"Turn {direction}: start={start_heading:.1f} target={target_heading:.1f} angle={angle:.1f}")
+
+        timeout = angle / 90.0 * 5.0  # 5s max per 90 degrees
+        start_time = time.time()
+
+        while time.time() - start_time < timeout:
+            current = get_heading_fn()
+            if current is None:
+                time.sleep(0.05)
+                continue
+
+            # Calculate error
+            error = target_heading - current
+            while error > 180:
+                error -= 360
+            while error < -180:
+                error += 360
+
+            # Check if close enough (threshold)
+            if abs(error) < 3.0:  # 3 degree tolerance
+                logger.info(f"Turn complete: heading={current:.1f}")
+                return self.stop_robot()
+
+            time.sleep(0.02)  # 50Hz check
+
+        # Timeout - stop anyway
+        logger.warning(f"Turn timeout after {timeout:.1f}s")
+        return self.stop_robot()
+
+    def rotate_robot(self, direction, speed=0.8, angle=180.0, get_heading_fn=None):
+        """Rotate robot (same as turn, just higher default speed for bigger angles).
+        
+        Args:
+            direction: 'left' or 'right'
+            speed: 0.0-1.0 (default 0.8, higher than turn)
+            angle: target angle in degrees (default 180 for half rotation)
+            get_heading_fn: callable returning current heading in degrees.
+        """
+        return self.turn_robot(direction, speed=speed, angle=angle, get_heading_fn=get_heading_fn)
 
     def get_status(self):
         """Get Mega status"""

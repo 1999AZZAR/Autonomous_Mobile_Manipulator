@@ -509,8 +509,8 @@ class AIDecisionEngine:
                 time.sleep(delay_ms / 1000.0)
 
             cmd_map = {
-                'move': {'forward': 'f', 'backward': 'b', 'left': 'l', 'right': 'r'},
-                'turn': {'left': 'l', 'right': 'r'},
+                'move': {'forward': 'f', 'backward': 'b', 'forward-left': 'q', 'forward-right': 'e', 'backward-left': 'z', 'backward-right': 'x'},
+                'turn': {'left': 't', 'right': 'y'},
                 'gripper': {'open': 'no', 'close': 'nc'},
                 'tilt': {'up': 'tu', 'down': 'td', 'center': 'tt'},
                 'stop': {'': 's'},

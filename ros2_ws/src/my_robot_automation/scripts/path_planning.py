@@ -183,14 +183,18 @@ class MovementSequence:
     """Movement sequence planning and optimization"""
 
     def __init__(self):
+        # Command library - matches Arduino firmware commands
+        # Movement: 8 base movements (f, b, q, e, z, x, t, y) + stop (s)
         self.command_library = {
-            'f': {'type': 'move', 'direction': (1, 0), 'duration': 1.0},
-            'b': {'type': 'move', 'direction': (-1, 0), 'duration': 1.0},
-            'l': {'type': 'move', 'direction': (0, -1), 'duration': 1.0},
-            'r': {'type': 'move', 'direction': (0, 1), 'duration': 1.0},
-            's': {'type': 'stop', 'duration': 0.1},
-            'c': {'type': 'rotate', 'direction': 1, 'duration': 2.0},
-            'w': {'type': 'rotate', 'direction': -1, 'duration': 2.0},
+            'f': {'type': 'move', 'direction': (1, 0), 'duration': 1.0},   # Forward: FR+FL
+            'b': {'type': 'move', 'direction': (-1, 0), 'duration': 1.0},  # Backward: FR+FL
+            'q': {'type': 'move', 'direction': (0.7, 0.7), 'duration': 1.0},  # Forward-Left: FR+Back
+            'e': {'type': 'move', 'direction': (0.7, -0.7), 'duration': 1.0},  # Forward-Right: FL+Back
+            'z': {'type': 'move', 'direction': (-0.7, 0.7), 'duration': 1.0},  # Backward-Left: FR+Back reversed
+            'x': {'type': 'move', 'direction': (-0.7, -0.7), 'duration': 1.0},  # Backward-Right: FL+Back reversed
+            's': {'type': 'stop', 'duration': 0.1},                        # Stop
+            't': {'type': 'rotate', 'direction': 1, 'duration': 2.0},      # Turn left (CCW): all 3
+            'y': {'type': 'rotate', 'direction': -1, 'duration': 2.0},     # Turn right (CW): all 3
         }
 
     def optimize_sequence(self, commands: List[str]) -> List[str]:
@@ -203,17 +207,15 @@ class MovementSequence:
 
             # Skip consecutive stops (keep only the last one)
             if command == 's':
-                # Look ahead for more stops
                 while i + 1 < len(commands) and commands[i + 1] == 's':
                     i += 1
                 optimized.append('s')
             # Skip opposite direction commands that cancel each other
-            elif command in ['f', 'b', 'l', 'r'] and len(optimized) > 0:
+            elif command in ['f', 'b', 'q', 'e', 'z', 'x', 't', 'y'] and len(optimized) > 0:
                 last_cmd = optimized[-1]
-                opposites = {'f': 'b', 'b': 'f', 'l': 'r', 'r': 'l'}
+                opposites = {'f': 'b', 'b': 'f', 'q': 'x', 'x': 'q', 'e': 'z', 'z': 'e', 't': 'y', 'y': 't'}
 
                 if last_cmd == opposites.get(command):
-                    # Remove the opposing command pair
                     optimized.pop()
                 else:
                     optimized.append(command)
@@ -248,16 +250,16 @@ class MovementSequence:
 
             # Turn around for next row (if not last row)
             if row < height - 1:
-                commands.append('r')  # Turn right
+                commands.append('y')  # Turn right CW
                 commands.append('f')  # Move to next row
-                commands.append('r')  # Turn right again to face correct direction
+                commands.append('y')  # Turn right again to face correct direction
                 direction *= -1
 
             # Change direction for next row
             if direction == 1:
-                commands.append('r')
+                commands.append('y')
             else:
-                commands.append('l')
+                commands.append('t')
 
         commands.append('s')  # Stop at end
         return self.optimize_sequence(commands)
@@ -316,10 +318,15 @@ class WaypointNavigator:
             dx = next_pos[0] - current[0]
             dy = next_pos[1] - current[1]
 
-            # Determine primary direction
+            # Determine primary direction using diagonal commands
             if abs(dx) > abs(dy):
-                command = 'r' if dx > 0 else 'l'
+                # Horizontal movement - use diagonal commands
+                if dx > 0:
+                    command = 'e'  # Forward-Right diagonal
+                else:
+                    command = 'q'  # Forward-Left diagonal
             else:
+                # Vertical movement - use forward/backward
                 command = 'f' if dy > 0 else 'b'
 
             commands.append(command)

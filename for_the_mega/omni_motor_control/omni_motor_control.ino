@@ -705,266 +705,168 @@ void setOmniSpeeds(double vx, double vy, double omega) {
   }
 }
 
-// Movement functions
+// Movement functions - Direct motor combinations for triangular omni wheel
+// Motor mapping: [1]=FR (Front Right), [2]=FL (Front Left), [3]=Back
+// Positive speed = forward rotation, Negative speed = backward rotation
+
 void moveForward() {
-  Serial.println("Moving Forward (Motor 2 backward + Motor 3 forward)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
+  Serial.println("Moving Forward (FR + FL)");
+  clearMotorCommands();
   motorsStopped = false;
   lifterActive = false;
 
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
+  for (int i = 0; i < 4; i++) motorIntendedActive[i] = false;
 
-  // Forward: Motor 2 (FR) backward + Motor 3 (FL) forward
-  setpoint[1] = -0.8 * BASE_SPEED * speedMultiplier;  // FR (Motor 2) - backward
-  setpoint[2] = 0.8 * BASE_SPEED * speedMultiplier;   // FL (Motor 3) - forward
-  setpoint[3] = 0;                                    // Back (Motor 4) - idle
-  setpoint[0] = 0;                                    // Lifter (Motor 1) - idle
+  // Forward: FR + FL both forward
+  setpoint[1] = BASE_SPEED * speedMultiplier;   // FR - forward
+  setpoint[2] = BASE_SPEED * speedMultiplier;   // FL - forward
+  setpoint[3] = 0;                              // Back - idle
+  setpoint[0] = 0;                              // Lifter - idle
 
-  // Set intended active flags
-  motorIntendedActive[1] = true;  // FR
-  motorIntendedActive[2] = true;  // FL
+  motorIntendedActive[1] = true;
+  motorIntendedActive[2] = true;
 
   currentMovementDirection = FORWARD;
 }
 
 void moveBackward() {
-  Serial.println("Moving Backward (Motor 2 forward + Motor 3 backward)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
+  Serial.println("Moving Backward (FR + FL)");
+  clearMotorCommands();
   motorsStopped = false;
   lifterActive = false;
 
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
+  for (int i = 0; i < 4; i++) motorIntendedActive[i] = false;
 
-  // Backward: Motor 2 (FR) forward + Motor 3 (FL) backward
-  setpoint[1] = 0.8 * BASE_SPEED * speedMultiplier;   // FR (Motor 2) - forward
-  setpoint[2] = -0.8 * BASE_SPEED * speedMultiplier;  // FL (Motor 3) - backward
-  setpoint[3] = 0;                                    // Back (Motor 4) - idle
-  setpoint[0] = 0;                                    // Lifter (Motor 1) - idle
+  // Backward: FR + FL both backward
+  setpoint[1] = -BASE_SPEED * speedMultiplier;  // FR - backward
+  setpoint[2] = -BASE_SPEED * speedMultiplier;  // FL - backward
+  setpoint[3] = 0;                              // Back - idle
+  setpoint[0] = 0;                              // Lifter - idle
 
-  // Set intended active flags
-  motorIntendedActive[1] = true;  // FR
-  motorIntendedActive[2] = true;  // FL
+  motorIntendedActive[1] = true;
+  motorIntendedActive[2] = true;
 
   currentMovementDirection = BACKWARD;
 }
 
-void moveLeft() {
-  Serial.println("Moving Left (FR backward + Back forward)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
-  motorsStopped = false;
-  lifterActive = false;
-
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
-
-  // Left strafe: FR backward + Back forward
-  setpoint[1] = -0.8 * BASE_SPEED * speedMultiplier;  // FR (Motor 2) - backward
-  setpoint[2] = 0;                                    // FL (Motor 3) - idle
-  setpoint[3] = 0.8 * BASE_SPEED * speedMultiplier;   // Back (Motor 4) - forward
-  setpoint[0] = 0;                                    // Lifter (Motor 1) - idle
-
-  // Set intended active flags
-  motorIntendedActive[1] = true;  // FR
-  motorIntendedActive[3] = true;  // Back
-
-  currentMovementDirection = LEFT;
-}
-
-void moveRight() {
-  Serial.println("Moving Right (FR forward + Back backward)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
-  motorsStopped = false;
-  lifterActive = false;
-
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
-
-  // Right strafe: FR forward + Back backward
-  setpoint[1] = 0.8 * BASE_SPEED * speedMultiplier;   // FR (Motor 2) - forward
-  setpoint[2] = 0;                                    // FL (Motor 3) - idle
-  setpoint[3] = -0.8 * BASE_SPEED * speedMultiplier;  // Back (Motor 4) - backward
-  setpoint[0] = 0;                                    // Lifter (Motor 1) - idle
-
-  // Set intended active flags
-  motorIntendedActive[1] = true;  // FR
-  motorIntendedActive[3] = true;  // Back
-
-  currentMovementDirection = RIGHT;
-}
-
-// Diagonal movement functions - REFINED: specific wheel combinations
+// Diagonal movement functions - Direct motor combinations
 void moveForwardLeft() {
-  Serial.println("Moving Forward-Left (FL forward + Back forward)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
+  Serial.println("Moving Forward-Left (Back + FR)");
+  clearMotorCommands();
   motorsStopped = false;
   lifterActive = false;
 
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
+  for (int i = 0; i < 4; i++) motorIntendedActive[i] = false;
 
-  // Forward-left diagonal: FL forward + Back forward
-  setpoint[1] = 0;                                    // FR (Motor 2) - idle
-  setpoint[2] = 0.8 * BASE_SPEED * speedMultiplier;  // FL (Motor 3) - forward
-  setpoint[3] = 0.8 * BASE_SPEED * speedMultiplier;  // Back (Motor 4) - forward
-  setpoint[0] = 0;                                    // Lifter (Motor 1) - idle
+  // Front Left diagonal: Back + FR both forward
+  setpoint[1] = BASE_SPEED * speedMultiplier;   // FR - forward
+  setpoint[2] = 0;                              // FL - idle
+  setpoint[3] = BASE_SPEED * speedMultiplier;   // Back - forward
+  setpoint[0] = 0;                              // Lifter - idle
 
-  // Set intended active flags
-  motorIntendedActive[2] = true;  // FL
-  motorIntendedActive[3] = true;  // Back
+  motorIntendedActive[1] = true;
+  motorIntendedActive[3] = true;
 
   currentMovementDirection = FORWARD_LEFT;
 }
 
 void moveForwardRight() {
-  Serial.println("Moving Forward-Right (FR forward + Back backward)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
+  Serial.println("Moving Forward-Right (Back + FL)");
+  clearMotorCommands();
   motorsStopped = false;
   lifterActive = false;
 
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
+  for (int i = 0; i < 4; i++) motorIntendedActive[i] = false;
 
-  // Forward-right diagonal: FR forward + Back backward
-  setpoint[1] = 0.8 * BASE_SPEED * speedMultiplier;  // FR (Motor 2) - forward
-  setpoint[2] = 0;                                    // FL (Motor 3) - idle
-  setpoint[3] = -0.8 * BASE_SPEED * speedMultiplier;  // Back (Motor 4) - backward
-  setpoint[0] = 0;                                    // Lifter (Motor 1) - idle
+  // Front Right diagonal: Back + FL both forward
+  setpoint[1] = 0;                              // FR - idle
+  setpoint[2] = BASE_SPEED * speedMultiplier;   // FL - forward
+  setpoint[3] = BASE_SPEED * speedMultiplier;   // Back - forward
+  setpoint[0] = 0;                              // Lifter - idle
 
-  // Set intended active flags
-  motorIntendedActive[1] = true;  // FR
-  motorIntendedActive[3] = true;  // Back
+  motorIntendedActive[2] = true;
+  motorIntendedActive[3] = true;
 
   currentMovementDirection = FORWARD_RIGHT;
 }
 
 void moveBackwardLeft() {
-  Serial.println("Moving Backward-Left (FL backward + Back backward)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
+  Serial.println("Moving Backward-Left (Back + FR)");
+  clearMotorCommands();
   motorsStopped = false;
   lifterActive = false;
 
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
+  for (int i = 0; i < 4; i++) motorIntendedActive[i] = false;
 
-  // Backward-left diagonal: FL backward + Back backward
-  setpoint[1] = 0;                                     // FR (Motor 2) - idle
-  setpoint[2] = -0.8 * BASE_SPEED * speedMultiplier;  // FL (Motor 3) - backward
-  setpoint[3] = -0.8 * BASE_SPEED * speedMultiplier;  // Back (Motor 4) - backward
-  setpoint[0] = 0;                                     // Lifter (Motor 1) - idle
+  // Back Left diagonal: Back backward + FR forward
+  setpoint[1] = BASE_SPEED * speedMultiplier;    // FR - forward
+  setpoint[2] = 0;                               // FL - idle
+  setpoint[3] = -BASE_SPEED * speedMultiplier;   // Back - backward
+  setpoint[0] = 0;                               // Lifter - idle
 
-  // Set intended active flags
-  motorIntendedActive[2] = true;  // FL
-  motorIntendedActive[3] = true;  // Back
+  motorIntendedActive[1] = true;
+  motorIntendedActive[3] = true;
 
   currentMovementDirection = BACKWARD_LEFT;
 }
 
 void moveBackwardRight() {
-  Serial.println("Moving Backward-Right (FR backward + Back forward)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
+  Serial.println("Moving Backward-Right (Back + FL)");
+  clearMotorCommands();
   motorsStopped = false;
   lifterActive = false;
 
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
+  for (int i = 0; i < 4; i++) motorIntendedActive[i] = false;
 
-  // Backward-right diagonal: FR backward + Back forward
-  setpoint[1] = -0.8 * BASE_SPEED * speedMultiplier;  // FR (Motor 2) - backward
-  setpoint[2] = 0;                                     // FL (Motor 3) - idle
-  setpoint[3] = 0.8 * BASE_SPEED * speedMultiplier;   // Back (Motor 4) - forward
-  setpoint[0] = 0;                                     // Lifter (Motor 1) - idle
+  // Back Right diagonal: Back backward + FL forward
+  setpoint[1] = 0;                               // FR - idle
+  setpoint[2] = BASE_SPEED * speedMultiplier;    // FL - forward
+  setpoint[3] = -BASE_SPEED * speedMultiplier;   // Back - backward
+  setpoint[0] = 0;                               // Lifter - idle
 
-  // Set intended active flags
-  motorIntendedActive[1] = true;  // FR
-  motorIntendedActive[3] = true;  // Back
+  motorIntendedActive[2] = true;
+  motorIntendedActive[3] = true;
 
   currentMovementDirection = BACKWARD_RIGHT;
 }
 
-// Arc movement functions (forward + rotation)
-void arcLeft() {
-  Serial.println("Arc Left");
-  setOmniSpeeds(0.8, 0.0, -0.5);  // Forward + left rotation
-  setpoint[0] = 0;
-}
-
-void arcRight() {
-  Serial.println("Arc Right");
-  setOmniSpeeds(0.8, 0.0, 0.5);   // Forward + right rotation
-  setpoint[0] = 0;
-}
-
-// Turn functions (slight rotation while moving forward)
+// Turn/Rotate functions - all 3 wheels, Raspi handles IMU-based stop
 void turnLeft() {
-  Serial.println("Turning Left");
-  setOmniSpeeds(0.5, 0.0, -0.8);  // Slow forward + turn
+  Serial.println("Turn Left (all 3 wheels)");
+  clearMotorCommands();
+  motorsStopped = false;
+  lifterActive = false;
+
+  for (int i = 0; i < 4; i++) motorIntendedActive[i] = false;
+
+  // Spin CCW: all wheels forward
+  setpoint[1] = TURN_SPEED * speedMultiplier;   // FR - forward
+  setpoint[2] = TURN_SPEED * speedMultiplier;   // FL - forward
+  setpoint[3] = TURN_SPEED * speedMultiplier;   // Back - forward
   setpoint[0] = 0;
+
+  motorIntendedActive[1] = true;
+  motorIntendedActive[2] = true;
+  motorIntendedActive[3] = true;
 }
 
 void turnRight() {
-  Serial.println("Turning Right");
-  setOmniSpeeds(0.5, 0.0, 0.8);   // Slow forward + turn
-  setpoint[0] = 0;
-}
+  Serial.println("Turn Right (all 3 wheels)");
+  clearMotorCommands();
+  motorsStopped = false;
+  lifterActive = false;
 
-void rotateCW() {
-  Serial.println("Rotating Clockwise (TURBO MODE - MAXIMUM RESPONSE)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
-  lastRotationCommand = millis();
-  fastRotationMode = true;
+  for (int i = 0; i < 4; i++) motorIntendedActive[i] = false;
 
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
-
-  // Use maximum speed for rotation (negative omega = clockwise)
-  setOmniSpeeds(0.0, 0.0, -1.0);
+  // Spin CW: all wheels backward
+  setpoint[1] = -TURN_SPEED * speedMultiplier;  // FR - backward
+  setpoint[2] = -TURN_SPEED * speedMultiplier;  // FL - backward
+  setpoint[3] = -TURN_SPEED * speedMultiplier;  // Back - backward
   setpoint[0] = 0;
 
-  // Explicitly set all omni motors as intended active for rotation
-  motorIntendedActive[1] = true;  // FR
-  motorIntendedActive[2] = true;  // FL
-  motorIntendedActive[3] = true;  // Back
-}
-
-void rotateCCW() {
-  Serial.println("Rotating Counter-Clockwise (TURBO MODE - MAXIMUM RESPONSE)");
-  clearMotorCommands();  // Clear previous commands for correct motor rotation
-  lastRotationCommand = millis();
-  fastRotationMode = true;
-
-  // Reset intended active flags
-  for (int i = 0; i < 4; i++) {
-    motorIntendedActive[i] = false;
-  }
-
-  // Use maximum speed for rotation (positive omega = counter-clockwise)
-  setOmniSpeeds(0.0, 0.0, 1.0);
-  setpoint[0] = 0;
-
-  // Explicitly set all omni motors as intended active for rotation
-  motorIntendedActive[1] = true;  // FR
-  motorIntendedActive[2] = true;  // FL
-  motorIntendedActive[3] = true;  // Back
+  motorIntendedActive[1] = true;
+  motorIntendedActive[2] = true;
+  motorIntendedActive[3] = true;
 }
 
 void stopMotors() {
@@ -1050,15 +952,11 @@ void executePiCommand(String command) {
     switch (cmd) {
       case 'f': newDirection = FORWARD; break;
       case 'b': newDirection = BACKWARD; break;
-      case 'l': newDirection = LEFT; break;
-      case 'r': newDirection = RIGHT; break;
       case 'q': newDirection = FORWARD_LEFT; break;
       case 'e': newDirection = FORWARD_RIGHT; break;
       case 'z': newDirection = BACKWARD_LEFT; break;
       case 'x': newDirection = BACKWARD_RIGHT; break;
-      case 'c': newDirection = ROTATE_CW; break;
-      case 'w': newDirection = ROTATE_CCW; break;
-      case 't': case 'y': case 'a': case 'j': newDirection = COMPLEX; break;
+      case 't': case 'y': newDirection = COMPLEX; break;
     }
 
     // Prevent direction change spam
@@ -1073,18 +971,12 @@ void executePiCommand(String command) {
     switch (cmd) {
       case 'f': moveForward(); return;      // Immediate return for responsiveness
       case 'b': moveBackward(); return;
-      case 'l': moveLeft(); return;
-      case 'r': moveRight(); return;
       case 'q': moveForwardLeft(); return;
       case 'e': moveForwardRight(); return;
       case 'z': moveBackwardLeft(); return;
       case 'x': moveBackwardRight(); return;
-      case 'c': rotateCW(); return;
-      case 'w': rotateCCW(); return;
       case 't': turnLeft(); return;
       case 'y': turnRight(); return;
-      case 'a': arcLeft(); return;
-      case 'j': arcRight(); return;
     }
 
     // Control commands
@@ -1260,14 +1152,6 @@ void executeCommand(String command) {
     case 'B':
       moveBackward();
       break;
-    case 'l':
-    case 'L':
-      moveLeft();
-      break;
-    case 'r':
-    case 'R':
-      moveRight();
-      break;
     // Diagonal movements
     case 'q':
     case 'Q':
@@ -1285,29 +1169,12 @@ void executeCommand(String command) {
     case 'X':
       moveBackwardRight();
       break;
-    // Arc movements
-    case 'a':
-    case 'A':
-      arcLeft();
-      break;
-    case 'j':
-    case 'J':
-      arcRight();
-      break;
     // Turns
     case 't':
       turnLeft();
       break;
     case 'y':
       turnRight();
-      break;
-    case 'c':
-    case 'C':
-      rotateCW();
-      break;
-    case 'w':
-    case 'W':
-      rotateCCW();
       break;
     // Speed control
     case '0':
@@ -2766,7 +2633,7 @@ void calibrateMotors() {
   stopMotors();
 
   Serial.println("Testing rotation...");
-  rotateCW();
+  turnRight();
   delay(3000);
   stopMotors();
 

@@ -439,8 +439,10 @@ class AutomationEngine:
         direction_map = {
             'forward': 'f',
             'backward': 'b',
-            'left': 'l',
-            'right': 'r'
+            'forward-left': 'q',
+            'forward-right': 'e',
+            'backward-left': 'z',
+            'backward-right': 'x'
         }
         cmd = direction_map.get(direction.lower())
         if cmd and self.mega_interface:
@@ -450,9 +452,9 @@ class AutomationEngine:
     def _execute_turn(self, direction: str) -> bool:
         """Execute a turn command."""
         if direction.lower() == 'left':
-            return self.mega_interface.send_command_to_mega('l') if self.mega_interface else False
+            return self.mega_interface.send_command_to_mega('t') if self.mega_interface else False
         elif direction.lower() == 'right':
-            return self.mega_interface.send_command_to_mega('r') if self.mega_interface else False
+            return self.mega_interface.send_command_to_mega('y') if self.mega_interface else False
         else:
             # Try to parse as degrees
             try:

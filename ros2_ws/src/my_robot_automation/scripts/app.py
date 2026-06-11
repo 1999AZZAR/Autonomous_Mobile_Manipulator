@@ -471,27 +471,36 @@ class FlaskApp:
             return jsonify({'success': False, 'error': str(e), 'timestamp': time.time()}), 500
 
     def _turn_robot(self):
-        """Turn robot in specified direction"""
+        """Turn robot in specified direction using IMU-based angle control"""
         try:
             data = request.get_json()
             direction = data.get('direction')
             speed = data.get('speed', 0.5)
+            angle = data.get('angle', 90.0)
 
             if not direction:
                 return jsonify({'success': False, 'error': 'Direction required', 'timestamp': time.time()}), 400
 
+            # Get IMU heading function for angle-based stopping
+            get_heading_fn = None
+            if self.sensors:
+                def get_heading_fn():
+                    imu_data = self.sensors.read_imu_data()
+                    if imu_data and 'orientation' in imu_data:
+                        return imu_data['orientation'].get('z', 0.0)
+                    return None
+
             # Try Mega first, then ROS2
             success = False
             if self.mega:
-                success = self.mega.turn_robot(direction, speed)
+                success = self.mega.turn_robot(direction, speed, angle, get_heading_fn)
             if not success and self.ros2:
-                # ROS2 turn would use move_robot with turn commands
                 pass
 
             if success:
                 return jsonify({
                     'success': True,
-                    'message': f'Robot turned {direction}',
+                    'message': f'Robot turned {direction} {angle}°',
                     'timestamp': time.time()
                 })
             else:
@@ -643,8 +652,8 @@ class FlaskApp:
 
             # Validate command - complete set from COMMANDS.md
             valid_commands = [
-                # Movement commands (all cardinal, diagonal, rotation, turning)
-                'f', 'b', 'l', 'r', 'q', 'e', 'z', 'x', 'c', 'w', 't', 'y', 'a', 'j', 's',
+                # Movement commands (8 base movements)
+                'f', 'b', 'q', 'e', 'z', 'x', 't', 'y', 's',
                 # Control commands
                 'p', 'v', 'o',
                 # Speed control (50%-100%)
@@ -937,7 +946,7 @@ class FlaskApp:
         # For now, return a placeholder
         sequences = {
             'test': ['f', 'f', 's', 'b', 's'],
-            'square': ['f', 's', 'c', 's', 'f', 's', 'c', 's', 'f', 's', 'c', 's', 'f', 's', 'c', 's'],
+            'square': ['f', 's', 'y', 's', 'f', 's', 'y', 's', 'f', 's', 'y', 's', 'f', 's', 'y', 's'],
         }
         return sequences.get(name)
 
@@ -1117,7 +1126,7 @@ class FlaskApp:
                             self.mega.send_command_to_mega('s')
                         return False
 
-                    turn_command = 'e' if turn_angle > 0 else 'q'  # e=right turn, q=left turn
+                    turn_command = 'y' if turn_angle > 0 else 't'  # y=turn right CW, t=turn left CCW
                     turn_time = min(abs(turn_angle) / 45.0, 2.0)  # Max 2 seconds turn
 
                     if self.mega:

@@ -298,7 +298,7 @@ class WaypointMemory:
 
             # Turn if heading is off
             if abs(heading_error) > heading_tolerance:
-                direction = 'l' if heading_error > 0 else 'r'
+                direction = 't' if heading_error > 0 else 'y'  # t=turn left CCW, y=turn right CW
                 self.mega.send_command(direction)
                 time.sleep(abs(heading_error) / 90.0)  # Rough time estimate
                 self.mega.send_command('s')
@@ -334,7 +334,7 @@ class WaypointMemory:
                 angle = action_value.replace('angle_', '')
                 self.mega.send_command(f'ta{angle}')
         elif action_type == 'move':
-            direction_map = {'forward': 'f', 'backward': 'b', 'left': 'l', 'right': 'r'}
+            direction_map = {'forward': 'f', 'backward': 'b', 'forward-left': 'q', 'forward-right': 'e', 'backward-left': 'z', 'backward-right': 'x'}
             cmd = direction_map.get(action_value)
             if cmd:
                 self.mega.send_command(cmd)

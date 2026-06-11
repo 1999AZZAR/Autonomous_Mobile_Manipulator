@@ -1,4 +1,6 @@
 // Movement control component — D-Pad + speed control
+// Triangular omni wheel: FR(1), FL(2), Back(3)
+// Movement: f/b (FR+FL), l/r (diagonal), t/y (rotate all 3)
 
 import { sendMovementCommand } from '../api';
 
@@ -15,21 +17,27 @@ export function initMovement(container: HTMLElement) {
         </div>
         <div class="card-body">
           <div class="dpad">
-            <button class="dpad-btn dpad-up" data-cmd="f" title="Forward">
+            <button class="dpad-btn dpad-up" data-cmd="f" title="Forward (FR+FL)">
               <span class="ph ph-caret-up"></span>
             </button>
-            <button class="dpad-btn dpad-left" data-cmd="q" title="Turn Left">
+            <button class="dpad-btn dpad-left" data-cmd="t" title="Rotate Left (all 3)">
               <span class="ph ph-caret-left"></span>
             </button>
             <button class="dpad-btn dpad-center" data-cmd="s" title="Stop">
               <span class="ph ph-stop"></span>
             </button>
-            <button class="dpad-btn dpad-right" data-cmd="e" title="Turn Right">
+            <button class="dpad-btn dpad-right" data-cmd="y" title="Rotate Right (all 3)">
               <span class="ph ph-caret-right"></span>
             </button>
-            <button class="dpad-btn dpad-down" data-cmd="b" title="Backward">
+            <button class="dpad-btn dpad-down" data-cmd="b" title="Backward (FR+FL)">
               <span class="ph ph-caret-down"></span>
             </button>
+          </div>
+          <div class="dpad-diag" style="display:flex;justify-content:center;gap:0.5rem;margin-top:0.5rem;">
+            <button class="btn btn--secondary" data-cmd="q" title="Forward-Left (FR+Back)">↖ FL</button>
+            <button class="btn btn--secondary" data-cmd="e" title="Forward-Right (FL+Back)">↗ FR</button>
+            <button class="btn btn--secondary" data-cmd="z" title="Backward-Left (Back-FR)">↙ BL</button>
+            <button class="btn btn--secondary" data-cmd="x" title="Backward-Right (Back-FL)">↘ BR</button>
           </div>
         </div>
       </div>
@@ -57,21 +65,25 @@ export function initMovement(container: HTMLElement) {
       </div>
       <div class="card-body">
         <table class="data-table">
-          <thead><tr><th>Key</th><th>Action</th></tr></thead>
+          <thead><tr><th>Key</th><th>Action</th><th>Wheels</th></tr></thead>
           <tbody>
-            <tr><td><kbd>W</kbd> / <kbd>&uarr;</kbd></td><td>Forward</td></tr>
-            <tr><td><kbd>S</kbd> / <kbd>&darr;</kbd></td><td>Backward</td></tr>
-            <tr><td><kbd>A</kbd> / <kbd>&larr;</kbd></td><td>Turn Left</td></tr>
-            <tr><td><kbd>D</kbd> / <kbd>&rarr;</kbd></td><td>Turn Right</td></tr>
-            <tr><td><kbd>Space</kbd></td><td>Stop</td></tr>
+            <tr><td><kbd>W</kbd> / <kbd>&uarr;</kbd></td><td>Forward</td><td>FR + FL</td></tr>
+            <tr><td><kbd>S</kbd> / <kbd>&darr;</kbd></td><td>Backward</td><td>FR + FL</td></tr>
+            <tr><td><kbd>A</kbd> / <kbd>&larr;</kbd></td><td>Rotate Left</td><td>All 3</td></tr>
+            <tr><td><kbd>D</kbd> / <kbd>&rarr;</kbd></td><td>Rotate Right</td><td>All 3</td></tr>
+            <tr><td><kbd>Q</kbd></td><td>Forward-Left</td><td>FR + Back</td></tr>
+            <tr><td><kbd>E</kbd></td><td>Forward-Right</td><td>FL + Back</td></tr>
+            <tr><td><kbd>Z</kbd></td><td>Backward-Left</td><td>Back - FR</td></tr>
+            <tr><td><kbd>X</kbd></td><td>Backward-Right</td><td>Back - FL</td></tr>
+            <tr><td><kbd>Space</kbd></td><td>Stop</td><td>All</td></tr>
           </tbody>
         </table>
       </div>
     </div>
   `;
 
-  // D-Pad button clicks
-  container.querySelectorAll('.dpad-btn').forEach((btn) => {
+  // D-Pad + diagonal button clicks
+  container.querySelectorAll('.dpad-btn, .dpad-diag .btn').forEach((btn) => {
     btn.addEventListener('click', () => {
       const cmd = (btn as HTMLElement).dataset.cmd;
       if (cmd) sendMovementCommand(cmd);
@@ -92,8 +104,12 @@ export function initMovement(container: HTMLElement) {
     const keyMap: Record<string, string> = {
       w: 'f', ArrowUp: 'f',
       s: 'b', ArrowDown: 'b',
-      a: 'q', ArrowLeft: 'q',
-      d: 'e', ArrowRight: 'e',
+      a: 't', ArrowLeft: 't',
+      d: 'y', ArrowRight: 'y',
+      q: 'q',
+      e: 'e',
+      z: 'z',
+      x: 'x',
       ' ': 's',
     };
     const cmd = keyMap[e.key];

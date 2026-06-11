@@ -87,11 +87,13 @@ export function initTwinControls(parent: HTMLElement) {
       <div class="twin-movement-grid">
         <button class="twin-btn move-btn" data-cmd="f">Forward</button>
         <button class="twin-btn move-btn" data-cmd="b">Back</button>
-        <button class="twin-btn move-btn" data-cmd="l">Left</button>
-        <button class="twin-btn move-btn" data-cmd="r">Right</button>
-        <button class="twin-btn move-btn" data-cmd="tl">Turn L</button>
-        <button class="twin-btn move-btn" data-cmd="tr">Turn R</button>
-        <button class="twin-btn move-btn stop-btn" data-cmd="x">Stop</button>
+        <button class="twin-btn move-btn" data-cmd="q">Forward-L</button>
+        <button class="twin-btn move-btn" data-cmd="e">Forward-R</button>
+        <button class="twin-btn move-btn" data-cmd="z">Back-L</button>
+        <button class="twin-btn move-btn" data-cmd="x">Back-R</button>
+        <button class="twin-btn move-btn" data-cmd="t">Turn L</button>
+        <button class="twin-btn move-btn" data-cmd="y">Turn R</button>
+        <button class="twin-btn move-btn stop-btn" data-cmd="s">Stop</button>
       </div>
     </div>
     <div class="twin-control-section">
@@ -324,11 +326,13 @@ export function initTwinControls(parent: HTMLElement) {
           const cmdMap: Record<string, { vx: number; vy: number; omega: number }> = {
             f: { vx: 0, vy: 300, omega: 0 },
             b: { vx: 0, vy: -300, omega: 0 },
-            l: { vx: -300, vy: 0, omega: 0 },
-            r: { vx: 300, vy: 0, omega: 0 },
-            tl: { vx: 0, vy: 0, omega: 90 },
-            tr: { vx: 0, vy: 0, omega: -90 },
-            x: { vx: 0, vy: 0, omega: 0 },
+            q: { vx: -212, vy: 212, omega: 0 },
+            e: { vx: 212, vy: 212, omega: 0 },
+            z: { vx: -212, vy: -212, omega: 0 },
+            x: { vx: 212, vy: -212, omega: 0 },
+            t: { vx: 0, vy: 0, omega: 90 },
+            y: { vx: 0, vy: 0, omega: -90 },
+            s: { vx: 0, vy: 0, omega: 0 },
           };
           const vel = cmdMap[cmd];
           if (vel) commandSimulation(vel.vx, vel.vy, vel.omega);
@@ -338,11 +342,11 @@ export function initTwinControls(parent: HTMLElement) {
       }
     });
     btn.addEventListener('mouseup', () => {
-      if (!(btn as HTMLElement).dataset.cmd?.startsWith('t')) {
+      if ((btn as HTMLElement).dataset.cmd !== 's') {
         if (getSimulationMode() === 'simulation') {
           stopSimulationRobot();
         } else {
-          sendMovementCommand('x').catch(() => {});
+          sendMovementCommand('s').catch(() => {});
         }
       }
     });
