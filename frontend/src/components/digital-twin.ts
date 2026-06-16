@@ -10,7 +10,7 @@ import { scenarioToObstacles, PRESETS, type Scenario } from '../engine/scenario'
 import { SessionRecorder, saveRecording, type Recording } from '../engine/recording';
 import { PlaybackEngine, type PlaybackProgress } from '../engine/playback';
 import { onTwinStateChange, getTwinState, updateTwinState } from '../state/twin-state';
-import { fetchRobotPosition, fetchSensors, fetchPath, sendContinuousCommand, syncSimObstacles, sendNavigationGoal } from '../api';
+import { fetchRobotPosition, fetchSensors, fetchPath, sendContinuousCommand, syncSimObstacles, fetchSimObstacles, sendNavigationGoal } from '../api';
 import type { RobotModelParts } from '../types/twin';
 import type { SensorArcMesh } from '../engine/sensor-viz';
 import { WorldState } from '../state/world-state';
@@ -33,8 +33,6 @@ let replayMarker: any = null;
 let simMode: 'real' | 'simulation' = 'real';
 let simInterval: ReturnType<typeof setInterval> | null = null;
 let realPollInterval: ReturnType<typeof setInterval> | null = null;
-let simPollInterval: ReturnType<typeof setInterval> | null = null;
-let backendPosition = { x: 0, y: 0, heading: 0 };
 let recorder: SessionRecorder | null = null;
 let playback: PlaybackEngine | null = null;
 let occGrid: OccupancyGridRenderer | null = null;
@@ -219,7 +217,6 @@ export function initDigitalTwin(container: HTMLElement) {
 
   // Auto-start simulation so the twin is immediately drivable
   startSimulation();
-  setupKeyboardDrive();
 
   // Start real-mode polling (simulation overrides position, but polling keeps sensors live)
   startRealPolling();
@@ -229,7 +226,6 @@ export function initDigitalTwin(container: HTMLElement) {
 
 export function destroyDigitalTwin() {
   stopRealPolling();
-  stopKeyboardDrive();
 
   if (unsubscribe) {
     unsubscribe();
@@ -271,44 +267,38 @@ function stopRealPolling() {
   }
 }
 
-export function refreshTwinData() {
-  if (simMode !== 'simulation') {
-    fetchRobotPosition()
-      .then((pos) => {
-        if (!pos.success) return;
-        backendPosition = { x: pos.position.x, y: pos.position.y, heading: pos.orientation.yaw };
-        updateTwinState({
-          position: {
-            x: pos.position.x, y: pos.position.y, z: pos.position.z,
-            roll: pos.orientation.roll, pitch: pos.orientation.pitch, yaw: pos.orientation.yaw,
-          },
-          heading: pos.orientation.yaw,
-        });
-      })
-      .catch(() => {});
-  }
+export function refreshTwinData(): Promise<void> {
+  const pos = fetchRobotPosition().then((pos) => {
+    if (!pos.success) return;
+    updateTwinState({
+      position: {
+        x: pos.position.x, y: pos.position.y, z: pos.position.z,
+        roll: pos.orientation.roll, pitch: pos.orientation.pitch, yaw: pos.orientation.yaw,
+      },
+      heading: pos.orientation.yaw,
+    });
+  }).catch(() => {});
 
-  fetchSensors()
-    .then((sensors) => {
-      if (simMode !== 'simulation') return;
-      updateTwinState({
-        sensors: {
-          laser_left_front: sensors.laser_left_front,
-          laser_left_back: sensors.laser_left_back,
-          laser_right_front: sensors.laser_right_front,
-          laser_right_back: sensors.laser_right_back,
-          laser_back_left: sensors.laser_back_left,
-          laser_back_right: sensors.laser_back_right,
-          ultra_front_left: sensors.ultra_front_left,
-          ultra_front_right: sensors.ultra_front_right,
-          line_left: sensors.line_left,
-          line_center: sensors.line_center,
-          line_right: sensors.line_right,
-          tf_luna_distance: sensors.tf_luna_distance,
-        },
-      });
-    })
-    .catch(() => {});
+  const sen = fetchSensors().then((sensors) => {
+    updateTwinState({
+      sensors: {
+        laser_left_front: sensors.laser_left_front,
+        laser_left_back: sensors.laser_left_back,
+        laser_right_front: sensors.laser_right_front,
+        laser_right_back: sensors.laser_right_back,
+        laser_back_left: sensors.laser_back_left,
+        laser_back_right: sensors.laser_back_right,
+        ultra_front_left: sensors.ultra_front_left,
+        ultra_front_right: sensors.ultra_front_right,
+        line_left: sensors.line_left,
+        line_center: sensors.line_center,
+        line_right: sensors.line_right,
+        tf_luna_distance: sensors.tf_luna_distance,
+      },
+    });
+  }).catch(() => {});
+
+  return Promise.all([pos, sen]).then(() => {});
 }
 
 export async function loadWaypointPath(pathId: number) {
@@ -383,15 +373,9 @@ function setupClickToMove(twinScene: TwinScene) {
     raycaster.ray.intersectPlane(groundPlane, intersection);
 
     if (intersection) {
-      const wx = intersection.x * 1000;
-      const wy = intersection.y * 1000;
       showTargetMarker(intersection.x, intersection.y);
 
-      if (simMode === 'simulation') {
-        startAutoDrive(wx, wy);
-      } else {
-        sendNavigationGoal(wx, wy).catch(() => {});
-      }
+      sendNavigationGoal(intersection.x, intersection.y).catch(() => {});
     }
   });
 
@@ -441,169 +425,20 @@ function showTargetMarker(x: number, y: number) {
   }, 3000);
 }
 
-// --- Keyboard Drive ---
-
-const DRIVE_KEYS = ['w','s','a','d','q','e','ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '];
-const MAX_SPEED = 300;      // mm/s
-const MAX_ROT_SPEED = 150;  // deg/s
-
-function setupKeyboardDrive() {
-  const held = new Set<string>();
-  let interval: ReturnType<typeof setInterval> | null = null;
-
-  function update() {
-    if (simMode !== 'simulation') {
-      setVelocity(0, 0, 0);
-      sendContinuousCommand('s').catch(() => {});
-      return;
-    }
-
-    let vx = 0, vy = 0, omega = 0;
-    for (const key of held) {
-      if (key === ' ') { vx = 0; vy = 0; omega = 0; break; }
-      if (key === 'w' || key === 'ArrowUp') vy += MAX_SPEED;
-      if (key === 's' || key === 'ArrowDown') vy -= MAX_SPEED;
-      if (key === 'a') vx += MAX_SPEED;
-      if (key === 'd') vx -= MAX_SPEED;
-      if (key === 'ArrowLeft') omega += MAX_ROT_SPEED;
-      if (key === 'ArrowRight') omega -= MAX_ROT_SPEED;
-      if (key === 'q') omega += MAX_ROT_SPEED * 0.67;
-      if (key === 'e') omega -= MAX_ROT_SPEED * 0.67;
-    }
-
-    // Normalize diagonal to avoid sqrt(2)*speed
-    const linMag = Math.sqrt(vx * vx + vy * vy);
-    if (linMag > MAX_SPEED) {
-      vx = (vx / linMag) * MAX_SPEED;
-      vy = (vy / linMag) * MAX_SPEED;
-    }
-
-    setVelocity(vx, vy, omega);
-    sendBackendCommand(vx, vy, omega);
-  }
-
-  document.addEventListener('keydown', (e) => {
-    if (!DRIVE_KEYS.includes(e.key)) return;
-    e.preventDefault();
-    stopAutoDrive();
-    held.add(e.key);
-    if (!interval) {
-      interval = setInterval(update, 100);
-    }
-    update();
-  });
-
-  document.addEventListener('keyup', (e) => {
-    held.delete(e.key);
-    if (held.size === 0 && interval) {
-      clearInterval(interval);
-      interval = null;
-      setVelocity(0, 0, 0);
-      sendContinuousCommand('s').catch(() => {});
-    } else {
-      update();
-    }
-  });
-}
-
-function stopKeyboardDrive() {
-  setVelocity(0, 0, 0);
-  sendContinuousCommand('s').catch(() => {});
-}
-
 // --- Simulation Mode ---
-
-// Robot coordinate convention: heading 0 = facing +Y, positive = CW (matches PhysicsEngine).
-// THREE.js rotation.z positive = CCW, so negate heading for visual.
-const ROBOT_RADIUS = 230; // mm, for collision
 
 let simVel = { vx: 0, vy: 0, omega: 0 };
 let simPos = { x: 0, y: 0, heading: 0 };
-let simObstacles: { x: number; y: number; w: number; h: number }[] = [];
-
-let autoTarget: { x: number; y: number } | null = null;
-let autoDriveInterval: ReturnType<typeof setInterval> | null = null;
-
-function setVelocity(vx: number, vy: number, omega: number) {
-  simVel = { vx, vy, omega };
-}
-
-function mapVelToCommand(vx: number, vy: number, omega: number): string {
-  if (Math.abs(omega) > 10) return omega > 0 ? 't' : 'y';
-  if (Math.abs(vy) > 10) return vy > 0 ? 'f' : 'b';
-  if (Math.abs(vx) > 10) return vx > 0 ? 'q' : 'e';
-  return 's';
-}
-
-function sendBackendCommand(vx: number, vy: number, omega: number) {
-  const cmd = mapVelToCommand(vx, vy, omega);
-  sendContinuousCommand(cmd).catch(() => {});
-}
-
-function simCheckCollision(x: number, y: number): boolean {
-  for (const obs of simObstacles) {
-    const hw = obs.w / 2 + ROBOT_RADIUS;
-    const hh = obs.h / 2 + ROBOT_RADIUS;
-    if (Math.abs(x - obs.x) < hw && Math.abs(y - obs.y) < hh) return true;
-  }
-  return false;
-}
+let lastBackendCorrection = 0;
 
 function simStep(dt: number) {
   const { vx, vy, omega } = simVel;
   const hRad = (simPos.heading * Math.PI) / 180;
-
-  // Transform robot-local (vx, vy) to world frame (heading 0 = +Y)
   const worldVx = vx * Math.cos(hRad) + vy * Math.sin(hRad);
   const worldVy = -vx * Math.sin(hRad) + vy * Math.cos(hRad);
-
-  const newX = simPos.x + worldVx * dt;
-  const newY = simPos.y + worldVy * dt;
-
-  if (!simCheckCollision(newX, newY)) {
-    simPos.x = newX;
-    simPos.y = newY;
-  }
-
+  simPos.x += worldVx * dt;
+  simPos.y += worldVy * dt;
   simPos.heading = (simPos.heading + omega * dt + 360) % 360;
-}
-
-function startAutoDrive(tx: number, ty: number) {
-  stopAutoDrive();
-  autoTarget = { x: tx, y: ty };
-
-  autoDriveInterval = setInterval(() => {
-    if (!autoTarget) { stopAutoDrive(); return; }
-
-    const dx = autoTarget.x - simPos.x;
-    const dy = autoTarget.y - simPos.y;
-    const dist = Math.sqrt(dx * dx + dy * dy);
-    if (dist < 50) { stopAutoDrive(); return; }
-
-    const bearingDeg = (Math.atan2(dx, dy) * 180 / Math.PI + 360) % 360;
-    const headingDiff = ((bearingDeg - simPos.heading + 540) % 360) - 180;
-
-    if (Math.abs(headingDiff) > 10) {
-      setVelocity(0, 0, headingDiff > 0 ? MAX_ROT_SPEED : -MAX_ROT_SPEED);
-      sendBackendCommand(0, 0, headingDiff > 0 ? MAX_ROT_SPEED : -MAX_ROT_SPEED);
-    } else {
-      setVelocity(0, MAX_SPEED, 0);
-      sendBackendCommand(0, MAX_SPEED, 0);
-    }
-  }, 100);
-}
-
-function stopAutoDrive() {
-  if (autoDriveInterval) {
-    clearInterval(autoDriveInterval);
-    autoDriveInterval = null;
-  }
-  autoTarget = null;
-  setVelocity(0, 0, 0);
-}
-
-function isMoving(): boolean {
-  return Math.abs(simVel.vx) > 1 || Math.abs(simVel.vy) > 1 || Math.abs(simVel.omega) > 1;
 }
 
 export function startSimulation(presetName?: string) {
@@ -611,10 +446,17 @@ export function startSimulation(presetName?: string) {
 
   simMode = 'simulation';
   stopRealPolling();
-  stopAutoDrive();
 
-  simPos = { ...backendPosition };
-  simObstacles = [];
+  // Remove old obstacle meshes
+  const oldMeshes: THREE.Mesh[] = [];
+  scene.scene.children.forEach((child) => {
+    if (child.userData.isObstacle) oldMeshes.push(child as THREE.Mesh);
+  });
+  oldMeshes.forEach((m) => {
+    scene!.scene.remove(m);
+    m.geometry.dispose();
+    (m.material as THREE.Material).dispose();
+  });
 
   let scenario: Scenario | null = null;
   if (presetName) {
@@ -624,28 +466,10 @@ export function startSimulation(presetName?: string) {
 
   if (scenario) {
     const obstacles = scenarioToObstacles(scenario);
-
-    const oldMeshes: THREE.Mesh[] = [];
-    scene.scene.children.forEach((child) => {
-      if (child.userData.isObstacle) oldMeshes.push(child as THREE.Mesh);
-    });
-    oldMeshes.forEach((m) => {
-      scene!.scene.remove(m);
-      m.geometry.dispose();
-      (m.material as THREE.Material).dispose();
-    });
-
-    simObstacles = obstacles.map((obs) => ({
-      x: obs.x, y: obs.y,
-      w: obs.type === 'cylinder' ? obs.width : obs.width,
-      h: obs.type === 'cylinder' ? obs.width : obs.depth,
-    }));
-
     const backendObs = obstacles.map((obs) => ({
       x: obs.x * 0.001, y: obs.y * 0.001, w: obs.width * 0.001, h: obs.depth * 0.001,
     }));
     syncSimObstacles(backendObs).catch(() => {});
-
     obstacles.forEach((obs) => {
       const geo = new THREE.BoxGeometry(obs.width * 0.001, obs.height * 0.001, obs.depth * 0.001);
       const mat = new THREE.MeshStandardMaterial({
@@ -661,13 +485,33 @@ export function startSimulation(presetName?: string) {
       mesh.userData.isObstacle = true;
       scene!.scene.add(mesh);
     });
+  } else {
+    // No preset — sync BackendSim's current obstacles to scene
+    fetchSimObstacles().then((res) => {
+      (res.obstacles || []).forEach((o: { x: number; y: number; w: number; h: number }) => {
+        const geo = new THREE.BoxGeometry(o.w, 0.3, o.h);
+        const mat = new THREE.MeshStandardMaterial({
+          color: 0x8b4513,
+          roughness: 0.7,
+          transparent: true,
+          opacity: 0.8,
+        });
+        const mesh = new THREE.Mesh(geo, mat);
+        mesh.position.set(o.x, o.y, o.h / 2);
+        mesh.castShadow = true;
+        mesh.receiveShadow = true;
+        mesh.userData.isObstacle = true;
+        scene!.scene.add(mesh);
+      });
+    }).catch(() => {});
   }
 
-  if (simPollInterval) clearInterval(simPollInterval);
-  refreshTwinData();
-  simPollInterval = setInterval(() => refreshTwinData(), 100);
-
   if (simInterval) clearInterval(simInterval);
+
+  simPos = { x: 0, y: 0, heading: 0 };
+  refreshTwinData();
+  lastBackendCorrection = Date.now();
+
   simInterval = setInterval(() => {
     if (!robotGroup) return;
 
@@ -678,18 +522,37 @@ export function startSimulation(presetName?: string) {
       heading: simPos.heading,
     });
 
-    robotGroup.position.set(simPos.x * 0.001, simPos.y * 0.001, 0);
-    robotGroup.rotation.z = -(simPos.heading * Math.PI) / 180;
-
     if (robotParts) {
-      const spin = isMoving() ? 1 : 0;
-      robotParts.wheels.forEach((w) => w.rotation.y += spin * 0.08);
+      updateWheelRotation(1, robotParts);
+    }
+
+    const now = Date.now();
+    if (now - lastBackendCorrection > 200) {
+      lastBackendCorrection = now;
+      fetchSensors().then((sensors) => {
+        updateTwinState({
+          sensors: {
+            laser_left_front: sensors.laser_left_front,
+            laser_left_back: sensors.laser_left_back,
+            laser_right_front: sensors.laser_right_front,
+            laser_right_back: sensors.laser_right_back,
+            laser_back_left: sensors.laser_back_left,
+            laser_back_right: sensors.laser_back_right,
+            ultra_front_left: sensors.ultra_front_left,
+            ultra_front_right: sensors.ultra_front_right,
+            line_left: sensors.line_left,
+            line_center: sensors.line_center,
+            line_right: sensors.line_right,
+            tf_luna_distance: sensors.tf_luna_distance,
+          },
+        });
+      }).catch(() => {});
     }
 
     const state = getTwinState();
     WorldState.update('sim', {
-      robotPosition: { x: simPos.x, y: simPos.y, heading: simPos.heading },
-      robotPosition3D: { x: simPos.x, y: simPos.y, z: 0, roll: 0, pitch: 0, yaw: simPos.heading },
+      robotPosition: { x: state.position.x, y: state.position.y, heading: state.heading },
+      robotPosition3D: { x: state.position.x, y: state.position.y, z: 0, roll: 0, pitch: 0, yaw: state.heading },
       sensors: state.sensors,
     });
 
@@ -701,12 +564,9 @@ export function startSimulation(presetName?: string) {
 
 export function stopSimulation() {
   simMode = 'real';
-  setVelocity(0, 0, 0);
-  stopAutoDrive();
+  simVel = { vx: 0, vy: 0, omega: 0 };
   simPos = { x: 0, y: 0, heading: 0 };
-  simObstacles = [];
   sendContinuousCommand('s').catch(() => {});
-  if (simPollInterval) { clearInterval(simPollInterval); simPollInterval = null; }
   if (simInterval) { clearInterval(simInterval); simInterval = null; }
   startRealPolling();
   refreshTwinData();
@@ -757,16 +617,26 @@ export function getSimulationPresets() {
   return PRESETS.map((p) => ({ name: p.name, description: p.description }));
 }
 
+const MAX_SPEED = 300;      // mm/s
+const MAX_ROT_SPEED = 150;  // deg/s
+
+function mapVelToCommand(vx: number, vy: number, omega: number): string {
+  if (Math.abs(omega) > 10) return omega > 0 ? 't' : 'y';
+  if (Math.abs(vy) > 10) return vy > 0 ? 'f' : 'b';
+  if (Math.abs(vx) > 10) return vx > 0 ? 'q' : 'e';
+  return 's';
+}
+
 export function commandSimulation(vx: number, vy: number, omega: number) {
   if (simMode === 'simulation') {
-    stopAutoDrive();
-    setVelocity(vx, vy, omega);
-    sendBackendCommand(vx, vy, omega);
+    simVel = { vx, vy, omega };
+    const cmd = mapVelToCommand(vx, vy, omega);
+    sendContinuousCommand(cmd).catch(() => {});
   }
 }
 
 export function stopSimulationRobot() {
-  setVelocity(0, 0, 0);
+  simVel = { vx: 0, vy: 0, omega: 0 };
   sendContinuousCommand('s').catch(() => {});
 }
 

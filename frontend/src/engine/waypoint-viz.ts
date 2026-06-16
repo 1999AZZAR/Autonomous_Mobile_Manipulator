@@ -23,8 +23,7 @@ export function createPathLine(waypoints: Waypoint3D[]): THREE.Group {
   // Sort by order
   const sorted = [...waypoints].sort((a, b) => a.order - b.order);
 
-  // Create path line
-  const points = sorted.map((wp) => new THREE.Vector3(wp.x * 0.001, wp.y * 0.001, 0.05));
+  const points = sorted.map((wp) => new THREE.Vector3(wp.x, wp.y, 0.05));
   const lineGeo = new THREE.BufferGeometry().setFromPoints(points);
   const lineMat = new THREE.LineBasicMaterial({ color: PATH_COLOR, linewidth: 2 });
   const line = new THREE.Line(lineGeo, lineMat);
@@ -78,17 +77,17 @@ function createWaypointDot(wp: Waypoint3D, color: number): THREE.Mesh {
     opacity: 0.9,
   });
   const mesh = new THREE.Mesh(geo, mat);
-  mesh.position.set(wp.x * 0.001, wp.y * 0.001, 0.05);
+  mesh.position.set(wp.x, wp.y, 0.05);
   mesh.userData.waypointOrder = wp.order;
   mesh.castShadow = true;
   return mesh;
 }
 
 function createDirectionArrow(from: Waypoint3D, to: Waypoint3D, color: number): THREE.Group | null {
-  const fx = from.x * 0.001;
-  const fy = from.y * 0.001;
-  const tx = to.x * 0.001;
-  const ty = to.y * 0.001;
+  const fx = from.x;
+  const fy = from.y;
+  const tx = to.x;
+  const ty = to.y;
 
   const dx = tx - fx;
   const dy = ty - fy;
@@ -144,7 +143,7 @@ export function createReplayMarker(position: { x: number; y: number }, heading: 
   dot.position.z = 0.003;
   group.add(dot);
 
-  group.position.set(position.x * 0.001, position.y * 0.001, 0);
+  group.position.set(position.x, position.y, 0);
   group.rotation.z = (heading * Math.PI) / 180;
 
   return group;

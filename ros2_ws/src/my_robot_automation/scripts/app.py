@@ -210,8 +210,16 @@ class FlaskApp:
                     self._continuous_cmd = None
             return jsonify({'ok': True, 'command': cmd})
 
-        @self.app.route('/api/sim/obstacles', methods=['POST'])
-        def sim_set_obstacles():
+        @self.app.route('/api/sim/obstacles', methods=['GET', 'POST'])
+        def sim_obstacles():
+            if request.method == 'GET':
+                try:
+                    from ml.backend_sim import get_backend_sim
+                    sim = get_backend_sim()
+                    obstacles = sim.get_state().get('obstacles', [])
+                    return jsonify({'success': True, 'obstacles': obstacles})
+                except ImportError:
+                    return jsonify({'error': 'BackendSim not available'}), 503
             data = request.get_json(silent=True) or {}
             obstacles = data.get('obstacles', [])
             try:
@@ -1403,7 +1411,7 @@ class FlaskApp:
                 sensors = sim.get_sensors()
                 return jsonify({
                     'success': True,
-                    'position': {'x': state['x'] * 1000, 'y': state['y'] * 1000, 'z': 0.0},
+                    'position': {'x': state['x'], 'y': state['y'], 'z': 0.0},
                     'orientation': {
                         'roll': sensors.get('imu_roll', 0),
                         'pitch': sensors.get('imu_pitch', 0),
@@ -1564,12 +1572,18 @@ class FlaskApp:
             }), 500
 
     def _run_continuous_command(self):
+        sim = None
         while True:
             with self._continuous_cmd_lock:
                 cmd = self._continuous_cmd
             if not cmd or cmd == 's':
                 break
-            if self.mega:
+            if self.simulation_mode:
+                if sim is None:
+                    from ml.backend_sim import get_backend_sim
+                    sim = get_backend_sim()
+                sim.step(cmd, 1.0 / 30.0)
+            elif self.mega:
                 self.mega.send_command_to_mega(cmd)
             time.sleep(1.0 / 30.0)
 

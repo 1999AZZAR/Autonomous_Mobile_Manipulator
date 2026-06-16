@@ -34,7 +34,6 @@ SENSOR_ANGLES = {
 
 LASER_MAX = 1500
 ULTRA_MAX = 4000
-SPEED = 0.3
 OBSTACLE_CLEARANCE = 0.35
 
 
@@ -104,6 +103,11 @@ class BackendSimulation:
         self.goal_reached = False
         self._obstacle_avoid_mode = False
 
+    def set_position(self, x: float, y: float, heading: float):
+        self.x = x
+        self.y = y
+        self.heading = heading
+
     def step(self, command: str, dt: float = 1.0 / 30.0):
         self.last_command = command
         self.steps += 1
@@ -113,8 +117,8 @@ class BackendSimulation:
         omega = CMD_OMEGA.get(command, 0)
 
         heading_rad = math.radians(self.heading)
-        dx = (vx * math.cos(heading_rad) - vy * math.sin(heading_rad))
-        dy = (vx * math.sin(heading_rad) + vy * math.cos(heading_rad))
+        dx = (vx * math.cos(heading_rad) + vy * math.sin(heading_rad))
+        dy = (-vx * math.sin(heading_rad) + vy * math.cos(heading_rad))
 
         new_x = self.x + dx
         new_y = self.y + dy
@@ -226,7 +230,7 @@ class BackendSimulation:
             self.goal_reached = True
             return 's'
 
-        desired_heading = math.degrees(math.atan2(dy, dx)) % 360
+        desired_heading = (90 - math.degrees(math.atan2(dy, dx)) + 360) % 360
         heading_error = (desired_heading - self.heading + 180) % 360 - 180
 
         current_pos = (self.x, self.y)

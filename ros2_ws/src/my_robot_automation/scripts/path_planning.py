@@ -95,40 +95,137 @@ class GridMap:
                         'sensor_based': True
                     })()
 
-class PathPlanner:
-    """Advanced path planning with A* algorithm"""
+import random
 
-    def __init__(self, grid_map: GridMap):
+class RRTNode:
+    """Node for RRT* pathfinding"""
+    def __init__(self, position: Tuple[float, float], parent=None):
+        self.position = position
+        self.parent = parent
+        self.cost = 0.0
+
+class RRTStarPlanner:
+    """Optimal Rapidly-exploring Random Tree (RRT*) path planner"""
+
+    def __init__(self, grid_map: GridMap, max_iter: int = 1000, step_size: float = 0.5, search_radius: float = 1.0):
         self.grid_map = grid_map
+        self.max_iter = max_iter
+        self.step_size = step_size
+        self.search_radius = search_radius
+        self.nodes = []
+
+    def get_distance(self, p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
+        return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
+
+    def is_collision_free(self, p1: Tuple[float, float], p2: Tuple[float, float]) -> bool:
+        """Check if path between p1 and p2 is collision-free using Bresenham-like sampling"""
+        dist = self.get_distance(p1, p2)
+        if dist == 0: return True
+        
+        res = self.grid_map.resolution / 2
+        steps = int(dist / res)
+        if steps == 0:
+            return self.grid_map.is_free(*self.grid_map.world_to_grid(p2[0], p2[1]))
+
+        for i in range(steps + 1):
+            t = i / steps
+            curr_x = p1[0] + (p2[0] - p1[0]) * t
+            curr_y = p1[1] + (p2[1] - p1[1]) * t
+            grid_pos = self.grid_map.world_to_grid(curr_x, curr_y)
+            if not self.grid_map.is_free(*grid_pos):
+                return False
+        return True
+
+    def find_path(self, start: Tuple[float, float], goal: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
+        """Find path from start to goal using RRT*"""
+        self.nodes = [RRTNode(start)]
+        goal_node = None
+
+        for _ in range(self.max_iter):
+            # Sample random point (with goal bias)
+            if random.random() < 0.1:
+                rand_pos = goal
+            else:
+                rand_pos = (random.uniform(0, self.grid_map.width * self.grid_map.resolution),
+                            random.uniform(0, self.grid_map.height * self.grid_map.resolution))
+
+            # Find nearest node
+            nearest_node = min(self.nodes, key=lambda n: self.get_distance(n.position, rand_pos))
+
+            # Step towards random point
+            dist = self.get_distance(nearest_node.position, rand_pos)
+            if dist > self.step_size:
+                theta = math.atan2(rand_pos[1] - nearest_node.position[1], rand_pos[0] - nearest_node.position[0])
+                new_pos = (nearest_node.position[0] + self.step_size * math.cos(theta),
+                           nearest_node.position[1] + self.step_size * math.sin(theta))
+            else:
+                new_pos = rand_pos
+
+            if not self.is_collision_free(nearest_node.position, new_pos):
+                continue
+
+            new_node = RRTNode(new_pos, nearest_node)
+            new_node.cost = nearest_node.cost + self.get_distance(nearest_node.position, new_pos)
+
+            # RRT* optimization: Find best parent in search radius
+            neighbors = [n for n in self.nodes if self.get_distance(n.position, new_pos) < self.search_radius]
+            for neighbor in neighbors:
+                new_cost = neighbor.cost + self.get_distance(neighbor.position, new_pos)
+                if new_cost < new_node.cost and self.is_collision_free(neighbor.position, new_pos):
+                    new_node.parent = neighbor
+                    new_node.cost = new_cost
+
+            self.nodes.append(new_node)
+
+            # Rewire neighbors
+            for neighbor in neighbors:
+                new_cost = new_node.cost + self.get_distance(new_node.position, neighbor.position)
+                if new_cost < neighbor.cost and self.is_collision_free(new_node.position, neighbor.position):
+                    neighbor.parent = new_node
+                    neighbor.cost = new_cost
+
+            # Check if goal reached
+            if self.get_distance(new_pos, goal) < self.step_size:
+                if self.is_collision_free(new_pos, goal):
+                    if goal_node is None or new_node.cost + self.get_distance(new_pos, goal) < goal_node.cost:
+                        goal_node = RRTNode(goal, new_node)
+                        goal_node.cost = new_node.cost + self.get_distance(new_pos, goal)
+
+        if goal_node:
+            path = []
+            curr = goal_node
+            while curr:
+                path.append(curr.position)
+                curr = curr.parent
+            path.reverse()
+            return path
+
+        return None
+
+class PathPlanner:
+    """Advanced path planning with multiple algorithms"""
+
+    def __init__(self, grid_map: GridMap, algorithm: str = 'astar'):
+        self.grid_map = grid_map
+        self.algorithm = algorithm
+        self.astar_planner = None # Initialized on demand
+        self.rrt_planner = RRTStarPlanner(grid_map)
         self.directions = [
             (0, 1), (1, 0), (0, -1), (-1, 0),  # Cardinal directions
             (1, 1), (1, -1), (-1, 1), (-1, -1)  # Diagonal directions
         ]
 
-    def heuristic(self, current: Tuple[int, int], goal: Tuple[int, int]) -> float:
-        """Calculate heuristic cost (Manhattan distance)"""
-        return abs(current[0] - goal[0]) + abs(current[1] - goal[1])
-
-    def get_neighbors(self, position: Tuple[int, int]) -> List[Tuple[int, int]]:
-        """Get valid neighboring positions"""
-        neighbors = []
-        for dx, dy in self.directions:
-            new_x, new_y = position[0] + dx, position[1] + dy
-            if self.grid_map.is_free(new_x, new_y):
-                neighbors.append((new_x, new_y))
-        return neighbors
-
-    def reconstruct_path(self, current: Node) -> List[Tuple[int, int]]:
-        """Reconstruct path from goal node to start"""
-        path = []
-        while current:
-            path.append(current.position)
-            current = current.parent
-        path.reverse()
-        return path
+    def set_algorithm(self, algorithm: str):
+        self.algorithm = algorithm
 
     def find_path(self, start_world: Tuple[float, float], goal_world: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
-        """Find path using A* algorithm"""
+        if self.algorithm == 'rrtstar':
+            return self.rrt_planner.find_path(start_world, goal_world)
+        
+        # Default to A*
+        return self._find_path_astar(start_world, goal_world)
+
+    def _find_path_astar(self, start_world: Tuple[float, float], goal_world: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
         # Convert to grid coordinates
         start_grid = self.grid_map.world_to_grid(start_world[0], start_world[1])
         goal_grid = self.grid_map.world_to_grid(goal_world[0], goal_world[1])

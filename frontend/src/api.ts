@@ -253,6 +253,10 @@ export function syncSimObstacles(obstacles: Array<{ x: number; y: number; w: num
   });
 }
 
+export function fetchSimObstacles(): Promise<{ obstacles: Array<{ x: number; y: number; w: number; h: number }> }> {
+  return request('/sim/obstacles', { method: 'GET' });
+}
+
 export function calibrateImu(): Promise<{ success: boolean }> {
   return request('/robot/imu/calibrate', { method: 'POST' });
 }

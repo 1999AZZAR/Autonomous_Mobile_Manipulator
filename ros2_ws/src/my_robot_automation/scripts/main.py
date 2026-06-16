@@ -79,7 +79,7 @@ class AutonomousMobileManipulator:
 
         # Initialize path planning
         self.grid_map = GridMap(width=100, height=100, resolution=0.1)  # 10m x 10m grid
-        self.path_planner = PathPlanner(self.grid_map)
+        self.path_planner = PathPlanner(self.grid_map, algorithm='rrtstar')
         self.movement_sequence = MovementSequence()
         self.waypoint_navigator = WaypointNavigator(self.path_planner)
 
