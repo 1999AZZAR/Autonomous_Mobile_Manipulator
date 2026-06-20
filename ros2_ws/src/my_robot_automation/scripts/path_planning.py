@@ -5,8 +5,12 @@ Advanced path planning algorithms for autonomous navigation
 
 import heapq
 import math
+import random
 from typing import List, Tuple, Dict, Optional
 import logging
+
+import numpy as np
+from scipy.spatial import KDTree
 
 logger = logging.getLogger(__name__)
 
@@ -14,9 +18,9 @@ class Node:
     """Node for A* pathfinding"""
     def __init__(self, position: Tuple[int, int], g_cost: float = 0, h_cost: float = 0, parent=None):
         self.position = position
-        self.g_cost = g_cost  # Cost from start to current node
-        self.h_cost = h_cost  # Heuristic cost to goal
-        self.f_cost = g_cost + h_cost  # Total cost
+        self.g_cost = g_cost
+        self.h_cost = h_cost
+        self.f_cost = g_cost + h_cost
         self.parent = parent
 
     def __lt__(self, other):
@@ -28,134 +32,175 @@ class GridMap:
     def __init__(self, width: int, height: int, resolution: float = 0.1):
         self.width = width
         self.height = height
-        self.resolution = resolution  # meters per cell
-        self.grid = [[0 for _ in range(width)] for _ in range(height)]  # 0 = free, 1 = obstacle
+        self.resolution = resolution
+        self.grid = [[0 for _ in range(width)] for _ in range(height)]
         self.obstacles = []
+        self.sensor_obstacles: Dict[Tuple[int, int], int] = {}
+        self._age_counter = 0
 
     def world_to_grid(self, world_x: float, world_y: float) -> Tuple[int, int]:
-        """Convert world coordinates to grid coordinates"""
         grid_x = int(world_x / self.resolution)
         grid_y = int(world_y / self.resolution)
         return grid_x, grid_y
 
     def grid_to_world(self, grid_x: int, grid_y: int) -> Tuple[float, float]:
-        """Convert grid coordinates to world coordinates"""
         world_x = grid_x * self.resolution
         world_y = grid_y * self.resolution
         return world_x, world_y
 
     def is_valid_position(self, x: int, y: int) -> bool:
-        """Check if grid position is valid"""
         return 0 <= x < self.width and 0 <= y < self.height
 
     def is_free(self, x: int, y: int) -> bool:
-        """Check if grid cell is free"""
         if not self.is_valid_position(x, y):
             return False
         return self.grid[y][x] == 0
 
     def set_obstacle(self, x: int, y: int):
-        """Set grid cell as obstacle"""
         if self.is_valid_position(x, y):
             self.grid[y][x] = 1
             self.obstacles.append((x, y))
 
-    def add_sensor_obstacles(self, sensor_data: Dict, robot_position: Tuple[float, float]):
-        """Add obstacles from sensor data"""
-        # Clear previous sensor obstacles (keep static obstacles)
-        for obs in self.obstacles[:]:  # Copy list to avoid modification during iteration
-            if hasattr(obs, 'sensor_based') and obs.sensor_based:
-                x, y = obs.position
-                self.grid[y][x] = 0
-                self.obstacles.remove(obs)
+    def add_sensor_obstacles(self, sensor_data: Dict, robot_position: Tuple[float, float], max_age: int = 5):
+        """Project sensor readings onto grid with automatic aging.
 
-        # Add new sensor-based obstacles
-        ir_sensors = sensor_data.get('laser_sensors', {})
-        ultrasonic = sensor_data.get('ultrasonic_sensors', {})
+        Clears obstacles not refreshed in *max_age* cycles, then adds current
+        IR + ultrasonic readings.  Distances are converted from mm to m
+        internally.
+        """
+        self._age_counter += 1
 
-        # Process IR sensor data
-        for sensor_name, distance in ir_sensors.items():
-            if distance and distance > 0 and distance < 2000:  # Valid reading under 2m
-                angle_offset = {
-                    'left_front': -45, 'left_back': -135,
-                    'right_front': 45, 'right_back': 135,
-                    'back_left': -135, 'back_right': 135
-                }.get(sensor_name, 0)
+        # ---- 1. clear stale sensor obstacles ----
+        stale = [(gx, gy) for (gx, gy), seen in self.sensor_obstacles.items()
+                 if self._age_counter - seen >= max_age]
+        for gx, gy in stale:
+            del self.sensor_obstacles[(gx, gy)]
+            if self.is_valid_position(gx, gy):
+                self.grid[gy][gx] = 0
 
-                # Calculate obstacle position
-                obstacle_x = robot_position[0] + distance * math.cos(math.radians(angle_offset))
-                obstacle_y = robot_position[1] + distance * math.sin(math.radians(angle_offset))
+        # ---- 2. clear all currently-tracked sensor cells (will re-add below) ----
+        for gx, gy in list(self.sensor_obstacles.keys()):
+            if self.is_valid_position(gx, gy):
+                self.grid[gy][gx] = 0
+        self.sensor_obstacles.clear()
 
-                grid_x, grid_y = self.world_to_grid(obstacle_x, obstacle_y)
-                if self.is_valid_position(grid_x, grid_y):
-                    self.set_obstacle(grid_x, grid_y)
-                    # Mark as sensor-based for clearing
-                    self.obstacles[-1] = type('Obstacle', (), {
-                        'position': (grid_x, grid_y),
-                        'sensor_based': True
-                    })()
+        rx, ry = robot_position
 
-import random
+        # ---- 3. IR (laser) sensors ----
+        ir = sensor_data.get('laser_sensors', {})
+        for name, dist_mm in ir.items():
+            if not dist_mm or dist_mm <= 0 or dist_mm >= 2000:
+                continue
+            angle = {
+                'left_front': -45, 'left_back': -135,
+                'right_front': 45, 'right_back': 135,
+                'back_left': -135, 'back_right': 135,
+            }.get(name, 0)
+            dist_m = dist_mm / 1000.0
+            ox = rx + dist_m * math.cos(math.radians(angle))
+            oy = ry + dist_m * math.sin(math.radians(angle))
+            gx, gy = self.world_to_grid(ox, oy)
+            if self.is_valid_position(gx, gy):
+                self.grid[gy][gx] = 1
+                self.sensor_obstacles[(gx, gy)] = self._age_counter
+
+        # ---- 4. ultrasonic sensors (wider footprint) ----
+        us = sensor_data.get('ultrasonic_sensors', {})
+        for name, dist_mm in us.items():
+            if not dist_mm or dist_mm <= 0 or dist_mm >= 4000:
+                continue
+            # Ultrasonic has ~30° beam — spread obstacle across 3 cells
+            base_angle = {'front_left': 30, 'front_right': -30}.get(name, 0)
+            dist_m = dist_mm / 1000.0
+            for spread in (-15, 0, 15):
+                ox = rx + dist_m * math.cos(math.radians(base_angle + spread))
+                oy = ry + dist_m * math.sin(math.radians(base_angle + spread))
+                gx, gy = self.world_to_grid(ox, oy)
+                if self.is_valid_position(gx, gy):
+                    self.grid[gy][gx] = 1
+                    self.sensor_obstacles[(gx, gy)] = self._age_counter
+
+    def clear_static_obstacles(self):
+        """Remove all non-sensor obstacles (for dynamic environments)."""
+        self.grid = [[0 for _ in range(self.width)] for _ in range(self.height)]
+        self.obstacles.clear()
+
+    def get_obstacle_grid(self) -> List[List[int]]:
+        """Return a copy of the current grid (for visualisation / frontend)."""
+        return [row[:] for row in self.grid]
+
+_RRT_WARNED = False  # module-level flag to avoid log spam
 
 class RRTNode:
     """Node for RRT* pathfinding"""
+    __slots__ = ('position', 'parent', 'cost')
     def __init__(self, position: Tuple[float, float], parent=None):
         self.position = position
         self.parent = parent
         self.cost = 0.0
 
 class RRTStarPlanner:
-    """Optimal Rapidly-exploring Random Tree (RRT*) path planner"""
+    """Optimal Rapidly-exploring Random Tree (RRT*) path planner.
+
+    Uses scipy.spatial.KDTree for O(log n) nearest-neighbour queries and
+    O(log n + k) range searches instead of the original O(n) linear scans.
+    """
 
     def __init__(self, grid_map: GridMap, max_iter: int = 1000, step_size: float = 0.5, search_radius: float = 1.0):
         self.grid_map = grid_map
         self.max_iter = max_iter
         self.step_size = step_size
         self.search_radius = search_radius
-        self.nodes = []
+        self.nodes: List[RRTNode] = []
+        self._positions: List[Tuple[float, float]] = []  # mirror of node positions for KD-tree
 
     def get_distance(self, p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
         return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
 
     def is_collision_free(self, p1: Tuple[float, float], p2: Tuple[float, float]) -> bool:
-        """Check if path between p1 and p2 is collision-free using Bresenham-like sampling"""
         dist = self.get_distance(p1, p2)
-        if dist == 0: return True
-        
+        if dist == 0:
+            return True
         res = self.grid_map.resolution / 2
         steps = int(dist / res)
         if steps == 0:
             return self.grid_map.is_free(*self.grid_map.world_to_grid(p2[0], p2[1]))
-
         for i in range(steps + 1):
             t = i / steps
             curr_x = p1[0] + (p2[0] - p1[0]) * t
             curr_y = p1[1] + (p2[1] - p1[1]) * t
-            grid_pos = self.grid_map.world_to_grid(curr_x, curr_y)
-            if not self.grid_map.is_free(*grid_pos):
+            if not self.grid_map.is_free(*self.grid_map.world_to_grid(curr_x, curr_y)):
                 return False
         return True
 
     def find_path(self, start: Tuple[float, float], goal: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
-        """Find path from start to goal using RRT*"""
         self.nodes = [RRTNode(start)]
+        self._positions = [(start[0], start[1])]
         goal_node = None
 
         for _ in range(self.max_iter):
-            # Sample random point (with goal bias)
             if random.random() < 0.1:
                 rand_pos = goal
             else:
-                rand_pos = (random.uniform(0, self.grid_map.width * self.grid_map.resolution),
-                            random.uniform(0, self.grid_map.height * self.grid_map.resolution))
+                rand_pos = (
+                    random.uniform(0, self.grid_map.width * self.grid_map.resolution),
+                    random.uniform(0, self.grid_map.height * self.grid_map.resolution),
+                )
 
-            # Find nearest node
-            nearest_node = min(self.nodes, key=lambda n: self.get_distance(n.position, rand_pos))
+            # ---- nearest neighbour via KD-tree ----
+            try:
+                kdt = KDTree(self._positions)
+                _, idx = kdt.query([rand_pos], k=1)
+                nearest_node = self.nodes[idx[0][0]]
+            except Exception:
+                # Fallback if KD-tree fails (e.g., duplicate points)
+                nearest_node = min(self.nodes, key=lambda n: self.get_distance(n.position, rand_pos))
 
-            # Step towards random point
+            # ---- step ----
             dist = self.get_distance(nearest_node.position, rand_pos)
             if dist > self.step_size:
-                theta = math.atan2(rand_pos[1] - nearest_node.position[1], rand_pos[0] - nearest_node.position[0])
+                theta = math.atan2(rand_pos[1] - nearest_node.position[1],
+                                   rand_pos[0] - nearest_node.position[0])
                 new_pos = (nearest_node.position[0] + self.step_size * math.cos(theta),
                            nearest_node.position[1] + self.step_size * math.sin(theta))
             else:
@@ -167,40 +212,47 @@ class RRTStarPlanner:
             new_node = RRTNode(new_pos, nearest_node)
             new_node.cost = nearest_node.cost + self.get_distance(nearest_node.position, new_pos)
 
-            # RRT* optimization: Find best parent in search radius
-            neighbors = [n for n in self.nodes if self.get_distance(n.position, new_pos) < self.search_radius]
-            for neighbor in neighbors:
-                new_cost = neighbor.cost + self.get_distance(neighbor.position, new_pos)
-                if new_cost < new_node.cost and self.is_collision_free(neighbor.position, new_pos):
-                    new_node.parent = neighbor
-                    new_node.cost = new_cost
+            # ---- neighbours via KD-tree range search ----
+            try:
+                idx_nb = kdt.query_ball_point(new_pos, self.search_radius)
+                neighbors = [self.nodes[i] for i in idx_nb if i < len(self.nodes)]
+            except Exception:
+                neighbors = [n for n in self.nodes
+                             if self.get_distance(n.position, new_pos) < self.search_radius]
+
+            for nb in neighbors:
+                c = nb.cost + self.get_distance(nb.position, new_pos)
+                if c < new_node.cost and self.is_collision_free(nb.position, new_pos):
+                    new_node.parent = nb
+                    new_node.cost = c
 
             self.nodes.append(new_node)
+            self._positions.append(new_pos)
 
-            # Rewire neighbors
-            for neighbor in neighbors:
-                new_cost = new_node.cost + self.get_distance(new_node.position, neighbor.position)
-                if new_cost < neighbor.cost and self.is_collision_free(new_node.position, neighbor.position):
-                    neighbor.parent = new_node
-                    neighbor.cost = new_cost
+            # ---- rewire neighbours ----
+            for nb in neighbors:
+                c = new_node.cost + self.get_distance(new_node.position, nb.position)
+                if c < nb.cost and self.is_collision_free(new_node.position, nb.position):
+                    nb.parent = new_node
+                    nb.cost = c
 
-            # Check if goal reached
+            # ---- check goal ----
             if self.get_distance(new_pos, goal) < self.step_size:
                 if self.is_collision_free(new_pos, goal):
                     if goal_node is None or new_node.cost + self.get_distance(new_pos, goal) < goal_node.cost:
                         goal_node = RRTNode(goal, new_node)
                         goal_node.cost = new_node.cost + self.get_distance(new_pos, goal)
 
-        if goal_node:
-            path = []
-            curr = goal_node
-            while curr:
-                path.append(curr.position)
-                curr = curr.parent
-            path.reverse()
-            return path
+        if goal_node is None:
+            return None
 
-        return None
+        path = []
+        curr = goal_node
+        while curr:
+            path.append(curr.position)
+            curr = curr.parent
+        path.reverse()
+        return path
 
 class PathPlanner:
     """Advanced path planning with multiple algorithms"""

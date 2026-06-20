@@ -10,10 +10,7 @@ import math
 import json
 from flask import Flask, request, jsonify, Response
 from flask_cors import CORS
-from config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG, DEFAULT_SIMULATION_MODE
-from mega_interface import MegaInterface
-from sensor_manager import SensorManager
-from gpio_controller import GPIOController
+from config import FLASK_HOST, FLASK_PORT, FLASK_DEBUG
 
 # ROS2 interface is optional (only available when ROS2 is installed)
 try:
@@ -1164,12 +1161,18 @@ class FlaskApp:
                         self.mega.send_command_to_mega('s')  # Stop
                     return True
 
-                # Sensor safety check before movement
+                # Sensor safety check → replan instead of abort
                 if not self._check_movement_safety('forward'):
-                    logger.warning("Obstacle detected during navigation - stopping for safety")
+                    logger.warning("Obstacle detected — replanning path")
                     if self.mega:
-                        self.mega.send_command_to_mega('s')  # Emergency stop
-                    return False  # Cannot continue navigation
+                        self.mega.send_command_to_mega('s')
+                    time.sleep(0.3)
+                    path = self._replan_path(current_pos, target_x, target_y)
+                    if path:
+                        self._execute_path(path, main_app)
+                        continue
+                    logger.warning("No viable path — aborting navigation")
+                    return False
 
                 # Calculate required bearing to target
                 target_bearing = math.degrees(math.atan2(dy, dx))
@@ -1188,9 +1191,15 @@ class FlaskApp:
                     # Check if turn direction is safe
                     turn_direction = 'right' if turn_angle > 0 else 'left'
                     if not self._check_movement_safety(turn_direction):
-                        logger.warning(f"Obstacle detected in {turn_direction} during turn - cannot navigate")
+                        logger.warning("Obstacle in %s during turn — replanning", turn_direction)
                         if self.mega:
                             self.mega.send_command_to_mega('s')
+                        time.sleep(0.3)
+                        path = self._replan_path(current_pos, target_x, target_y)
+                        if path:
+                            self._execute_path(path, main_app)
+                            continue
+                        logger.warning("No viable path — aborting navigation")
                         return False
 
                     turn_command = 'y' if turn_angle > 0 else 't'  # y=turn right CW, t=turn left CCW
@@ -1220,11 +1229,17 @@ class FlaskApp:
                     speed_factor = min(distance / 2.0, 1.0)  # Max speed at 2m distance
                     move_time = min(distance / 0.3 * speed_factor, 5.0)  # Max 5 seconds
 
-                    # Final safety check before moving
+                    # Final safety check → replan instead of abort
                     if not self._check_movement_safety('forward'):
-                        logger.warning("Obstacle detected right before movement - stopping")
+                        logger.warning("Obstacle right before movement — replanning")
                         if self.mega:
                             self.mega.send_command_to_mega('s')
+                        time.sleep(0.3)
+                        path = self._replan_path(current_pos, target_x, target_y)
+                        if path:
+                            self._execute_path(path, main_app)
+                            continue
+                        logger.warning("No viable path — aborting navigation")
                         return False
 
                     if self.mega:
@@ -1279,7 +1294,7 @@ class FlaskApp:
                         time.sleep(0.5)  # Allow speed change to take effect
                     else:
                         logger.warning(f'Invalid speed value: {speed}, must be 50-100')
-                except (ValueError, IndexError) as e:
+                except (ValueError, IndexError):
                     logger.error(f'Invalid speed action format: {action}')
 
             elif action == 'gripper_open':
@@ -1331,7 +1346,7 @@ class FlaskApp:
                         time.sleep(wait_time)
                     else:
                         logger.warning(f'Invalid wait time: {wait_time}, must be 0-10 seconds')
-                except (ValueError, IndexError) as e:
+                except (ValueError, IndexError):
                     logger.error(f'Invalid wait action format: {action}')
 
             elif action.startswith('tilt_angle_'):
@@ -1344,7 +1359,7 @@ class FlaskApp:
                         time.sleep(1.0)
                     else:
                         logger.warning(f'Invalid tilt angle: {angle}, must be 0-180')
-                except (ValueError, IndexError) as e:
+                except (ValueError, IndexError):
                     logger.error(f'Invalid tilt angle action format: {action}')
 
             elif action.startswith('gripper_angle_'):
@@ -1357,7 +1372,7 @@ class FlaskApp:
                         time.sleep(1.0)
                     else:
                         logger.warning(f'Invalid gripper angle: {angle}, must be 0-180')
-                except (ValueError, IndexError) as e:
+                except (ValueError, IndexError):
                     logger.error(f'Invalid gripper angle action format: {action}')
 
             else:
@@ -1570,6 +1585,78 @@ class FlaskApp:
                 'error': str(e),
                 'timestamp': time.time()
             }), 500
+
+    def _replan_path(self, current_pos, target_x, target_y):
+        """Replan from *current_pos* to (target_x, target_y) via RRT*.
+
+        Returns list of (x, y) waypoints, or *None* if no path exists.
+        """
+        try:
+            if not self.main_app:
+                return None
+            planner = getattr(self.main_app, 'path_planner', None)
+            if not planner:
+                return None
+            start = (current_pos[0], current_pos[1])
+            goal = (target_x, target_y)
+            path = planner.find_path(start, goal)
+            if path and len(path) >= 2:
+                logger.info("RRT* replan: %d waypoints", len(path))
+                return path
+            logger.warning("RRT* replan: no viable path found")
+            return None
+        except Exception as exc:
+            logger.error("Replan error: %s", exc)
+            return None
+
+    def _execute_path(self, path, main_app):
+        """Walk through *path* waypoints — turn → move for each segment.
+
+        Returns *True* if all segments completed, *False* if blocked.
+        """
+        if not path or len(path) < 2:
+            return False
+
+        for i in range(1, len(path)):
+            dx = path[i][0] - path[i - 1][0]
+            dy = path[i][1] - path[i - 1][1]
+            dist = math.sqrt(dx * dx + dy * dy)
+            bearing = math.degrees(math.atan2(dy, dx))
+
+            heading = main_app.current_orientation[2] if main_app else 0.0
+            turn_angle = bearing - heading
+            while turn_angle > 180:
+                turn_angle -= 360
+            while turn_angle < -180:
+                turn_angle += 360
+
+            if abs(turn_angle) > 5 and self.mega:
+                turn_cmd = 'y' if turn_angle > 0 else 't'
+                turn_time = min(abs(turn_angle) / 45.0, 2.0)
+                self.mega.send_command_to_mega(turn_cmd)
+                time.sleep(turn_time)
+                self.mega.send_command_to_mega('s')
+                time.sleep(0.3)
+                if main_app:
+                    main_app.current_orientation[2] += turn_angle
+                    while main_app.current_orientation[2] > 180:
+                        main_app.current_orientation[2] -= 360
+                    while main_app.current_orientation[2] < -180:
+                        main_app.current_orientation[2] += 360
+
+            if dist > 0.2 and self.mega:
+                move_time = min(dist / 0.3, 3.0)
+                self.mega.send_command_to_mega('f')
+                time.sleep(move_time)
+                self.mega.send_command_to_mega('s')
+                time.sleep(0.3)
+                if main_app:
+                    heading_rad = math.radians(main_app.current_orientation[2])
+                    actual_dist = min(dist, 0.3 * move_time)
+                    main_app.current_position[0] += actual_dist * math.cos(heading_rad)
+                    main_app.current_position[1] += actual_dist * math.sin(heading_rad)
+
+        return True
 
     def _run_continuous_command(self):
         sim = None

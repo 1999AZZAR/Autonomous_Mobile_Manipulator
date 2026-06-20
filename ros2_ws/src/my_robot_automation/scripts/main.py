@@ -9,7 +9,6 @@ import time
 import threading
 import argparse
 import logging
-import math
 from config import DEFAULT_SIMULATION_MODE
 from app import FlaskApp
 from mega_interface import MegaInterface
@@ -168,9 +167,12 @@ class AutonomousMobileManipulator:
         self._auto_calibrate_imu()
 
         # Start IMU position tracking for coordinate-based navigation
-        # Start IMU position tracking for waypoint navigation (works with simulated IMU data)
         threading.Thread(target=self._imu_position_tracking, daemon=True).start()
         logger.info("IMU position tracking started for waypoint navigation")
+
+        # Start GridMap update loop (sensor → occupancy grid)
+        threading.Thread(target=self._grid_map_update_loop, daemon=True).start()
+        logger.info("GridMap sensor update loop started")
 
         # Auto-start autonomous navigation in simulation mode
         if self.simulation_mode:
@@ -288,10 +290,24 @@ class AutonomousMobileManipulator:
                     consecutive_errors = 0
                 time.sleep(0.5)  # Back off on errors
 
+    def _grid_map_update_loop(self):
+        """Background thread: consume sensor stream → project obstacles onto GridMap."""
+        while True:
+            try:
+                if self.sensor_manager:
+                    data = self.sensor_manager.read_all_sensors()
+                    pos = (self.current_position[0], self.current_position[1])
+                    self.grid_map.add_sensor_obstacles(data, pos, max_age=5)
+            except Exception as exc:
+                logger.debug(f"GridMap update skipped: {exc}")
+            time.sleep(0.2)
+
     def _auto_start_simulation(self):
         """Auto-start autonomous navigation in simulation mode."""
         def _start():
-            import os, json, time as _time, shutil
+            import os
+            import time as _time
+            import shutil
             _time.sleep(3.0)
 
             model_dir = os.path.join(os.path.dirname(__file__), '..', '..', '..', '..', 'models')
