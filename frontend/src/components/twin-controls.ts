@@ -7,9 +7,9 @@ import { loadAllRecordings, type Recording } from '../engine/recording';
 
 let containerEl: HTMLElement | null = null;
 let activeMovementCmd: string | null = null;
+let recFrameInterval: ReturnType<typeof setInterval> | null = null;
 
 export function initTwinControls(parent: HTMLElement) {
-  if (containerEl) return;
 
   containerEl = document.createElement('div');
   containerEl.className = 'twin-controls';
@@ -222,7 +222,7 @@ export function initTwinControls(parent: HTMLElement) {
   });
 
   // Update recording frame count periodically
-  setInterval(() => {
+  recFrameInterval = setInterval(() => {
     if (isRecording()) {
       recFrames.textContent = String(getRecordingFrameCount());
     }
@@ -407,6 +407,11 @@ export function initTwinControls(parent: HTMLElement) {
 }
 
 export function destroyTwinControls() {
+  if (recFrameInterval) {
+    clearInterval(recFrameInterval);
+    recFrameInterval = null;
+  }
+  activeMovementCmd = null;
   if (containerEl) {
     containerEl.remove();
     containerEl = null;

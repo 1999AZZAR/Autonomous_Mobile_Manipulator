@@ -1,8 +1,10 @@
 services:
-  # PostgreSQL Database
+  # PostgreSQL Database (optional — backend works without it)
   postgres:
     image: postgres:16-alpine
     container_name: robot_postgres
+    profiles:
+      - full
     environment:
       POSTGRES_DB: robot_automation
       POSTGRES_USER: robot
@@ -15,70 +17,25 @@ services:
       timeout: 5s
       retries: 5
 
-  # Redis — sensor cache, rate limiting, pub/sub
+  # Redis — sensor cache, rate limiting, pub/sub (optional)
   redis:
     image: redis:7-alpine
     container_name: robot_redis
+    profiles:
+      - full
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
-    volumes:
-      - redis_data:/data
 
-  # Python REST API + ROS2 simulation backend
+  # Python REST API + simulation backend
   backend:
     build:
       context: ./ros2_ws
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.sim
     container_name: robot_backend
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    command: >
-      bash -c "
-      source /opt/ros/jazzy/setup.bash &&
-      cd /root/ros2_ws &&
-      echo 'Checking Python dependencies...' &&
-      pip3 install --break-system-packages --ignore-installed numpy -r src/my_robot_automation/requirements.txt &&
-      echo 'Setting up Prisma...' &&
-      cd src/my_robot_automation &&
-      prisma generate &&
-      prisma db push --accept-data-loss &&
-      cd /root/ros2_ws &&
-      echo 'Building robot packages...' &&
-      timeout 300 colcon build --packages-select my_robot_description my_robot_bringup my_robot_automation --event-handlers console_direct+ &&
-      if [ $? -eq 0 ]; then
-        source install/setup.bash &&
-        echo 'Packages built successfully' &&
-        echo 'Starting Robot Control System...' &&
-        python3 /root/ros2_ws/src/my_robot_automation/scripts/main.py --simulation &
-        sleep 3 &&
-        echo 'Backend API: http://localhost:8001' &&
-        tail -f /dev/null
-      else
-        echo 'Build failed - starting with existing packages' &&
-        source install/setup.bash &&
-        python3 /root/ros2_ws/src/my_robot_automation/scripts/main.py --simulation &
-        sleep 3 &&
-        echo 'Backend API: http://localhost:8001' &&
-        tail -f /dev/null
-      fi
-      "
-    volumes:
-      - ./ros2_ws/src:/root/ros2_ws/src
     environment:
-      - DISPLAY=${DISPLAY:-:0}
-      - WAYLAND_DISPLAY=${WAYLAND_DISPLAY}
-      - XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR}
-      - QT_QPA_PLATFORM=xcb
-      - QT_X11_NO_MITSHM=1
-      - LIBGL_ALWAYS_INDIRECT=1
-      - GAZEBO_MODEL_PATH=/root/ros2_ws/src/my_robot_description/models
-      - PYTHONPATH=/root/ros2_ws/install/my_robot_automation/lib/python3.12/site-packages
       - FLASK_PORT=8001
       - DATABASE_URL=postgresql://robot:robot_secret@postgres:5432/robot_automation
       - REDIS_URL=redis://redis:6379/0

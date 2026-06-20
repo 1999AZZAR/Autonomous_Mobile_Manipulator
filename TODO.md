@@ -27,10 +27,10 @@ States:
   ESTOP        → emergency stop
 ```
 
-[ ] P0 — Implement FSM in `main.py` with clean transitions
-[ ] P0 — Priority hierarchy: ESTOP > LINE_FOLLOW > TASK_SEQ > IFTTT > AI > WAYPOINT > MANUAL
-[ ] P0 — Auto-detect line presence → auto-switch to LINE_FOLLOW mode
-[ ] P1 — Mode transition logging for student debugging
+[x] P0 — Implement FSM in `main.py` with clean transitions
+[x] P0 — Priority hierarchy: ESTOP > LINE_FOLLOW > TASK_SEQ > IFTTT > AI > WAYPOINT > MANUAL
+[x] P0 — Auto-detect line presence → auto-switch to LINE_FOLLOW mode
+[x] P1 — Mode transition logging for student debugging
 [ ] P2 — Dashboard mode indicator + manual override button
 
 ---
@@ -51,19 +51,19 @@ Mega motors ←─────── turn/move commands
 ```
 
 ### Bug Fixes
-[ ] P0 — **Sensor obstacle clearing bug** (`path_planning.py:63-96`): `hasattr()` on raw tuples instead of typed objects. Fix: separate obstacle type with `sensor_based` flag.
-[ ] P0 — **RRT* nearest-neighbor O(n)** (`path_planning.py:153`): `min(list, key=...)` linear scan. Fix: KD-tree or grid-based spatial index.
+[x] P0 — **Sensor obstacle clearing bug** (`path_planning.py:63-96`): `hasattr()` on raw tuples instead of typed objects. Fix: separate obstacle type with `sensor_based` flag.
+[x] P0 — **RRT* nearest-neighbor O(n)** (`path_planning.py:153`): `min(list, key=...)` linear scan. Fix: KD-tree or grid-based spatial index (built every 50 iters).
 
 ### Sensor → Grid Pipeline
-[ ] P0 — GridMap update loop: consume Mega sensor stream → project to grid → mark obstacles
-[ ] P0 — Sensor aging: clear stale sensor readings after N cycles (dynamic obstacles move)
+[x] P0 — GridMap update loop: consume Mega sensor stream → project to grid → mark obstacles
+[x] P0 — Sensor aging: clear stale sensor readings after N cycles (dynamic obstacles move)
 [ ] P1 — Multi-robot awareness: differentiate static vs dynamic obstacles
 [ ] P2 — IR cone model: widen obstacle footprint based on sensor beam angle
 
 ### Replan Loop
-[ ] P0 — Replace `_check_movement_safety` abort with RRT* replan from current pos to goal
-[ ] P0 — Replan rate limiter (avoid replanning every cycle — only when path actually blocked)
-[ ] P0 — Path → movement commands converter (waypoints → turn/move sequence)
+[x] P0 — Replace `_check_movement_safety` abort with RRT* replan from current pos to goal
+[x] P0 — Replan rate limiter (avoid replanning every cycle — only when path actually blocked)
+[x] P0 — Path → movement commands converter (waypoints → turn/move sequence)
 [ ] P1 — Path smoothing: bezier/cubic spline between RRT* waypoints
 [ ] P2 — Multi-query RRT*: reuse tree across replans instead of rebuilding
 
@@ -73,10 +73,10 @@ Mega motors ←─────── turn/move commands
 
 Auto-engages when line sensors detect a track. PID to center on line.
 
-[ ] P0 — PID controller for line tracking (3-sensor input → motor output)
-[ ] P0 — Line detection algorithm: threshold calibration, noise rejection
-[ ] P0 — Mode transition: auto-engage LINE_FOLLOW when line confidence > threshold
-[ ] P0 — Mode transition: fall back to previous mode when line lost
+[x] P0 — PID controller for line tracking (3-sensor input → motor output)
+[x] P0 — Line detection algorithm: threshold calibration, noise rejection
+[x] P0 — Mode transition: auto-engage LINE_FOLLOW when line confidence > threshold
+[x] P0 — Mode transition: fall back to previous mode when line lost
 [ ] P1 — Line junction detection (T-junction, cross, dead-end)
 [ ] P1 — Line color/direction detection (red vs white tape)
 [ ] P2 — Frontend: line sensor visualization + PID tuning sliders
@@ -88,11 +88,11 @@ Auto-engages when line sensors detect a track. PID to center on line.
 
 Chains multi-step missions: `pick red cube from A → go to B → spin 2x → go to C → place cube`
 
-[ ] P0 — Task sequence data model (steps, conditions, branching)
-[ ] P0 — Executor: run steps sequentially, handle failures
-[ ] P0 — Condition system: wait-for-sensor, wait-for-time, wait-for-position
-[ ] P0 — Manipulation actions: pick, place, spin, tilt, lift
-[ ] P0 — Navigation actions: goto waypoint (+obstacle avoidance), follow line, rotate
+[x] P0 — Task sequence data model (steps, conditions, branching)
+[x] P0 — Executor: run steps sequentially, handle failures
+[x] P0 — Condition system: wait-for-sensor, wait-for-time, wait-for-position
+[x] P0 — Manipulation actions: pick, place, spin, tilt, lift
+[x] P0 — Navigation actions: goto waypoint (+obstacle avoidance), follow line, rotate
 [ ] P1 — Recursive sub-tasks (call another sequence)
 [ ] P1 — Retry logic with configurable attempts
 [ ] P2 — Frontend: visual task builder (drag-drop blocks) — STEM education
@@ -212,12 +212,16 @@ Mega = I/O device: reads sensors, executes motor commands. All planning on host.
 ## Priority Playbook
 
 ```
-SPRINT 1 (Obstacle Avoidance MVP)
+SPRINT 1 (Obstacle Avoidance MVP) ✅
 ├── Fix RRT* sensor clearing bug (@path_planning.py:63)
 ├── Fix RRT* O(n) nearest-neighbor (@path_planning.py:153)
 ├── Implement sensor→GridMap update loop
 ├── Replace abort-on-obstacle with RRT* replan (@app.py:1124)
-└── Wire into main.py FSM
+├── Wire into main.py FSM
+├── Replan rate limiter (1s cooldown, @app.py)
+├── Line follower PID + auto-engage (@line_follower.py)
+├── FSM priority hierarchy + ESTOP (@fsm.py)
+└── Task sequencer with conditions + actions (@task_sequencer.py)
 
 SPRINT 2 (Navigation)
 ├── FSM state machine

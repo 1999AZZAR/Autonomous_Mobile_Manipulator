@@ -50,7 +50,6 @@ function initHitPoints() {
 }
 
 export function initDigitalTwin(container: HTMLElement) {
-  if (scene) return;
   containerEl = container;
 
   scene = createScene(container);
@@ -225,16 +224,39 @@ export function initDigitalTwin(container: HTMLElement) {
 }
 
 export function destroyDigitalTwin() {
+  // Stop simulation
+  if (simInterval) {
+    clearInterval(simInterval);
+    simInterval = null;
+  }
   stopRealPolling();
+  simVel = { vx: 0, vy: 0, omega: 0 };
 
+  // Stop playback
+  playback?.stop();
+  playback = null;
+  recorder = null;
+
+  // Unsubscribe twin state
   if (unsubscribe) {
     unsubscribe();
     unsubscribe = null;
   }
+
+  // Unsubscribe WorldState
+  WorldState.unsubscribe('digital-twin');
+
+  // Dispose occupancy grid
+  occGrid?.dispose();
+  occGrid = null;
+
+  // Dispose scene (removes canvas from DOM)
   if (scene) {
     scene.dispose();
     scene = null;
   }
+
+  // Remove obstacle meshes left on the scene
   robotGroup = null;
   robotParts = null;
   laserArcs = null;
@@ -508,8 +530,9 @@ export function startSimulation(presetName?: string) {
 
   if (simInterval) clearInterval(simInterval);
 
-  simPos = { x: 0, y: 0, heading: 0 };
-  refreshTwinData();
+  // Preserve last known position from twin state (survives tab switches)
+  const current = getTwinState();
+  simPos = { x: current.position.x, y: current.position.y, heading: current.heading };
   lastBackendCorrection = Date.now();
 
   simInterval = setInterval(() => {

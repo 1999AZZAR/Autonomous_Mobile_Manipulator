@@ -5,7 +5,7 @@ import { initDashboard, destroyDashboard } from './components/dashboard';
 import { initMovement, destroyMovement } from './components/movement';
 import { initManipulator, destroyManipulator } from './components/manipulator';
 import { initAutomations, destroyAutomations } from './components/automations';
-import { renderAiControl } from './components/ai-control';
+import { renderAiControl, destroyAiControl } from './components/ai-control';
 import { renderMap, destroyMap } from './components/map-view';
 import { initDigitalTwin, destroyDigitalTwin } from './components/digital-twin';
 import { initTwinHud, destroyTwinHud } from './components/twin-hud';
@@ -36,12 +36,11 @@ const destroyFns: Record<Tab, () => void> = {
   map: destroyMap,
   twin: destroyTwinTab,
   automations: destroyAutomations,
-  ai: () => {},
+  ai: destroyAiControl,
   system: destroySystem,
 };
 
 let activeTab: Tab = 'dashboard';
-const initialized = new Set<Tab>();
 
 function initTwinTab(el: HTMLElement) {
   el.innerHTML = `
@@ -89,10 +88,9 @@ function switchTab(tab: Tab) {
 
   activeTab = tab;
 
-  // init once, then just toggle visibility
-  if (!initialized.has(tab) && panel) {
+  // init on every re-entry (destroyFns tear down resources)
+  if (panel) {
     initFns[tab](panel);
-    initialized.add(tab);
   }
 }
 
@@ -108,7 +106,6 @@ document.querySelectorAll('.nav-item').forEach((btn) => {
 const defaultPanel = document.getElementById(`tab-${activeTab}`);
 if (defaultPanel) {
   initFns[activeTab](defaultPanel);
-  initialized.add(activeTab);
 }
 
 // Connect WebSocket

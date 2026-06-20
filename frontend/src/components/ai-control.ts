@@ -278,6 +278,13 @@ function renderWaypointManager(container: HTMLElement): void {
   refreshPaths();
 }
 
+export function destroyAiControl() {
+  if (pollTimer) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+}
+
 async function refreshPaths(): Promise<void> {
   const list = document.getElementById('ai-wp-paths');
   if (!list) return;

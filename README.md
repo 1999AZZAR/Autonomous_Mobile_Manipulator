@@ -1,46 +1,47 @@
 # Autonomous Mobile Manipulator
 
-Hexagonal 3-wheel omnidirectional mobile manipulator with Arduino Mega real-time control, Raspberry Pi high-level planning, and containerized deployment.
-
-## Screenshots
-
-| Dashboard | Movement | Manipulator |
-|-----------|----------|-------------|
-| ![Dashboard](demo/dashboard/dashboard.png) | ![Movement](demo/dashboard/movement.png) | ![Manipulator](demo/dashboard/manipulator.png) |
-
-| Map | Automation | AI | System |
-|-----|------------|-----|--------|
-| ![Map](demo/dashboard/map.png) | ![Automation](demo/dashboard/automation.png) | ![AI](demo/dashboard/ai.png) | ![System](demo/dashboard/system.png) |
+Hexagonal 3-wheel omnidirectional mobile manipulator with Arduino Mega real-time control, host-based path planning (RRT*), digital twin simulation (Three.js), and containerized deployment.
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────┐
-│              Raspberry Pi                    │
-│  ┌─────────┐  ┌──────────┐  ┌───────────┐  │
-│  │  ROS2   │  │  Flask   │  │  nginx    │  │
-│  │  (nav)  │  │  :8001   │  │  :3000    │  │
-│  └─────────┘  └──────────┘  └───────────┘  │
-│       │            │              │          │
-│   mega_interface  Redis + PG    frontend    │
-│  ┌─────────┐  ┌──────────┐  ┌───────────┐  │
-│  │  serial │  │ :5432    │  │  TS+Vite  │  │
-│  │  :9090  │  │          │  │           │  │
-│  └─────────┘  └──────────┘  └───────────┘  │
-└─────────────────────────────────────────────┘
-                    │
-                    ▼
-         User Browser (http://pi:3000)
+┌─────────────────────────────────────────────────────┐
+│              Host (RPi / Laptop / Mini PC)           │
+│  ┌──────────────────┐  ┌──────────────────────────┐ │
+│  │  Flask API :8001 │  │  Frontend (Vite) :3000   │ │
+│  │  - robot control │  │  - Dashboard             │ │
+│  │  - sensor stream │  │  - Digital Twin (3D)     │ │
+│  │  - AI decision   │  │  - Map View (canvas)     │ │
+│  │  - path planning │  │  - Controls              │ │
+│  │  - RRT* replan   │  │                          │ │
+│  └────────┬─────────┘  └──────────────────────────┘ │
+│           │                       ▲                  │
+│           │  HTTP/WS              │ HTTP proxy       │
+│           ▼                       │                  │
+│  ┌─────────────────────────────────┴──────────┐    │
+│  │        nginx (frontend → backend proxy)    │    │
+│  └────────────────────────────────────────────┘    │
+│           │                                        │
+│           ▼ serial 115200                          │
+│  ┌────────────────────────────────────────────┐    │
+│  │      Arduino Mega (I/O device)             │    │
+│  │  Sensors: 6× IR, 2× ultrasonic, 3× line   │    │
+│  │  Actuators: 3× motors, gripper, tilt,     │    │
+│  │             lifter                         │    │
+│  │  Safety: virtual bumper + APF last-resort  │    │
+│  └────────────────────────────────────────────┘    │
+└─────────────────────────────────────────────────────┘
 ```
 
 ## Hardware
 
 - **MCU**: Arduino Mega (serial 115200 baud)
-- **Drive**: 3x omni wheels (PG23 motors, L298N drivers, YFROBOT v2 shield)
-- **Sensors**: 6x Sharp IR (GP2Y0A02YK0F), 2x HC-SR04 ultrasonic, 3x line sensors
-- **IMU**: MPU6050 (on Raspberry Pi via I2C)
+- **Drive**: 3× omni wheels (PG23 motors, L298N drivers, YFROBOT v2 shield)
+- **Sensors**: 6× Sharp IR (GP2Y0A02YK0F), 2× HC-SR04 ultrasonic, 3× line sensors
+- **IMU**: MPU6050 (on host via I2C — no Mega involvement)
+- **Camera**: USB OpenCV (640×480, power-aware, off by default)
+- **Lidar**: TF-Luna (on host via UART — no Mega involvement)
 - **Manipulator**: Gripper servo (open/close/half), tilt servo (0-180°), lifter motor (up/down with limit switches)
-- **Camera**: USB OpenCV (640x480, power-aware, off by default)
 
 ## Mega Serial Commands
 
@@ -58,27 +59,40 @@ Hexagonal 3-wheel omnidirectional mobile manipulator with Arduino Mega real-time
 | Control | `s` (stop), `p` (status), `v` (emergency stop) |
 | Test | `1`-`4` (motor test), `g` (figure-8), `h` (rotation) |
 
-## Quick Start
+## Quick Start (Simulation)
 
 ```bash
-# Clone and start
-git clone <repo-url> && cd Autonomous_Mobile_Manipulator
+# Clone and start simulation (no hardware needed)
 docker compose up -d
 
 # Access
-# Frontend: http://localhost:3000
-# API:      http://localhost:8001/api/*
-# WebSocket: ws://localhost:8001/ws/sensors
+# Frontend + Digital Twin: http://localhost:3000
+# API:                     http://localhost:8001
+# WebSocket:               ws://localhost:8001/ws/sensors
 ```
+
+The simulation mode auto-starts the AI decision loop in the browser. No hardware, ROS2, or Gazebo required.
 
 ## Docker Services
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| frontend | 3000 | TypeScript UI (Vite build, nginx) |
-| backend | 8001 | Flask REST API + automation engine |
-| postgres | 5432 | Prisma database |
-| redis | 6379 | Sensor cache + rate limiting |
+| frontend | 3000 | TypeScript UI (Vite build, nginx) + Digital Twin (Three.js) |
+| backend | 8001 | Flask REST API + RRT* path planning + AI engine |
+
+Optional (with `--profile full`): Postgres (5432), Redis (6379) — for automation persistence and sensor caching.
+
+## Digital Twin
+
+The frontend includes a Three.js-based 3D simulation environment:
+
+- **Robot model**: Hexagonal chassis, 3 omni wheels, gripper arm, sensor positions
+- **Sensor visualization**: IR cones, ultrasonic arcs, line sensor spots
+- **Environment**: Grid floor, obstacles, walls, targets
+- **Path overlay**: RRT* tree expansion, planned path, waypoints
+- **Physics**: Realistic sensor mock (IR raycasting, ultrasonic specular reflection, IMU gyro drift)
+
+Switch to the 3D view via the Digital Twin tab in the dashboard.
 
 ## API Endpoints
 
@@ -122,6 +136,15 @@ docker compose up -d
 | GET | `/api/robot/safety/limit-switches` | Test limit switches |
 | POST | `/api/robot/sensor-publishing` | Enable/disable sensor publishing |
 
+### Path Planning
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/path/status` | RRT* planner status |
+| POST | `/api/path/plan` | Plan path to target (x, y) |
+| POST | `/api/path/start` | Start path execution |
+| POST | `/api/path/stop` | Stop path execution |
+
 ### Sequences
 
 | Method | Endpoint | Description |
@@ -131,7 +154,7 @@ docker compose up -d
 | GET | `/api/robot/sequences/load/<name>` | Load sequence |
 | GET | `/api/robot/sequences/list` | List sequences |
 
-### Automations
+### Automations (requires Postgres)
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
@@ -163,71 +186,127 @@ docker compose up -d
 | POST | `/api/waypoints/replay` | Start/stop replay |
 | GET | `/api/waypoints/status` | Recording/replay status |
 
+### Navigation Server
+
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/navigate/status` | Navigation status |
+| POST | `/api/navigate/to` | Navigate to coordinate |
+| POST | `/api/navigate/cancel` | Cancel navigation |
+| POST | `/api/navigate/reset` | Reset position |
+
 ## Project Structure
 
 ```
 Autonomous_Mobile_Manipulator/
 ├── docker-compose.yml
 ├── README.md
-├── TODO.md                    # Digital twin roadmap
-├── for_the_mega/              # Arduino Mega firmware docs
-│   ├── COMMANDS.md            # Complete command reference
+├── TODO.md                    # Development roadmap
+├── for_the_mega/              # Arduino Mega firmware
+│   ├── omni_motor_control/    # Main firmware (2289 lines)
+│   ├── COMMANDS.md            # Serial command reference
 │   ├── PINOUT.md              # Hardware pin assignments
-│   ├── LOGGING_CODES.md       # Compact logging codes
 │   └── PID_CONTROL.md         # PID tuning guide
-├── frontend/                  # TypeScript + Vite
-│   └── src/
-│       ├── api.ts             # API client
-│       ├── types.ts           # TypeScript interfaces
-│       ├── main.ts            # Tab routing + init
-│       └── components/
-│           ├── dashboard.ts   # Sensor values + KPI
-│           ├── movement.ts    # 8-directional controls
-│           ├── manipulator.ts # Arm + gripper
-│           ├── map-view.ts    # Canvas navigation map
-│           ├── automations.ts # Automation CRUD
-│           ├── ai-control.ts  # AI + camera + waypoints
-│           └── system.ts      # DB/Redis/engine status
-├── ros2_ws/src/my_robot_automation/
-│   ├── prisma/schema.prisma   # Database schema (7 models)
-│   ├── scripts/
-│   │   ├── main.py            # Entry point
-│   │   ├── mega_interface.py  # Serial communication
-│   │   ├── sensor_manager.py  # Sensor data collection
-│   │   ├── automation_engine.py  # IFTTT rules + rate limiting
-│   │   ├── automation_api.py  # Flask blueprints (AI + waypoints)
-│   │   ├── app.py             # Flask REST API (robot control)
-│   │   ├── camera_service.py  # USB camera (power-aware)
-│   │   ├── ai_decision.py     # AI brain (YOLO + API)
-│   │   ├── waypoint_memory.py # Waypoint record/replay
-│   │   ├── path_planning.py   # A* pathfinding
-│   │   ├── gpio_controller.py # GPIO (simulation mode)
-│   │   └── config.py          # Configuration
-│   └── requirements.txt
-└── docs/                      # Documentation
+├── frontend/                  # TypeScript + Vite + Three.js
+│   ├── src/
+│   │   ├── api.ts             # API client
+│   │   ├── types.ts           # TypeScript interfaces
+│   │   ├── main.ts            # Tab routing + init
+│   │   └── components/
+│   │       ├── dashboard.ts   # Sensor values + KPI
+│   │       ├── movement.ts    # 8-directional controls
+│   │       ├── manipulator.ts # Arm + gripper
+│   │       ├── map-view.ts    # Canvas navigation map
+│   │       ├── automations.ts # Automation CRUD
+│   │       ├── ai-control.ts  # AI + camera + waypoints
+│   │       └── system.ts      # System status
+│   └── src/engine/            # Digital Twin engine
+│       ├── scenario.ts        # Simulation scenarios
+│       ├── mock-sensors.ts    # Sensor physics emulation
+│       └── three-scene.ts     # Three.js 3D world
+├── ros2_ws/src/
+│   └── my_robot_automation/
+│       ├── scripts/
+│       │   ├── main.py         # Entry point + FSM control loop
+│       │   ├── app.py          # Flask API (1680 lines)
+│       │   ├── config.py       # Configuration
+│       │   ├── fsm.py          # Priority-based FSM (9 states)
+│       │   ├── line_follower.py  # PID line tracking
+│       │   ├── task_sequencer.py # Multi-step mission chaining
+│       │   ├── mega_interface.py  # Serial comm
+│       │   ├── sensor_manager.py  # Sensor data
+│       │   ├── path_planning.py   # RRT* + KD-tree
+│       │   ├── automation_engine.py  # IFTTT rules
+│       │   ├── automation_api.py # Automation API
+│       │   ├── ai_decision.py  # AI decision engine
+│       │   ├── camera_service.py  # USB camera
+│       │   ├── gpio_controller.py # GPIO
+│       │   ├── waypoint_memory.py # Waypoints
+│       │   └── ml/              # MLP models
+│       └── requirements.txt
 ```
 
-## Database Models (Prisma)
+## Finite State Machine (FSM)
 
-| Model | Purpose |
-|-------|---------|
-| Automation | IFTTT-style automation rules |
-| AutomationCondition | Trigger conditions |
-| AutomationAction | Actions to execute |
-| AutomationLog | Execution history |
-| SavedPath | Waypoint paths |
-| Waypoint | Individual waypoints |
-| AiDecision | AI decision history |
+The robot behavior is governed by a priority-based state machine (`fsm.py`):
+
+```
+Priority  State
+─────────────────────
+ 100      ESTOP          (highest)
+  80      LINE_FOLLOW
+  70      TASK_SEQ
+  60      IFTTT
+  50      AI_VISION
+  40      WAYPOINT
+  30      MANUAL
+  20      CALIBRATE
+  10      IDLE            (lowest)
+```
+
+A state can only preempt a lower-priority state. The FSM auto-detects line presence via the 3 line sensors and transitions to `LINE_FOLLOW` when confidence ≥ 2/3. Transition hooks activate/deactivate subsystems (e.g., ESTOP stops all motors, disengages line follower, halts task sequencer).
+
+## Line Follower (`line_follower.py`)
+
+PID-based line tracking using the 3 bottom IR sensors:
+
+- **Error input**: `(line_left, line_center, line_right)` → float error value
+- **PID output**: Maps to movement commands — `f` (straight), `q`/`e` (gentle curve), `t`/`y` (hard turn)
+- **Auto-engage**: FSM switches to `LINE_FOLLOW` when line confidence ≥ threshold
+- **Auto-disengage**: Falls back to previous mode when line is lost
+
+## Task Sequencer (`task_sequencer.py`)
+
+Chains multi-step missions programmed via the API:
+
+- **Data model**: `TaskSequence` → `TaskStep[]` with `ActionType` + `StepCondition`
+- **Conditions**: `wait-for-sensor` (threshold comparison), `wait-for-time`, `wait-for-position`, `always`
+- **Actions**: move, turn, gripper (open/close/half), tilt, lifter, wait, goto-waypoint, follow-line, rotate, call-sub
+- **Retry**: Configurable retry count per step; executor continues on failure
+- **Queue**: Multiple sequences enqueued and executed sequentially
+
+## Path Planning (RRT*)
+
+The robot uses RRT* (Rapidly-exploring Random Tree star) for navigation:
+
+- **KD-tree spatial index** — O(log n) nearest neighbor queries, rebuilt every 50 iterations
+- **Dynamic obstacles** — Sensor obstacles age out after 5 cycles
+- **Replan loop** — Obstacle detected → stop → replan → execute (1s rate limiter)
+- **GridMap** — 10m × 10m occupancy grid (100×100 cells, 10cm resolution)
+- **WaypointNavigator** — RRT* path → turn/move command sequence
+- **APF virtual bumper** — Last-resort safety on Mega (direct repulsion at +PI)
+
+All path planning runs on the host — Mega only executes movement commands.
 
 ## AI Decision Engine
 
-Three operating modes:
+Three operating modes (managed by FSM):
 
-1. **REPLAY** — Saved waypoints via IMU dead reckoning (camera OFF)
+1. **REPLAY** — Saved waypoints via dead reckoning (camera OFF)
 2. **IFTTT** — Sensor-triggered automations (camera OFF)
-3. **AI** — Camera + YOLOv8 + OpenAI API reasoning (camera ON)
+3. **AI_VISION** — Camera + MLP / YOLO reasoning (camera ON)
 
-The engine auto-selects the best mode based on the task goal.
+The engine auto-selects the best mode based on the task goal. All ML runs offline (no cloud API dependency).
 
 ## Development
 
@@ -242,21 +321,23 @@ cd frontend
 npm install
 npm run dev    # Vite dev server
 npm run build  # Production build
-
-# Database
-npx prisma generate
-npx prisma db push
 ```
 
 ## Deployment
 
-The system runs on Raspberry Pi 5 with Docker. Dashboard accessible over local network, intranet, or internet (with port forwarding or tunnel).
-
 ```bash
-# On Raspberry Pi
-docker compose up -d
+# Build and run — simulation mode (no hardware)
+docker compose up -d --build
 
-# Check status
-docker compose ps
-curl http://localhost:8001/api/status
+# With database + redis for full features
+docker compose --profile full up -d
+
+# Check backend health
+curl http://localhost:8001/health
+
+# View logs
+docker compose logs -f backend
+
+# Stop
+docker compose down
 ```

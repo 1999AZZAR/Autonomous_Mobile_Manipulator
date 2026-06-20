@@ -153,6 +153,8 @@ class RRTStarPlanner:
         self.search_radius = search_radius
         self.nodes: List[RRTNode] = []
         self._positions: List[Tuple[float, float]] = []  # mirror of node positions for KD-tree
+        self._kdt: Optional[KDTree] = None
+        self._kdt_build_iter = 0
 
     def get_distance(self, p1: Tuple[float, float], p2: Tuple[float, float]) -> float:
         return math.sqrt((p1[0] - p2[0])**2 + (p1[1] - p2[1])**2)
@@ -176,9 +178,11 @@ class RRTStarPlanner:
     def find_path(self, start: Tuple[float, float], goal: Tuple[float, float]) -> Optional[List[Tuple[float, float]]]:
         self.nodes = [RRTNode(start)]
         self._positions = [(start[0], start[1])]
+        self._kdt = KDTree(self._positions)
+        self._kdt_build_iter = 0
         goal_node = None
 
-        for _ in range(self.max_iter):
+        for iteration in range(self.max_iter):
             if random.random() < 0.1:
                 rand_pos = goal
             else:
@@ -187,13 +191,14 @@ class RRTStarPlanner:
                     random.uniform(0, self.grid_map.height * self.grid_map.resolution),
                 )
 
-            # ---- nearest neighbour via KD-tree ----
+            # ---- nearest neighbour via KD-tree (rebuild every 50 iters) ----
             try:
-                kdt = KDTree(self._positions)
-                _, idx = kdt.query([rand_pos], k=1)
+                if iteration - self._kdt_build_iter >= 50:
+                    self._kdt = KDTree(self._positions)
+                    self._kdt_build_iter = iteration
+                _, idx = self._kdt.query([rand_pos], k=1)
                 nearest_node = self.nodes[idx[0][0]]
             except Exception:
-                # Fallback if KD-tree fails (e.g., duplicate points)
                 nearest_node = min(self.nodes, key=lambda n: self.get_distance(n.position, rand_pos))
 
             # ---- step ----
@@ -214,7 +219,7 @@ class RRTStarPlanner:
 
             # ---- neighbours via KD-tree range search ----
             try:
-                idx_nb = kdt.query_ball_point(new_pos, self.search_radius)
+                idx_nb = self._kdt.query_ball_point(new_pos, self.search_radius)
                 neighbors = [self.nodes[i] for i in idx_nb if i < len(self.nodes)]
             except Exception:
                 neighbors = [n for n in self.nodes

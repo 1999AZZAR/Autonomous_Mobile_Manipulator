@@ -1127,6 +1127,7 @@ class FlaskApp:
             timeout = 30.0  # 30 second timeout per waypoint
             start_time = time.time()
             tolerance = 0.2  # 20cm tolerance
+            _replan_rate_limit = 0.0  # last replan timestamp
 
             while time.time() - start_time < timeout:
                 # Get current position from IMU tracking
@@ -1163,6 +1164,11 @@ class FlaskApp:
 
                 # Sensor safety check → replan instead of abort
                 if not self._check_movement_safety('forward'):
+                    now = time.time()
+                    if now - _replan_rate_limit < 1.0:
+                        time.sleep(0.3)
+                        continue
+                    _replan_rate_limit = now
                     logger.warning("Obstacle detected — replanning path")
                     if self.mega:
                         self.mega.send_command_to_mega('s')
@@ -1191,6 +1197,11 @@ class FlaskApp:
                     # Check if turn direction is safe
                     turn_direction = 'right' if turn_angle > 0 else 'left'
                     if not self._check_movement_safety(turn_direction):
+                        now = time.time()
+                        if now - _replan_rate_limit < 1.0:
+                            time.sleep(0.3)
+                            continue
+                        _replan_rate_limit = now
                         logger.warning("Obstacle in %s during turn — replanning", turn_direction)
                         if self.mega:
                             self.mega.send_command_to_mega('s')
@@ -1231,6 +1242,11 @@ class FlaskApp:
 
                     # Final safety check → replan instead of abort
                     if not self._check_movement_safety('forward'):
+                        now = time.time()
+                        if now - _replan_rate_limit < 1.0:
+                            time.sleep(0.3)
+                            continue
+                        _replan_rate_limit = now
                         logger.warning("Obstacle right before movement — replanning")
                         if self.mega:
                             self.mega.send_command_to_mega('s')

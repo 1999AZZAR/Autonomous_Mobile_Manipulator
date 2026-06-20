@@ -19,6 +19,9 @@ from automation_api import automation_bp, init_automation_api, ai_bp, waypoint_b
 from camera_service import CameraService
 from waypoint_memory import WaypointMemory
 from ai_decision import AIDecisionEngine
+from fsm import RobotFSM, State
+from line_follower import LineFollower
+from task_sequencer import TaskSequencer, TaskSequence, TaskStep, ActionType, StepCondition, ConditionType
 from config import (CAMERA_ID, CAMERA_WIDTH, CAMERA_HEIGHT,
                     AI_BACKEND, AI_MODEL, AI_LOOP_INTERVAL, AI_OPENAI_API_KEY)
 
@@ -81,6 +84,19 @@ class AutonomousMobileManipulator:
         self.path_planner = PathPlanner(self.grid_map, algorithm='rrtstar')
         self.movement_sequence = MovementSequence()
         self.waypoint_navigator = WaypointNavigator(self.path_planner)
+
+        # Finite State Machine
+        self.fsm = RobotFSM(State.IDLE)
+        self.line_follower = LineFollower(
+            send_command=lambda cmd: self.mega_interface.send_command_to_mega(cmd)
+        )
+        self.task_sequencer = TaskSequencer(
+            send_command=lambda cmd: self.mega_interface.send_command_to_mega(cmd),
+            get_context=lambda: self._fsm_context()
+        )
+
+        # Wire FSM transition hooks
+        self.fsm.on_transition(self._on_fsm_transition)
 
         # Initialize ROS2 interface if available (non-blocking)
         if ROS2_AVAILABLE:
@@ -173,6 +189,10 @@ class AutonomousMobileManipulator:
         # Start GridMap update loop (sensor → occupancy grid)
         threading.Thread(target=self._grid_map_update_loop, daemon=True).start()
         logger.info("GridMap sensor update loop started")
+
+        # Start FSM control loop (line detection + task sequencer)
+        threading.Thread(target=self._fsm_control_loop, daemon=True).start()
+        logger.info("FSM control loop started")
 
         # Auto-start autonomous navigation in simulation mode
         if self.simulation_mode:
@@ -385,6 +405,69 @@ class AutonomousMobileManipulator:
         except Exception as e:
             logger.error(f"ROS2 services initialization failed: {str(e)}")
             logger.info("Continuing without ROS2 features")
+
+    def _on_fsm_transition(self, old: State, new: State):
+        """Activate/deactivate subsystems on FSM transition."""
+        if old == State.LINE_FOLLOW:
+            self.line_follower.disengage()
+        if old == State.TASK_SEQ:
+            self.task_sequencer.stop()
+        if old == State.AI_VISION:
+            if self.ai_engine.running:
+                self.ai_engine.cleanup()
+        if old == State.IFTTT:
+            if self.automation_engine:
+                self.automation_engine.stop()
+
+        if new == State.ESTOP:
+            self.mega_interface.send_command_to_mega('s')
+            self.line_follower.disengage()
+            self.task_sequencer.stop()
+            if self.ai_engine.running:
+                self.ai_engine.cleanup()
+            if self.automation_engine:
+                self.automation_engine.stop()
+            logger.warning("ESTOP activated — all systems halted")
+        elif new == State.LINE_FOLLOW:
+            self.line_follower.engage()
+        elif new == State.TASK_SEQ:
+            pass  # started externally via task_sequencer.start()
+        elif new == State.IDLE:
+            self.mega_interface.send_command_to_mega('s')
+
+    def _fsm_context(self) -> dict:
+        """Context dict for task sequencer conditions."""
+        data = self.sensor_manager.read_all_sensors() if self.sensor_manager else {}
+        return {
+            "sensors": data.get("laser_sensors", {}),
+            "position": (self.current_position[0], self.current_position[1]),
+            "heading": self.current_orientation[2],
+            "step_start": self.task_sequencer._step_start if hasattr(self.task_sequencer, '_step_start') else time.time(),
+        }
+
+    def _fsm_control_loop(self):
+        """Background loop: line detection + task sequencer tick."""
+        while True:
+            try:
+                if self.sensor_manager:
+                    data = self.sensor_manager.read_all_sensors()
+                    ls = data.get("line_sensors", {})
+                    self.fsm.tick_line_sensors(
+                        ls.get("left", False),
+                        ls.get("center", False),
+                        ls.get("right", False),
+                    )
+                    if self.fsm.state == State.LINE_FOLLOW:
+                        self.line_follower.tick(
+                            ls.get("left", False),
+                            ls.get("center", False),
+                            ls.get("right", False),
+                        )
+                    if self.fsm.state == State.TASK_SEQ:
+                        self.task_sequencer.tick()
+            except Exception as exc:
+                logger.debug("FSM control loop skipped: %s", exc)
+            time.sleep(0.05)
 
     def run(self):
         """Run the complete system"""

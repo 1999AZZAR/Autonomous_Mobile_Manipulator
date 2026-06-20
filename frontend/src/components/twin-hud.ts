@@ -7,7 +7,6 @@ let containerEl: HTMLElement | null = null;
 let unsubscribe: (() => void) | null = null;
 
 export function initTwinHud(parent: HTMLElement) {
-  if (containerEl) return;
 
   containerEl = document.createElement('div');
   containerEl.className = 'twin-hud';

@@ -4,6 +4,8 @@
 
 import { sendMovementCommand } from '../api';
 
+let keyHandler: ((e: KeyboardEvent) => void) | null = null;
+
 export function initMovement(container: HTMLElement) {
   container.innerHTML = `
     <div class="page-header">
@@ -99,7 +101,7 @@ export function initMovement(container: HTMLElement) {
   });
 
   // Keyboard controls
-  const keyHandler = (e: KeyboardEvent) => {
+  keyHandler = (e: KeyboardEvent) => {
     if (!container.classList.contains('active')) return;
     const keyMap: Record<string, string> = {
       w: 'f', ArrowUp: 'f',
@@ -122,5 +124,8 @@ export function initMovement(container: HTMLElement) {
 }
 
 export function destroyMovement() {
-  // cleanup handled by component lifecycle
+  if (keyHandler) {
+    document.removeEventListener('keydown', keyHandler);
+    keyHandler = null;
+  }
 }
