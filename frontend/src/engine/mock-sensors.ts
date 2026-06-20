@@ -93,13 +93,258 @@ function applyNoise(reading: number, sigma: number, maxVal: number, dropout: boo
   return Math.round(Math.max(0, Math.min(maxVal, noisy)));
 }
 
+interface ImuState {
+  gyroBiasX: number;
+  gyroBiasY: number;
+  gyroBiasZ: number;
+  biasWalkX: number;
+  biasWalkY: number;
+  biasWalkZ: number;
+  lastHeading: number;
+  velocityX: number;
+  velocityY: number;
+  lastTime: number;
+}
+
+function createImuState(): ImuState {
+  return {
+    gyroBiasX: gaussianNoise(0.5),
+    gyroBiasY: gaussianNoise(0.5),
+    gyroBiasZ: gaussianNoise(0.3),
+    biasWalkX: 0,
+    biasWalkY: 0,
+    biasWalkZ: 0,
+    lastHeading: 0,
+    velocityX: 0,
+    velocityY: 0,
+    lastTime: 0,
+  };
+}
+
+function simulateImu(
+  state: ImuState,
+  headingDeg: number,
+  vx: number,
+  vy: number,
+  dt: number,
+  baseDrift: number
+): { heading: number; pitch: number; roll: number } {
+  const biasInstability = 0.01;
+  const angleRandomWalk = 0.05;
+  const accelNoise = 2.0;
+
+  state.biasWalkX += gaussianNoise(biasInstability) * Math.sqrt(dt);
+  state.biasWalkY += gaussianNoise(biasInstability) * Math.sqrt(dt);
+  state.biasWalkZ += gaussianNoise(biasInstability) * Math.sqrt(dt);
+
+  const gyroDriftZ = state.gyroBiasZ + state.biasWalkZ + gaussianNoise(angleRandomWalk) * Math.sqrt(dt);
+  const noisyHeading = headingDeg + gyroDriftZ * dt + baseDrift * dt;
+
+  const accelX = (vx - state.velocityX) / Math.max(dt, 0.001);
+  const accelY = (vy - state.velocityY) / Math.max(dt, 0.001);
+
+  state.velocityX = vx;
+  state.velocityY = vy;
+
+  const pitchNoise = gaussianNoise(accelNoise) * 0.01;
+  const rollNoise = gaussianNoise(accelNoise) * 0.01;
+
+  const pitch = Math.atan2(accelX, 9810) * (180 / Math.PI) + pitchNoise;
+  const roll = Math.atan2(accelY, 9810) * (180 / Math.PI) + rollNoise;
+
+  state.lastHeading = headingDeg;
+  state.lastTime = performance.now();
+
+  return {
+    heading: noisyHeading,
+    pitch: Math.max(-90, Math.min(90, pitch)),
+    roll: Math.max(-90, Math.min(90, roll)),
+  };
+}
+
+function simulateIrCone(
+  x: number,
+  y: number,
+  headingAngle: number,
+  sensorAngle: number,
+  maxDist: number,
+  scene?: THREE.Scene,
+  meshes?: THREE.Mesh[]
+): number {
+  const coneHalfAngle = 0.05;
+  const numRays = 5;
+  let closest = maxDist;
+
+  for (let i = 0; i < numRays; i++) {
+    const offset = (i / (numRays - 1) - 0.5) * coneHalfAngle;
+    const angle = headingAngle + sensorAngle + offset;
+    const dir = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
+    const origin = new THREE.Vector3(x * 0.001, y * 0.001, 0.1);
+    const raycaster = new THREE.Raycaster(origin, dir);
+    raycaster.far = maxDist * 0.001;
+
+    if (scene) {
+      const hits = raycaster.intersectObjects(scene.children, true);
+      for (const hit of hits) {
+        if (hit.distance > 0.01) {
+          const d = Math.round(hit.distance * MM_PER_M);
+          if (d < closest) closest = d;
+          break;
+        }
+      }
+    }
+
+    if (meshes && meshes.length > 0) {
+      const hits = raycaster.intersectObjects(meshes);
+      for (const hit of hits) {
+        if (hit.distance > 0.01) {
+          const d = Math.round(hit.distance * MM_PER_M);
+          if (d < closest) closest = d;
+          break;
+        }
+      }
+    }
+  }
+
+  return closest;
+}
+
+function simulateUltraCone(
+  x: number,
+  y: number,
+  headingAngle: number,
+  sensorAngle: number,
+  maxDist: number,
+  scene?: THREE.Scene,
+  meshes?: THREE.Mesh[]
+): number {
+  const coneHalfAngle = 0.2;
+  const numRays = 7;
+  let closest = maxDist;
+
+  for (let i = 0; i < numRays; i++) {
+    const offset = (i / (numRays - 1) - 0.5) * coneHalfAngle;
+    const angle = headingAngle + sensorAngle + offset;
+    const dir = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
+    const origin = new THREE.Vector3(x * 0.001, y * 0.001, 0.08);
+    const raycaster = new THREE.Raycaster(origin, dir);
+    raycaster.far = maxDist * 0.001;
+
+    let hitDistance = maxDist;
+
+    if (scene) {
+      const hits = raycaster.intersectObjects(scene.children, true);
+      for (const hit of hits) {
+        if (hit.distance > 0.01) {
+          const faceNormal = hit.face?.normal.clone().transformDirection(hit.object.matrixWorld);
+          if (faceNormal) {
+            const dot = Math.abs(faceNormal.dot(dir));
+            if (dot < 0.3 && Math.random() < 0.4) continue;
+          }
+          hitDistance = Math.round(hit.distance * MM_PER_M);
+          break;
+        }
+      }
+    }
+
+    if (hitDistance === maxDist && meshes && meshes.length > 0) {
+      const hits = raycaster.intersectObjects(meshes);
+      for (const hit of hits) {
+        if (hit.distance > 0.01) {
+          const faceNormal = hit.face?.normal.clone().transformDirection(hit.object.matrixWorld);
+          if (faceNormal) {
+            const dot = Math.abs(faceNormal.dot(dir));
+            if (dot < 0.3 && Math.random() < 0.4) continue;
+          }
+          hitDistance = Math.round(hit.distance * MM_PER_M);
+          break;
+        }
+      }
+    }
+
+    if (hitDistance < closest) closest = hitDistance;
+  }
+
+  return closest;
+}
+
+function simulateLineSensor(
+  worldX: number,
+  worldY: number,
+  headingRad: number,
+  sensorX: number,
+  sensorY: number,
+  obstacles: THREE.Mesh[],
+  scene?: THREE.Scene
+): number {
+  const sensorWorldX = worldX + sensorX * Math.cos(headingRad) - sensorY * Math.sin(headingRad);
+  const sensorWorldY = worldY + sensorX * Math.sin(headingRad) + sensorY * Math.cos(headingRad);
+  const gx = sensorWorldX * 0.001;
+  const gy = sensorWorldY * 0.001;
+
+  const raycaster = new THREE.Raycaster(
+    new THREE.Vector3(gx, gy, 0.1),
+    new THREE.Vector3(0, 0, -1)
+  );
+
+  let groundColor: THREE.Color | null = null;
+
+  if (scene) {
+    const hits = raycaster.intersectObjects(scene.children, true);
+    for (const hit of hits) {
+      if (hit.distance > 0.001 && hit.distance < 0.3) {
+        if (hit.object.type === 'Mesh') {
+          const mesh = hit.object as THREE.Mesh;
+          const mat = mesh.material as THREE.MeshStandardMaterial;
+          if (mat.color) {
+            groundColor = mat.color;
+            break;
+          }
+        }
+      }
+    }
+  }
+
+  if (obstacles.length > 0) {
+    const hits = raycaster.intersectObjects(obstacles);
+    for (const hit of hits) {
+      if (hit.distance > 0.001 && hit.distance < 0.3) {
+        const mat = (hit.object as THREE.Mesh).material as THREE.MeshStandardMaterial;
+        if (mat && mat.color) {
+          groundColor = mat.color;
+          break;
+        }
+      }
+    }
+  }
+
+  if (!groundColor) {
+    const bounds = 5;
+    const isOnFloor = Math.abs(gx) < bounds && Math.abs(gy) < bounds;
+    if (isOnFloor) return 0;
+    return 1023;
+  }
+
+  const r = groundColor.r;
+  const g = groundColor.g;
+  const b = groundColor.b;
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+
+  if (luminance < 0.3) return 0;
+  if (luminance > 0.7) return 1023;
+
+  const noise = gaussianNoise(50);
+  return Math.round(1023 * (1 - luminance) + noise);
+}
+
 export class MockSensorGenerator {
   private config: MockSensorConfig;
   private raycaster = new THREE.Raycaster();
-  private groundPlane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
   private obstacleMeshes: THREE.Mesh[] = [];
-  private lastHeading = 0;
+  private groundColorCache = new Map<string, number>();
+  private imu: ImuState = createImuState();
   private driftAccum = 0;
+  private lastTime = 0;
 
   constructor(config?: Partial<MockSensorConfig>) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -107,6 +352,7 @@ export class MockSensorGenerator {
 
   setObstacleMeshes(meshes: THREE.Mesh[]) {
     this.obstacleMeshes = meshes;
+    this.groundColorCache.clear();
   }
 
   generate(robotState: KinematicState, scene?: THREE.Scene): MockSensorData {
@@ -114,31 +360,38 @@ export class MockSensorGenerator {
     const rx = robotState.x;
     const ry = robotState.y;
 
-    const dt = 1 / 30;
+    const now = performance.now();
+    const dt = this.lastTime === 0 ? 1 / 30 : Math.min((now - this.lastTime) / 1000, 0.1);
+    this.lastTime = now;
+
     this.driftAccum += gaussianNoise(noiseConfig.headingDriftDegPerSec * dt);
     this.driftAccum = Math.max(-2, Math.min(2, this.driftAccum));
 
     const sensors: Record<string, number> = {};
 
     const rawLasers: Record<string, number> = {};
-    this.config.laserPositions.forEach((pos) => {
+    for (const pos of this.config.laserPositions) {
       const worldX = rx + pos.x * Math.cos(headingRad) - pos.y * Math.sin(headingRad);
       const worldY = ry + pos.x * Math.sin(headingRad) + pos.y * Math.cos(headingRad);
       const rayAngle = headingRad + pos.angle;
-      const dist = this.castRay(worldX, worldY, rayAngle, LASER_MAX_MM, scene);
+      const dist = simulateIrCone(
+        worldX, worldY, rayAngle, 0, LASER_MAX_MM, scene, this.obstacleMeshes
+      );
       rawLasers[pos.name] = dist;
       sensors[pos.name] = applyNoise(dist, noiseConfig.laserSigma, LASER_MAX_MM, true);
-    });
+    }
 
     const rawUltras: Record<string, number> = {};
-    this.config.ultraPositions.forEach((pos) => {
+    for (const pos of this.config.ultraPositions) {
       const worldX = rx + pos.x * Math.cos(headingRad) - pos.y * Math.sin(headingRad);
       const worldY = ry + pos.x * Math.sin(headingRad) + pos.y * Math.cos(headingRad);
       const rayAngle = headingRad + pos.angle;
-      const dist = this.castRay(worldX, worldY, rayAngle, ULTRASOUND_MAX_MM, scene);
+      const dist = simulateUltraCone(
+        worldX, worldY, rayAngle, 0, ULTRASOUND_MAX_MM, scene, this.obstacleMeshes
+      );
       rawUltras[pos.name] = dist;
       sensors[pos.name] = applyNoise(dist, noiseConfig.ultraSigma, ULTRASOUND_MAX_MM, true);
-    });
+    }
 
     if (rawUltras['ultra_front_left'] < noiseConfig.ultraCrosstalkThreshold &&
         rawUltras['ultra_front_right'] < noiseConfig.ultraCrosstalkThreshold) {
@@ -152,16 +405,27 @@ export class MockSensorGenerator {
       );
     }
 
-    const lineThreshold = 150;
-    this.config.linePositions.forEach((pos, i) => {
-      const worldY = ry + pos.y * Math.cos(headingRad) + pos.x * Math.sin(headingRad);
-      const keys = ['line_left', 'line_center', 'line_right'] as const;
-      let raw = Math.abs(worldY) < lineThreshold ? 0 : 1023;
-      if (Math.abs(worldY - lineThreshold) < 20 && Math.random() < noiseConfig.lineFlipProb) {
-        raw = raw === 0 ? 1023 : 0;
+    const lineKeys = ['line_left', 'line_center', 'line_right'] as const;
+    for (let i = 0; i < this.config.linePositions.length; i++) {
+      const pos = this.config.linePositions[i];
+      const raw = simulateLineSensor(
+        rx, ry, headingRad, pos.x, pos.y, this.obstacleMeshes, scene
+      );
+      if (Math.random() < noiseConfig.lineFlipProb) {
+        sensors[lineKeys[i]] = raw < 512 ? 1023 : 0;
+      } else {
+        sensors[lineKeys[i]] = raw;
       }
-      sensors[keys[i]] = raw;
-    });
+    }
+
+    const imuReading = simulateImu(
+      this.imu,
+      robotState.heading,
+      robotState.vx,
+      robotState.vy,
+      dt,
+      this.driftAccum
+    );
 
     return {
       laser_left_front: sensors['laser_left_front'] ?? LASER_MAX_MM,
@@ -175,33 +439,9 @@ export class MockSensorGenerator {
       line_left: sensors['line_left'] ?? 1023,
       line_center: sensors['line_center'] ?? 1023,
       line_right: sensors['line_right'] ?? 1023,
-      imu_heading: robotState.heading + this.driftAccum,
-      imu_pitch: 0,
-      imu_roll: 0,
+      imu_heading: imuReading.heading,
+      imu_pitch: imuReading.pitch,
+      imu_roll: imuReading.roll,
     };
-  }
-
-  private castRay(x: number, y: number, angle: number, maxDist: number, scene?: THREE.Scene): number {
-    const dir = new THREE.Vector3(Math.cos(angle), Math.sin(angle), 0);
-    const origin = new THREE.Vector3(x * 0.001, y * 0.001, 0.1);
-
-    this.raycaster.set(origin, dir);
-    this.raycaster.far = maxDist * 0.001;
-
-    if (scene) {
-      const intersects = this.raycaster.intersectObjects(scene.children, true);
-      for (const hit of intersects) {
-        if (hit.distance > 0.01) return Math.round(hit.distance * MM_PER_M);
-      }
-    }
-
-    if (this.obstacleMeshes.length > 0) {
-      const intersects = this.raycaster.intersectObjects(this.obstacleMeshes);
-      for (const hit of intersects) {
-        if (hit.distance > 0.01) return Math.round(hit.distance * MM_PER_M);
-      }
-    }
-
-    return maxDist;
   }
 }

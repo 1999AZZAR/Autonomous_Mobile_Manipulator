@@ -1,7 +1,7 @@
 import json
 import numpy as np
 from collections import deque
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 
 class FeatureEncoder:

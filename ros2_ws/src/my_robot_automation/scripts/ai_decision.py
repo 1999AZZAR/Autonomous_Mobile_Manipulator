@@ -17,7 +17,7 @@ import base64
 import threading
 import logging
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from typing import Optional, List
 
 from prisma import Json
 from automation_engine import _run_async

@@ -1,5 +1,5 @@
 import json
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict
 from collections import defaultdict
 from dataclasses import dataclass
 

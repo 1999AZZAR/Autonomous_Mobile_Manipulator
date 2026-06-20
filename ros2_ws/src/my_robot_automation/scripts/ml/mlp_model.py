@@ -1,6 +1,6 @@
 import json
 import numpy as np
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 try:
     import torch

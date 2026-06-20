@@ -5,13 +5,12 @@ Camera is OFF by default. Only activates when AI decision engine requests it.
 Supports OpenCV USB cameras and saves frames as JPEG/base64.
 """
 
-import io
 import time
 import base64
 import threading
 import logging
 from enum import Enum
-from typing import Optional, Tuple
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 

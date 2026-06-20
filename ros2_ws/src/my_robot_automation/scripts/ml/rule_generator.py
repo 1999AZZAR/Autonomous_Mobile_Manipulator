@@ -1,10 +1,9 @@
-import json
 import time
 import logging
 from typing import List, Optional
 from datetime import datetime
 
-from .pattern_extractor import PatternExtractor, AutomationDraft, Pattern
+from .pattern_extractor import PatternExtractor, AutomationDraft
 
 logger = logging.getLogger(__name__)
 

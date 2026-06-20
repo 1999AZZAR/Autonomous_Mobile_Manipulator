@@ -1,7 +1,7 @@
 import json
 import time
 import numpy as np
-from typing import Optional, Dict, List
+from typing import Dict, List
 from dataclasses import dataclass
 
 import torch

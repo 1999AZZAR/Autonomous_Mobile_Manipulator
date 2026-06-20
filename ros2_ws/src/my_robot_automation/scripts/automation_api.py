@@ -744,7 +744,7 @@ def ml_model_load():
     if not _ml_engine:
         return jsonify({'error': 'Not initialized'}), 503
     data = request.get_json(silent=True) or {}
-    name = data.get('name', 'mlp_decision')
+    data.get('name', 'mlp_decision')
     _ml_engine.load_model(
         model_path=data.get('model_path'),
         config_path=data.get('config_path'),

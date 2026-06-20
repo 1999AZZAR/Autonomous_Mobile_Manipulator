@@ -12,23 +12,13 @@ find_package(ament_cmake_python REQUIRED)
 # Install Python modules
 ament_python_install_package(${PROJECT_NAME})
 
-# Install launch files
-install(DIRECTORY
-  launch/
-  DESTINATION share/${PROJECT_NAME}/launch
-)
-
 # Install config files
 install(DIRECTORY
   config/
   DESTINATION share/${PROJECT_NAME}/config
 )
 
-# Install world files
-install(DIRECTORY
-  worlds/
-  DESTINATION share/${PROJECT_NAME}/worlds
-)
+
 
 # Install RViz config
 install(DIRECTORY

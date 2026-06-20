@@ -5,7 +5,7 @@ Handles direct hardware control when not using Arduino Mega
 
 import time
 import logging
-from config import ADC_VREF, ADC_RESOLUTION, SPI_SPEED
+from config import ADC_VREF, ADC_RESOLUTION
 
 logger = logging.getLogger(__name__)
 
@@ -36,7 +36,6 @@ class GPIOController:
             logger.warning("lgpio not available")
 
         try:
-            import gpiozero
             self.gpiozero_available = True
             logger.info("gpiozero available as fallback")
         except ImportError:

@@ -10,8 +10,6 @@
   <!-- Dependencies -->
   <depend>robot_state_publisher</depend>
   <depend>joint_state_publisher</depend>
-  <depend>gazebo_ros</depend>
-  <depend>gazebo_ros_pkgs</depend>
   <depend>xacro</depend>
   <depend>controller_manager</depend>
   <depend>ros2_control</depend>
@@ -35,6 +33,5 @@
 
   <export>
     <build_type>ament_cmake</build_type>
-    <gazebo_ros plugin_path="${prefix}/lib/libgazebo_ros_diff_drive.so"/>
   </export>
 </package>

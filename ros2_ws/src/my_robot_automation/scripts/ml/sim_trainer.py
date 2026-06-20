@@ -1,5 +1,4 @@
 import time
-import json
 import math
 import random
 import threading
@@ -141,7 +140,6 @@ class SimulationTrainer:
 
     def _training_loop(self, scenario: ScenarioDef, episodes: int,
                        strategy: str):
-        epsilon_start = 1.0
         epsilon_end = 0.05
         epsilon_decay = 0.95
 
@@ -296,7 +294,7 @@ class SimulationTrainer:
         sensors['imu_pitch'] = 0
         sensors['imu_roll'] = 0
 
-        heading_rad = math.radians(state['heading'])
+        math.radians(state['heading'])
         for obs in scenario.obstacles:
             dx = (obs['x'] - state['x'])
             dy = (obs['y'] - state['y'])

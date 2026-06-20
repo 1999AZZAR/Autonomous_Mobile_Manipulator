@@ -502,7 +502,6 @@ class MegaInterface:
             return self.stop_robot()
 
         # IMU-based: monitor heading until target reached
-        import math
         start_heading = get_heading_fn()
         if start_heading is None:
             logger.warning("IMU heading unavailable, falling back to time-based")

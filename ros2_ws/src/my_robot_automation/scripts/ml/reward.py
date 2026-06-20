@@ -1,4 +1,4 @@
-from typing import Optional, List, Dict
+from typing import Optional, List
 
 
 CRITICAL_MM = 200

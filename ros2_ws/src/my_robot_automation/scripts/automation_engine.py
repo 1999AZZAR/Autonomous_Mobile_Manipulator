@@ -11,9 +11,8 @@ import time
 import asyncio
 import threading
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 from typing import Dict, List, Optional, Any
-from collections import defaultdict
 
 logger = logging.getLogger(__name__)
 

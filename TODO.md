@@ -164,8 +164,7 @@ Dead-reckoning along saved paths. Used when no obstacles present.
 
 Mega = I/O device: reads sensors, executes motor commands. All planning on host.
 
-[ ] P2 — Line sensor calibration command (auto-set min/max)
-[ ] P2 — IMU calibration command (store gyro offsets in EEPROM)
+[x] P2 — Mega firmware refinement: loop() speed (VFF throttled 20ms), -581 lines dead code, APF direction fix
 [ ] P2 — Encoder velocity filter (low-pass for smoother readings)
 [ ] P3 — Watchdog timer (auto-stop on serial timeout)
 [ ] P3 — Current sensing for gripper stall detection
