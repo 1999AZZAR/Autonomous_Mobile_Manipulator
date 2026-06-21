@@ -124,6 +124,36 @@ class WaypointMemory:
             logger.error(f"Failed to record waypoint: {e}")
             return {'success': False, 'error': str(e)}
 
+    def add_waypoints(self, path_id: int, waypoints: List[dict]) -> dict:
+        """Add waypoints with explicit coordinates to a path. Used by map planner."""
+        try:
+            path = _run_async(self.db.savedpath.find_first(where={'id': path_id}))
+            if not path:
+                return {'success': False, 'error': 'Path not found'}
+
+            existing = _run_async(self.db.waypoint.find_many(
+                where={'pathId': path_id}, order={'order': 'desc'}, take=1
+            ))
+            next_order = existing[0].order + 1 if existing else 0
+
+            for wp in waypoints:
+                create_data = {
+                    'pathId': path_id,
+                    'order': next_order,
+                    'x': wp.get('x', 0.0),
+                    'y': wp.get('y', 0.0),
+                    'heading': wp.get('heading', 0.0),
+                }
+                if 'actions' in wp:
+                    create_data['actions'] = Json(wp['actions'])
+                _run_async(self.db.waypoint.create(data=create_data))
+                next_order += 1
+
+            return {'success': True, 'count': len(waypoints)}
+        except Exception as e:
+            logger.error(f"Failed to add waypoints: {e}")
+            return {'success': False, 'error': str(e)}
+
     def stop_recording(self) -> dict:
         """Stop recording and return summary."""
         if not self.recording:

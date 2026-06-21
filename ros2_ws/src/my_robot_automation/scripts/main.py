@@ -554,10 +554,10 @@ class AutonomousMobileManipulator:
     def _auto_calibrate_imu(self):
         try:
             if self.simulation_mode:
-                from ml.backend_sim import get_backend_sim
-                sim = get_backend_sim()
+                from simulation_engine import get_engine
+                sim = get_engine()
                 sim.calibrate_heading()
-                logger.info("BackendSim heading calibrated to 0°")
+                logger.info("SimulationEngine heading calibrated to 0°")
             if self.sensor_manager:
                 self.sensor_manager.calibrate_imu()
                 logger.info("SensorManager IMU calibration done")

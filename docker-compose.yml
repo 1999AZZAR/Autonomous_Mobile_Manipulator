@@ -1,10 +1,8 @@
 services:
-  # PostgreSQL Database (optional — backend works without it)
+  # PostgreSQL Database (required for waypoints/automations)
   postgres:
     image: postgres:16-alpine
     container_name: robot_postgres
-    profiles:
-      - full
     environment:
       POSTGRES_DB: robot_automation
       POSTGRES_USER: robot

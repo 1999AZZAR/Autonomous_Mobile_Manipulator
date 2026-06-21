@@ -16,14 +16,14 @@ let allPaths: SavedPath[] = [];
 let wpStatus = { recording: false, replaying: false, replay_index: 0 };
 
 const SCALE = 60;
-const CENTER_X = 300;
-const CENTER_Y = 250;
+let CENTER_X = 300;
+let CENTER_Y = 250;
 const ROBOT_SIZE = 16;
 const GRID_W = 60;
 const GRID_H = 50;
 
 // --- Map mode ---
-type MapMode = 'navigate' | 'draw-wall' | 'draw-obstacle' | 'erase' | 'train';
+type MapMode = 'navigate' | 'place-waypoint' | 'draw-wall' | 'draw-obstacle' | 'erase' | 'train';
 let mapMode: MapMode = 'navigate';
 
 // --- Drawing state ---
@@ -35,6 +35,9 @@ interface DrawnElement {
 }
 let drawnElements: DrawnElement[] = [];
 let drawStart: { x: number; y: number } | null = null;
+
+// --- Waypoint editing ---
+let editingWaypoints: Array<{ x: number; y: number; heading: number }> = [];
 
 // --- Training / occupancy grid ---
 let occupancyGrid: Float32Array = new Float32Array(GRID_W * GRID_H);
@@ -142,30 +145,39 @@ function drawnElementsOnCanvas() {
 }
 
 function drawWaypoints() {
-  if (!ctx || pathWaypoints.length === 0) return;
+  if (!ctx) return;
 
-  ctx.strokeStyle = 'rgba(69, 137, 255, 0.5)';
-  ctx.lineWidth = 2;
-  ctx.setLineDash([4, 4]);
-  ctx.beginPath();
-  pathWaypoints.forEach((wp, i) => {
-    const [cx, cy] = worldToCanvas(wp.x, wp.y);
-    if (i === 0) ctx!.moveTo(cx, cy); else ctx!.lineTo(cx, cy);
-  });
-  ctx.stroke();
-  ctx.setLineDash([]);
+  const drawWpList = (wps: Array<{ x: number; y: number; heading: number }>, isEditing: boolean) => {
+    if (wps.length === 0) return;
+    ctx!.strokeStyle = isEditing ? 'rgba(250, 77, 86, 0.5)' : 'rgba(69, 137, 255, 0.5)';
+    ctx!.lineWidth = 2;
+    ctx!.setLineDash([4, 4]);
+    ctx!.beginPath();
+    wps.forEach((wp, i) => {
+      const [cx, cy] = worldToCanvas(wp.x, wp.y);
+      if (i === 0) ctx!.moveTo(cx, cy); else ctx!.lineTo(cx, cy);
+    });
+    ctx!.stroke();
+    ctx!.setLineDash([]);
 
-  pathWaypoints.forEach((wp, i) => {
-    const [cx, cy] = worldToCanvas(wp.x, wp.y);
-    const isCurrent = wpStatus.replaying && i === wpStatus.replay_index;
-    ctx!.beginPath(); ctx!.arc(cx, cy, isCurrent ? 6 : 4, 0, Math.PI * 2);
-    ctx!.fillStyle = isCurrent ? '#f1c21b' : 'rgba(69, 137, 255, 0.8)'; ctx!.fill();
-    const rad = (wp.heading * Math.PI) / 180;
-    ctx!.strokeStyle = isCurrent ? '#f1c21b' : 'rgba(69, 137, 255, 0.6)';
-    ctx!.lineWidth = 1.5; ctx!.beginPath(); ctx!.moveTo(cx, cy);
-    ctx!.lineTo(cx + Math.cos(rad) * 12, cy - Math.sin(rad) * 12); ctx!.stroke();
-    ctx!.fillStyle = '#888'; ctx!.font = '9px IBM Plex Mono'; ctx!.fillText(`${i}`, cx + 8, cy - 4);
-  });
+    wps.forEach((wp, i) => {
+      const [cx, cy] = worldToCanvas(wp.x, wp.y);
+      const isCurrent = !isEditing && wpStatus.replaying && i === wpStatus.replay_index;
+      ctx!.beginPath(); ctx!.arc(cx, cy, isCurrent ? 6 : 4, 0, Math.PI * 2);
+      ctx!.fillStyle = isEditing ? '#fa4d56' : (isCurrent ? '#f1c21b' : 'rgba(69, 137, 255, 0.8)');
+      ctx!.fill();
+      const rad = (wp.heading * Math.PI) / 180;
+      ctx!.strokeStyle = isEditing ? '#fa4d56' : (isCurrent ? '#f1c21b' : 'rgba(69, 137, 255, 0.6)');
+      ctx!.lineWidth = 1.5; ctx!.beginPath(); ctx!.moveTo(cx, cy);
+      ctx!.lineTo(cx + Math.cos(rad) * 12, cy - Math.sin(rad) * 12); ctx!.stroke();
+      ctx!.fillStyle = isEditing ? '#fa4d56' : '#888';
+      ctx!.font = '9px IBM Plex Mono';
+      ctx!.fillText(isEditing ? `WP${i}` : `${i}`, cx + 8, cy - 4);
+    });
+  };
+
+  drawWpList(pathWaypoints, false);
+  if (editingWaypoints.length > 0) drawWpList(editingWaypoints, true);
 }
 
 function drawSensorArcs() {
@@ -304,6 +316,49 @@ export function isTrainingActive() { return trainingActive; }
 // --- Drawing interaction ---
 let lastMouse: { cx: number; cy: number } | null = null;
 
+function removeLastEditingWaypoint() {
+  if (editingWaypoints.length > 0) {
+    editingWaypoints.pop();
+    render();
+    updateSaveBtn();
+  }
+}
+
+function updateSaveBtn() {
+  const btn = document.getElementById('map-save-path') as HTMLButtonElement | null;
+  if (btn) btn.style.display = editingWaypoints.length > 0 ? 'inline-block' : 'none';
+}
+
+async function saveWaypointPath() {
+  const wps = editingWaypoints;
+  if (wps.length === 0) return;
+  const name = prompt('Name for this path:', `Path ${Date.now() % 100000}`);
+  if (!name) return;
+  try {
+    const { createPath, addWaypointsToPath, fetchPaths } = await import('../api');
+    const { path_id } = await createPath(name, 'Created from map planner');
+    await addWaypointsToPath(path_id, wps);
+    editingWaypoints = [];
+    render();
+    updateSaveBtn();
+    const { paths } = await fetchPaths();
+    const select = document.getElementById('map-path-select') as HTMLSelectElement | null;
+    if (select) {
+      select.innerHTML = '';
+      const d = document.createElement('option'); d.value = ''; d.textContent = 'Select path to display';
+      select.appendChild(d);
+      paths.forEach(p => {
+        const o = document.createElement('option'); o.value = String(p.id);
+        o.textContent = `${p.name} (${p.waypoint_count} wp)`;
+        select.appendChild(o);
+      });
+    }
+    alert(`Path "${name}" saved (${wps.length} waypoints)`);
+  } catch (e) {
+    alert('Failed to save path: ' + (e instanceof Error ? e.message : String(e)));
+  }
+}
+
 function setupDrawing(canvasEl: HTMLCanvasElement) {
   canvasEl.addEventListener('mousedown', (e) => {
     if (e.button !== 0) return;
@@ -314,6 +369,13 @@ function setupDrawing(canvasEl: HTMLCanvasElement) {
 
     if (mapMode === 'navigate') {
       sendNavigationGoal(wx, wy).catch(() => {});
+      return;
+    }
+
+    if (mapMode === 'place-waypoint') {
+      editingWaypoints.push({ x: wx, y: wy, heading: robotPos.yaw });
+      render();
+      updateSaveBtn();
       return;
     }
 
@@ -442,7 +504,14 @@ function setMode(newMode: MapMode) {
   mapMode = newMode;
   canvas!.style.cursor = newMode === 'navigate' ? 'default' :
     newMode === 'erase' ? 'crosshair' : 'crosshair';
+  if (newMode !== 'place-waypoint' && editingWaypoints.length > 0) {
+    if (!confirm('Discard unsaved waypoints?')) return;
+    editingWaypoints = [];
+    render();
+  }
   updateModeUI();
+  const saveBtn = document.getElementById('map-save-path') as HTMLButtonElement | null;
+  if (saveBtn) saveBtn.style.display = (newMode === 'place-waypoint' && editingWaypoints.length > 0) ? 'inline-block' : 'none';
 }
 
 function updateModeUI() {
@@ -459,6 +528,45 @@ function updateModeUI() {
   if (modeLabel) {
     modeLabel.textContent = mapMode.toUpperCase().replace('-', ' ');
   }
+}
+
+function setupWorldStateSubscription() {
+  let lastSimTs = 0;
+  WorldState.subscribe('map-view', (state) => {
+    if (!state.robotPosition3D) return;
+    const isSim = state.source === 'sim';
+    const isReal = state.source === 'real';
+    const px = state.robotPosition3D.x;
+    const py = state.robotPosition3D.y;
+
+    // Sim source: convert mm→m. Real source: already in meters.
+    if (isSim) {
+      lastSimTs = state.timestamp;
+      robotPos = {
+        x: px * 0.001, y: py * 0.001,
+        z: state.robotPosition3D.z * 0.001,
+        roll: state.robotPosition3D.roll,
+        pitch: state.robotPosition3D.pitch,
+        yaw: state.robotPosition3D.yaw ?? state.robotPosition.heading,
+      };
+      if (state.sensors && Object.keys(state.sensors).length > 0) {
+        sensors = state.sensors as Partial<SensorReadings>;
+      }
+      render();
+    } else if (isReal && state.timestamp > lastSimTs && (px !== 0 || py !== 0)) {
+      // Real source: only accept non-zero positions (avoid 0,0 from sim backend)
+      robotPos = {
+        x: px, y: py, z: state.robotPosition3D.z,
+        roll: state.robotPosition3D.roll,
+        pitch: state.robotPosition3D.pitch,
+        yaw: state.robotPosition3D.yaw ?? state.robotPosition.heading,
+      };
+      if (state.sensors && Object.keys(state.sensors).length > 0) {
+        sensors = state.sensors as Partial<SensorReadings>;
+      }
+      render();
+    }
+  });
 }
 
 export function renderMap(container: HTMLElement): void {
@@ -481,6 +589,7 @@ export function renderMap(container: HTMLElement): void {
   const toolbar = el('div', 'map-toolbar');
   const modes: Array<{ mode: MapMode; label: string }> = [
     { mode: 'navigate', label: 'Navigate' },
+    { mode: 'place-waypoint', label: '+ Waypoint' },
     { mode: 'draw-wall', label: '+ Wall' },
     { mode: 'draw-obstacle', label: '+ Box' },
     { mode: 'erase', label: 'Erase' },
@@ -508,13 +617,22 @@ export function renderMap(container: HTMLElement): void {
   // Canvas
   const canvasWrap = el('div', 'map-canvas-wrap');
   canvas = document.createElement('canvas');
-  canvas.width = 600; canvas.height = 500; canvas.id = 'map-canvas';
+  // Fit to container size (use 280px height for twin panel, larger for standalone)
+  const containerW = container.clientWidth || 600;
+  const containerH = container.clientHeight || 500;
+  const cw = Math.min(containerW - 16, 600);
+  const ch = Math.min(containerH - 16, 500);
+  canvas.width = Math.max(300, cw);
+  canvas.height = Math.max(200, ch);
+  canvas.id = 'map-canvas';
   ctx = canvas.getContext('2d');
+  CENTER_X = canvas.width / 2;
+  CENTER_Y = canvas.height / 2;
   canvasWrap.appendChild(canvas);
   container.appendChild(canvasWrap);
   setupDrawing(canvas);
 
-  // Path selector
+  // Path panel — selector + waypoint editor
   const pathPanel = el('div', 'map-path-panel');
   const pathSelect = document.createElement('select');
   pathSelect.id = 'map-path-select'; pathSelect.className = 'input';
@@ -526,6 +644,13 @@ export function renderMap(container: HTMLElement): void {
     else { selectedPathId = null; pathWaypoints = []; render(); }
   };
   pathPanel.appendChild(pathSelect);
+  const savePathBtn = document.createElement('button');
+  savePathBtn.id = 'map-save-path';
+  savePathBtn.className = 'map-mode-btn';
+  savePathBtn.textContent = 'Save Waypoints as Path';
+  savePathBtn.style.display = 'none';
+  savePathBtn.addEventListener('click', () => saveWaypointPath());
+  pathPanel.appendChild(savePathBtn);
   container.appendChild(pathPanel);
 
   // Legend
@@ -541,6 +666,7 @@ export function renderMap(container: HTMLElement): void {
   `;
   container.appendChild(legend);
 
+  setupWorldStateSubscription();
   refreshPathList();
   if (pollTimer) clearInterval(pollTimer);
   pollData();
@@ -549,8 +675,10 @@ export function renderMap(container: HTMLElement): void {
 
 export function destroyMap(): void {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  WorldState.unsubscribe('map-view');
   trainingActive = false;
   mapMode = 'navigate';
   drawStart = null;
   lastMouse = null;
+  editingWaypoints = [];
 }

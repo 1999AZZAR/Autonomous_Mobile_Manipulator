@@ -178,10 +178,10 @@ class SensorManager:
         return sensor_data
 
     def _get_simulated_sensor_data(self):
-        """Return physics-based simulated sensor data from BackendSimulation"""
+        """Return physics-based simulated sensor data from SimulationEngine"""
         try:
-            from ml.backend_sim import get_backend_sim
-            sim = get_backend_sim()
+            from simulation_engine import get_engine
+            sim = get_engine()
             sensors = sim.get_sensors()
 
             s = sensors
@@ -200,7 +200,7 @@ class SensorManager:
                 'imu_heading': s.get('imu_heading', 0.0),
                 'imu_pitch': s.get('imu_pitch', 0.0),
                 'imu_roll': s.get('imu_roll', 0.0),
-                'tf_luna_distance': 0,
+                'tf_luna_distance': s.get('tf_luna_distance', 0),
                 'mega_connected': False,
                 'laser_sensors': {
                     'left_front': s.get('laser_left_front', 1500),
@@ -326,12 +326,12 @@ class SensorManager:
         """Calibrate IMU — records current readings as zero offset."""
         try:
             if self.simulation_mode:
-                from ml.backend_sim import get_backend_sim
-                sim = get_backend_sim()
+                from simulation_engine import get_engine
+                sim = get_engine()
                 sim.calibrate_heading()
                 self._imu_offset = {'x': 0.0, 'y': 0.0, 'z': 0.0}
                 self._imu_calibrated = True
-                logger.info("[SIM] IMU heading calibration done via BackendSim")
+                logger.info("[SIM] IMU heading calibration done via SimulationEngine")
                 return True
 
             imu = self.read_imu_data()

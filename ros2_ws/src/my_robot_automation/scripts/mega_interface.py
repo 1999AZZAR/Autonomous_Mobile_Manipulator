@@ -324,12 +324,12 @@ class MegaInterface:
                 return False
 
     def _sim_command(self, command: str) -> bool:
-        """Route command through BackendSimulation physics engine."""
+        """Route command through SimulationEngine."""
         try:
-            from ml.backend_sim import get_backend_sim
-            sim = get_backend_sim()
+            from simulation_engine import get_engine
+            sim = get_engine()
             movement_commands = {'f', 'b', 'q', 'e', 'z', 'x', 't', 'y', 's'}
-            if command in movement_commands:
+            if command in movement_commands or command == 's':
                 sim.step(command)
                 self.stats['commands_sent'] += 1
                 return True
@@ -339,13 +339,9 @@ class MegaInterface:
                 return True
             elif command.startswith('ta'):
                 return True
-            elif command == 's':
-                sim.step('s')
-                self.stats['commands_sent'] += 1
-                return True
             return True
         except ImportError:
-            logger.debug("BackendSimulation not available for sim command routing")
+            logger.debug("SimulationEngine not available for sim command routing")
             return True
         except Exception as e:
             logger.error(f"Sim command error: {e}")

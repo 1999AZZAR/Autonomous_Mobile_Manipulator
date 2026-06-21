@@ -1,51 +1,53 @@
-// WebSocket client for real-time sensor data
+// SSE client for real-time sensor data
 
 import type { SensorData } from './types';
 
 type MessageHandler = (data: SensorData) => void;
 
 export class SensorSocket {
-  private ws: WebSocket | null = null;
+  private es: EventSource | null = null;
   private handlers: MessageHandler[] = [];
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
   private url: string;
+  private destroyed = false;
 
   constructor() {
-    const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
-    this.url = `${proto}//${location.host}/ws/sensors`;
+    this.url = `${location.origin}/ws/sensors`;
   }
 
   connect() {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+    if (this.destroyed) return;
+    this.disconnect();
+    this.es = new EventSource(this.url);
 
-    this.ws = new WebSocket(this.url);
-
-    this.ws.onmessage = (e) => {
+    this.es.onmessage = (e) => {
       try {
         const data: SensorData = JSON.parse(e.data);
         this.handlers.forEach((h) => h(data));
       } catch { /* ignore malformed */ }
     };
 
-    this.ws.onclose = () => {
+    this.es.onerror = () => {
       this.updateStatus(false);
+      this.es?.close();
       this.reconnectTimer = setTimeout(() => this.connect(), 2000);
     };
 
-    this.ws.onerror = () => {
-      this.ws?.close();
-    };
-
-    this.ws.onopen = () => {
+    this.es.onopen = () => {
       this.updateStatus(true);
     };
   }
 
   disconnect() {
     if (this.reconnectTimer) clearTimeout(this.reconnectTimer);
-    this.ws?.close();
-    this.ws = null;
+    this.es?.close();
+    this.es = null;
     this.updateStatus(false);
+  }
+
+  destroy() {
+    this.destroyed = true;
+    this.disconnect();
   }
 
   onSensorData(handler: MessageHandler) {

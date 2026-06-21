@@ -56,13 +56,25 @@ export class PhysicsEngine {
 
   getState(): Readonly<KinematicState> { return this.state; }
   setState(s: KinematicState)          { this.state = { ...s }; }
-  setObstacles(obs: Obstacle[])        { this.obstacles = obs; }
+  setObstacles(obs: Obstacle[]) {
+    this.obstacles = obs;
+    if (obs.length > 0) {
+      console.log(`[Physics] setObstacles(${obs.length})`, obs.map(o => `${o.id}@(${o.x},${o.y}) w=${o.width} d=${o.depth} h=${o.height}`));
+    } else {
+      console.warn(`[Physics] setObstacles(0) — no obstacles!`);
+    }
+  }
+  /** True if the robot would collide at the given position */
+  wouldCollide(x: number, y: number): boolean {
+    return this.checkCollision(x, y);
+  }
 
   /** Command in robot-local frame: +vx=strafe-right, +vy=forward, +omega=CCW */
   command(vx: number, vy: number, omega: number) {
     this.targetVx    = vx;
     this.targetVy    = vy;
     this.targetOmega = omega;
+    console.log(`[Physics] command: vx=${vx.toFixed(1)} vy=${vy.toFixed(1)} ω=${omega.toFixed(1)} | pos=(${this.state.x.toFixed(0)},${this.state.y.toFixed(0)}) h=${this.state.heading.toFixed(0)}`);
   }
 
   stop() {
@@ -102,10 +114,12 @@ export class PhysicsEngine {
     const newHeading = (this.state.heading + this.state.omega * dt + 360) % 360;
 
     // Simple AABB collision
-    if (!this.checkCollision(newX, newY)) {
+    const blocked = this.checkCollision(newX, newY);
+    if (!blocked) {
       this.state.x = newX;
       this.state.y = newY;
     } else {
+      console.warn(`[Physics] BLOCKED at (${newX.toFixed(1)},${newY.toFixed(1)}) from (${this.state.x.toFixed(1)},${this.state.y.toFixed(1)})`);
       this.state.vx = this.state.vy = 0;
     }
     this.state.heading = newHeading;
@@ -127,8 +141,13 @@ export class PhysicsEngine {
   private checkCollision(x: number, y: number): boolean {
     for (const obs of this.obstacles) {
       const hw = obs.width  / 2 + this.robotRadius;
-      const hh = (obs.type === 'cylinder' ? obs.width : obs.height) / 2 + this.robotRadius;
-      if (Math.abs(x - obs.x) < hw && Math.abs(y - obs.y) < hh) return true;
+      const hh = (obs.type === 'cylinder' ? obs.width : obs.depth) / 2 + this.robotRadius;
+      const dx = Math.abs(x - obs.x);
+      const dy = Math.abs(y - obs.y);
+      if (dx < hw && dy < hh) {
+        console.log(`[Physics] COLLISION: pos=(${x.toFixed(1)},${y.toFixed(1)}) vs obs=(${obs.x},${obs.y}) w=${obs.width} d=${obs.depth} h=${obs.height} hw=${hw.toFixed(1)} hh=${hh.toFixed(1)} dx=${dx.toFixed(1)} dy=${dy.toFixed(1)}`);
+        return true;
+      }
     }
     return false;
   }

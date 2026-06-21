@@ -11,8 +11,11 @@ import { SessionRecorder, saveRecording, type Recording } from '../engine/record
 import { PlaybackEngine, type PlaybackProgress } from '../engine/playback';
 import { onTwinStateChange, getTwinState, updateTwinState } from '../state/twin-state';
 import { fetchRobotPosition, fetchSensors, fetchPath, sendContinuousCommand, syncSimObstacles, fetchSimObstacles, sendNavigationGoal } from '../api';
-import type { RobotModelParts } from '../types/twin';
+import { processArduinoMega, type VffResult } from '../engine/arduino-mega';
+import type { RobotModelParts, Obstacle } from '../types/twin';
 import type { SensorArcMesh } from '../engine/sensor-viz';
+import { PhysicsEngine } from '../engine/physics';
+import { planRRT, type RRTResult, type Point } from '../engine/rrt';
 import { WorldState } from '../state/world-state';
 import { createOccupancyGridRenderer, type OccupancyGridRenderer } from '../engine/occupancy-grid';
 import * as THREE from 'three';
@@ -38,6 +41,12 @@ let playback: PlaybackEngine | null = null;
 let occGrid: OccupancyGridRenderer | null = null;
 
 let targetMarker: THREE.Mesh | null = null;
+
+// ── RRT* state ──
+let rrtObstacles: Obstacle[] = [];
+let rrtResult: RRTResult | null = null;
+let rrtPathMesh: THREE.Line | null = null;
+let rrtTreeGroup: THREE.Group | null = null;
 
 function initHitPoints() {
   hitPoints = new Map<string, THREE.Mesh>();
@@ -230,7 +239,7 @@ export function destroyDigitalTwin() {
     simInterval = null;
   }
   stopRealPolling();
-  simVel = { vx: 0, vy: 0, omega: 0 };
+  physicsEngine.stop();
 
   // Stop playback
   playback?.stop();
@@ -397,7 +406,15 @@ function setupClickToMove(twinScene: TwinScene) {
     if (intersection) {
       showTargetMarker(intersection.x, intersection.y);
 
-      sendNavigationGoal(intersection.x, intersection.y).catch(() => {});
+      if (simMode === 'simulation') {
+        // RRT* path planning — coordinates in mm for planner, Three.js positions are m
+        const result = planAndFollow(intersection.x * 1000, intersection.y * 1000);
+        if (result) {
+          console.log(`[RRT] path planned: ${result.path.length} waypoints, reached=${result.reached}`);
+        }
+      } else {
+        sendNavigationGoal(intersection.x, intersection.y).catch(() => {});
+      }
     }
   });
 
@@ -449,18 +466,15 @@ function showTargetMarker(x: number, y: number) {
 
 // --- Simulation Mode ---
 
-let simVel = { vx: 0, vy: 0, omega: 0 };
+let physicsEngine = new PhysicsEngine();
 let simPos = { x: 0, y: 0, heading: 0 };
 let lastBackendCorrection = 0;
 
 function simStep(dt: number) {
-  const { vx, vy, omega } = simVel;
-  const hRad = (simPos.heading * Math.PI) / 180;
-  const worldVx = vx * Math.cos(hRad) + vy * Math.sin(hRad);
-  const worldVy = -vx * Math.sin(hRad) + vy * Math.cos(hRad);
-  simPos.x += worldVx * dt;
-  simPos.y += worldVy * dt;
-  simPos.heading = (simPos.heading + omega * dt + 360) % 360;
+  const s = physicsEngine.step(dt);
+  simPos.x = s.x;
+  simPos.y = s.y;
+  simPos.heading = s.heading;
 }
 
 export function startSimulation(presetName?: string) {
@@ -486,14 +500,15 @@ export function startSimulation(presetName?: string) {
     if (preset) scenario = preset.scenario;
   }
 
+  let physObstacles: Obstacle[] = [];
   if (scenario) {
-    const obstacles = scenarioToObstacles(scenario);
-    const backendObs = obstacles.map((obs) => ({
+    physObstacles = scenarioToObstacles(scenario);
+    const backendObs = physObstacles.map((obs) => ({
       x: obs.x * 0.001, y: obs.y * 0.001, w: obs.width * 0.001, h: obs.depth * 0.001,
     }));
     syncSimObstacles(backendObs).catch(() => {});
-    obstacles.forEach((obs) => {
-      const geo = new THREE.BoxGeometry(obs.width * 0.001, obs.height * 0.001, obs.depth * 0.001);
+    physObstacles.forEach((obs) => {
+      const geo = new THREE.BoxGeometry(obs.width * 0.001, obs.depth * 0.001, obs.height * 0.001);
       const mat = new THREE.MeshStandardMaterial({
         color: obs.color ?? 0x8b4513,
         roughness: 0.7,
@@ -501,7 +516,7 @@ export function startSimulation(presetName?: string) {
         opacity: 0.8,
       });
       const mesh = new THREE.Mesh(geo, mat);
-      mesh.position.set(obs.x * 0.001, obs.y * 0.001, (obs.depth * 0.001) / 2);
+      mesh.position.set(obs.x * 0.001, obs.y * 0.001, (obs.height * 0.001) / 2);
       mesh.castShadow = true;
       mesh.receiveShadow = true;
       mesh.userData.isObstacle = true;
@@ -530,15 +545,28 @@ export function startSimulation(presetName?: string) {
 
   if (simInterval) clearInterval(simInterval);
 
-  // Preserve last known position from twin state (survives tab switches)
+  // Reset physics engine with obstacles
   const current = getTwinState();
+  physicsEngine = new PhysicsEngine();
+  physicsEngine.setState({
+    x: current.position.x,
+    y: current.position.y,
+    heading: current.heading,
+    vx: 0, vy: 0, omega: 0,
+  });
+  physicsEngine.setObstacles(physObstacles);
   simPos = { x: current.position.x, y: current.position.y, heading: current.heading };
+
+  // Store obstacles for RRT planning
+  rrtObstacles = physObstacles;
+  clearRRTVisualization();
   lastBackendCorrection = Date.now();
 
   simInterval = setInterval(() => {
     if (!robotGroup) return;
 
     simStep(0.033);
+    followStep();
 
     updateTwinState({
       position: { x: simPos.x, y: simPos.y, z: 0, roll: 0, pitch: 0, yaw: simPos.heading },
@@ -552,24 +580,27 @@ export function startSimulation(presetName?: string) {
     const now = Date.now();
     if (now - lastBackendCorrection > 200) {
       lastBackendCorrection = now;
-      fetchSensors().then((sensors) => {
-        updateTwinState({
-          sensors: {
-            laser_left_front: sensors.laser_left_front,
-            laser_left_back: sensors.laser_left_back,
-            laser_right_front: sensors.laser_right_front,
-            laser_right_back: sensors.laser_right_back,
-            laser_back_left: sensors.laser_back_left,
-            laser_back_right: sensors.laser_back_right,
-            ultra_front_left: sensors.ultra_front_left,
-            ultra_front_right: sensors.ultra_front_right,
-            line_left: sensors.line_left,
-            line_center: sensors.line_center,
-            line_right: sensors.line_right,
-            tf_luna_distance: sensors.tf_luna_distance,
-          },
-        });
-      }).catch(() => {});
+    }
+
+    // Update twin state with Arduino Mega sensor readings
+    if (lastVffResult) {
+      const rd = lastVffResult.sensorReadings;
+      updateTwinState({
+        sensors: {
+          laser_left_front: rd[0] ?? 1500,
+          laser_left_back: rd[1] ?? 1500,
+          laser_right_front: rd[2] ?? 1500,
+          laser_right_back: rd[3] ?? 1500,
+          laser_back_left: rd[4] ?? 1500,
+          laser_back_right: rd[5] ?? 1500,
+          ultra_front_left: rd[6] ?? 5000,
+          ultra_front_right: rd[7] ?? 5000,
+          line_left: 0,
+          line_center: 0,
+          line_right: 0,
+          tf_luna_distance: 0,
+        },
+      });
     }
 
     const state = getTwinState();
@@ -587,8 +618,12 @@ export function startSimulation(presetName?: string) {
 
 export function stopSimulation() {
   simMode = 'real';
-  simVel = { vx: 0, vy: 0, omega: 0 };
+  followActive = false;
+  physicsEngine.stop();
+  physicsEngine = new PhysicsEngine();
   simPos = { x: 0, y: 0, heading: 0 };
+  clearRRTVisualization();
+  rrtObstacles = [];
   sendContinuousCommand('s').catch(() => {});
   if (simInterval) { clearInterval(simInterval); simInterval = null; }
   startRealPolling();
@@ -652,16 +687,294 @@ function mapVelToCommand(vx: number, vy: number, omega: number): string {
 
 export function commandSimulation(vx: number, vy: number, omega: number) {
   if (simMode === 'simulation') {
-    simVel = { vx, vy, omega };
+    physicsEngine.command(vx, vy, omega);
     const cmd = mapVelToCommand(vx, vy, omega);
     sendContinuousCommand(cmd).catch(() => {});
   }
 }
 
 export function stopSimulationRobot() {
-  simVel = { vx: 0, vy: 0, omega: 0 };
+  followActive = false;
+  physicsEngine.stop();
   sendContinuousCommand('s').catch(() => {});
 }
+
+// --- Autonomous Waypoint Following ---
+
+const DEG2RAD_FOLLOW = Math.PI / 180;
+const FOLLOW_REACH_DIST = 400; // mm
+
+let lastVffResult: VffResult | null = null;
+let followActive = false;
+let followWaypoints: Array<{ x: number; y: number }> = [];
+let followIndex = 0;
+
+// Stuck detection
+let stuckFrameCount = 0;
+let lastFollowPos = { x: 0, y: 0 };
+const STUCK_THRESHOLD = 15;  // frames without movement = stuck
+const STUCK_RECOVERY_FRAMES = 30;
+
+export function getFollowStatus() {
+  return { active: followActive, index: followIndex, total: followWaypoints.length };
+}
+
+export async function startPathFollowing(pathId: number) {
+  try {
+    const data = await fetchPath(pathId);
+    if (!data.waypoints || data.waypoints.length < 2) return;
+    followWaypoints = data.waypoints
+      .sort((a, b) => a.order - b.order)
+      .map((wp) => ({ x: wp.x * 1000, y: wp.y * 1000 }));
+    followIndex = 0;
+    followActive = true;
+  } catch {}
+}
+
+export function stopPathFollowing() {
+  followActive = false;
+  followWaypoints = [];
+  followIndex = 0;
+  physicsEngine.stop();
+  clearRRTVisualization();
+  sendContinuousCommand('s').catch(() => {});
+}
+
+function followStep() {
+  if (!followActive || followIndex >= followWaypoints.length) {
+    if (followActive && followIndex >= followWaypoints.length) {
+      followActive = false;
+      physicsEngine.stop();
+      stuckFrameCount = 0;
+      sendContinuousCommand('s').catch(() => {});
+    }
+    return;
+  }
+
+  const target = followWaypoints[followIndex];
+  const dx = target.x - simPos.x;
+  const dy = target.y - simPos.y;
+  const dist = Math.sqrt(dx * dx + dy * dy);
+
+  if (dist < FOLLOW_REACH_DIST) {
+    followIndex++;
+    stuckFrameCount = 0;
+    return;
+  }
+
+  // ── Stuck detection ──
+  const movedDist = Math.sqrt(
+    (simPos.x - lastFollowPos.x) ** 2 +
+    (simPos.y - lastFollowPos.y) ** 2
+  );
+  lastFollowPos = { x: simPos.x, y: simPos.y };
+
+  if (movedDist < 3) {
+    stuckFrameCount++;
+  } else {
+    stuckFrameCount = Math.max(0, stuckFrameCount - 2);
+  }
+
+  // ── Stuck recovery ──
+  if (stuckFrameCount > STUCK_THRESHOLD) {
+    // Phase 1 (frames 16-40): wall-slide — project desired velocity perpendicular to obstacle
+    if (stuckFrameCount < STUCK_THRESHOLD + 40) {
+      const hRad = simPos.heading * DEG2RAD_FOLLOW;
+      const cosH = Math.cos(hRad);
+      const sinH = Math.sin(hRad);
+      // Desired velocity in world frame
+      const wDx = dx / dist;
+      const wDy = dy / dist;
+      // Try sliding: rotate desired direction by ±90° (perpendicular to obstacle)
+      const slideDir = (stuckFrameCount % 40 < 20) ? 1 : -1;
+      const slideWx = -wDy * slideDir;
+      const slideWy = wDx * slideDir;
+      // Convert back to robot frame
+      const slideVx = slideWx * cosH - slideWy * sinH;
+      const slideVy = slideWx * sinH + slideWy * cosH;
+      const slideSpeed = 120;
+      physicsEngine.command(slideVx * slideSpeed, slideVy * slideSpeed, 0);
+      sendContinuousCommand('f').catch(() => {});
+      return;
+    }
+    // Phase 2 (frames 40-60): try to move forward at reduced speed
+    if (stuckFrameCount < STUCK_THRESHOLD + 60) {
+      physicsEngine.command(0, 80, 0);
+      sendContinuousCommand('f').catch(() => {});
+      return;
+    }
+    // Phase 3 (frames 60+): skip waypoint
+    console.warn(`[Follow] stuck at wp ${followIndex}/${followWaypoints.length}, skipping`);
+    followIndex++;
+    stuckFrameCount = 0;
+    return;
+  }
+
+  // Desired direction toward target in robot frame
+  const hRad = simPos.heading * DEG2RAD_FOLLOW;
+  const cosH = Math.cos(hRad);
+  const sinH = Math.sin(hRad);
+  const idealVx = (dx * cosH - dy * sinH) / dist;
+  const idealVy = (dx * sinH + dy * cosH) / dist;
+  const speed = Math.min(MAX_SPEED * 0.8, Math.max(100, dist * 0.3));
+  const cmdVx = idealVx * speed;
+  const cmdVy = idealVy * speed;
+
+  // ── Arduino Mega simulation: VFF + perimeter safety ──
+  const result = processArduinoMega(
+    cmdVx, cmdVy, 0,
+    simPos.x, simPos.y,
+    simPos.heading,
+    (x: number, y: number) => physicsEngine.wouldCollide(x, y),
+  );
+
+  lastVffResult = result;
+
+  if (result.braking) {
+    // Wall-slide: project desired velocity along obstacle surface
+    // Try ±45° rotations of desired direction to find clear path
+    const hRadW = simPos.heading * DEG2RAD_FOLLOW;
+    const cosHW = Math.cos(hRadW);
+    const sinHW = Math.sin(hRadW);
+    const wDx = dx / dist;
+    const wDy = dy / dist;
+
+    for (const angle of [0.4, -0.4, 0.8, -0.8, 1.2, -1.2]) {
+      const rotX = wDx * Math.cos(angle) - wDy * Math.sin(angle);
+      const rotY = wDx * Math.sin(angle) + wDy * Math.cos(angle);
+      const testX = simPos.x + rotX * 100;
+      const testY = simPos.y + rotY * 100;
+      if (!physicsEngine.wouldCollide(testX, testY)) {
+        const rvx = rotX * cosHW + rotY * sinHW;
+        const rvy = -rotX * sinHW + rotY * cosHW;
+        const slowSpeed = speed * 0.5;
+        physicsEngine.command(rvx * slowSpeed, rvy * slowSpeed, 0);
+        sendContinuousCommand('f').catch(() => {});
+        return;
+      }
+    }
+    // All directions blocked — stop briefly
+    physicsEngine.command(0, 0, 0);
+    sendContinuousCommand('s').catch(() => {});
+    return;
+  }
+
+  // Gentle rotate toward VFF-modified movement direction
+  const wVx = result.vx * cosH + result.vy * sinH;
+  const wVy = -result.vx * sinH + result.vy * cosH;
+  let headingDelta = 0;
+  if (Math.abs(result.vx) > 1 || Math.abs(result.vy) > 1) {
+    const moveWorldAngle = (Math.atan2(wVx, wVy) * 180 / Math.PI + 360) % 360;
+    headingDelta = moveWorldAngle - simPos.heading;
+    if (headingDelta > 180) headingDelta -= 360;
+    if (headingDelta < -180) headingDelta += 360;
+  }
+
+  physicsEngine.command(result.vx, result.vy, Math.sign(headingDelta) * Math.min(50, Math.abs(headingDelta) * 1.5));
+  sendContinuousCommand('f').catch(() => {});
+}
+
+// ── RRT* Path Planning ────────────────────────────────────────────────────
+
+/** Plan an RRT* path from current position to a goal (mm) and start following it. */
+export function planAndFollow(goalX: number, goalY: number): RRTResult | null {
+  if (simMode !== 'simulation') return null;
+
+  const start: Point = { x: simPos.x, y: simPos.y };
+  const goal: Point = { x: goalX, y: goalY };
+
+  rrtResult = planRRT(start, goal, rrtObstacles);
+
+  console.log(`[RRT] planned: ${rrtResult.path.length} waypoints, reached=${rrtResult.reached}, tree=${rrtResult.tree.length} nodes`);
+
+  if (rrtResult.path.length < 2) return rrtResult;
+
+  // Convert to follow waypoints (mm) and start following
+    followWaypoints = rrtResult.path.map((p) => ({ x: p.x, y: p.y }));
+    followIndex = 0;
+    followActive = true;
+    stuckFrameCount = 0;
+    lastFollowPos = { x: simPos.x, y: simPos.y };
+
+  drawRRTVisualization(rrtResult);
+
+  return rrtResult;
+}
+
+/** Plan an RRT* path without starting to follow (just visualise or inspect). */
+export function planRRTPath(goalX: number, goalY: number): RRTResult | null {
+  const start: Point = { x: simPos.x, y: simPos.y };
+  rrtResult = planRRT(start, { x: goalX, y: goalY }, rrtObstacles);
+  drawRRTVisualization(rrtResult);
+  return rrtResult;
+}
+
+function drawRRTVisualization(result: RRTResult) {
+  clearRRTVisualization();
+  if (!scene || result.tree.length === 0) return;
+
+  // ── Draw tree edges (faint grey) ──
+  rrtTreeGroup = new THREE.Group();
+  const treeMat = new THREE.LineBasicMaterial({ color: 0x888888, transparent: true, opacity: 0.25 });
+  const treeGeo = new THREE.BufferGeometry();
+
+  const verts: number[] = [];
+  for (const node of result.tree) {
+    if (node.parent !== null) {
+      const p = result.tree[node.parent];
+      verts.push(p.x * 0.001, p.y * 0.001, 0.02,
+                  node.x * 0.001, node.y * 0.001, 0.02);
+    }
+  }
+  treeGeo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
+  const treeLine = new THREE.LineSegments(treeGeo, treeMat);
+  rrtTreeGroup.add(treeLine);
+
+  // ── Draw final path (bright cyan) ──
+  if (result.path.length >= 2) {
+    const pathMat = new THREE.LineBasicMaterial({ color: 0x00e5ff, linewidth: 2 });
+    const pathGeo = new THREE.BufferGeometry();
+    const pathVerts: number[] = [];
+    for (const p of result.path) {
+      pathVerts.push(p.x * 0.001, p.y * 0.001, 0.03);
+    }
+    pathGeo.setAttribute('position', new THREE.Float32BufferAttribute(pathVerts, 3));
+    const pathLine = new THREE.Line(pathGeo, pathMat);
+    rrtTreeGroup.add(pathLine);
+
+    // Draw waypoint spheres along path
+    const sphereGeo = new THREE.SphereGeometry(0.04, 8, 8);
+    const sphereMat = new THREE.MeshStandardMaterial({ color: 0x00e5ff, emissive: 0x00e5ff, emissiveIntensity: 0.5 });
+    for (let i = 1; i < result.path.length - 1; i++) {
+      const sphere = new THREE.Mesh(sphereGeo, sphereMat);
+      sphere.position.set(result.path[i].x * 0.001, result.path[i].y * 0.001, 0.04);
+      rrtTreeGroup.add(sphere);
+    }
+  }
+
+  scene.scene.add(rrtTreeGroup);
+}
+
+function clearRRTVisualization() {
+  if (rrtTreeGroup && scene) {
+    scene.scene.remove(rrtTreeGroup);
+    rrtTreeGroup.traverse((child: any) => {
+      if (child.geometry) child.geometry.dispose();
+      if (child.material) {
+        if (Array.isArray(child.material)) child.material.forEach((m: any) => m.dispose());
+        else child.material.dispose();
+      }
+    });
+    rrtTreeGroup = null;
+  }
+  rrtResult = null;
+}
+
+/** Expose current obstacles for external RRT calls. */
+export function getRRTOstacles(): Obstacle[] { return rrtObstacles; }
+
+/** Expose RRT result for UI status display. */
+export function getRRTResult(): RRTResult | null { return rrtResult; }
 
 // --- Recording ---
 

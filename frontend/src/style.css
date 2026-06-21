@@ -783,12 +783,15 @@ textarea:focus {
 .twin-panel {
   padding: 0 !important;
   height: calc(100vh - 48px);
+  display: flex !important;
+  flex-direction: column;
 }
 
 .twin-layout {
   display: grid;
   grid-template-columns: 1fr 280px;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   gap: 0;
 }
 
@@ -809,6 +812,27 @@ textarea:focus {
   border-left: 1px solid var(--cds-border-subtle);
   overflow-y: auto;
   padding: 12px;
+}
+
+.twin-map-panel {
+  height: 280px;
+  min-height: 280px;
+  border-top: 1px solid var(--cds-border-subtle);
+  background: var(--cds-bg-secondary);
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.twin-map-panel .map-canvas-wrap {
+  display: flex;
+  justify-content: center;
+}
+
+.twin-map-panel .map-canvas-wrap canvas {
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--cds-border-subtle);
+  border-radius: 4px;
 }
 
 .twin-hud {
@@ -926,6 +950,16 @@ textarea:focus {
 
 .twin-btn:hover {
   background: var(--cds-layer-active);
+}
+
+.twin-btn--go {
+  background: var(--cds-support-success, #24a148);
+  border-color: var(--cds-support-success, #24a148);
+  color: #fff;
+}
+.twin-btn--go:hover {
+  background: var(--cds-support-success, #24a148);
+  filter: brightness(1.2);
 }
 
 .twin-movement-grid {

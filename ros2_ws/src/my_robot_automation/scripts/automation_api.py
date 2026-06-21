@@ -676,6 +676,19 @@ def stop_replay():
     return jsonify({'success': True})
 
 
+@waypoint_bp.route('/paths/<int:path_id>/waypoints', methods=['POST'])
+def add_waypoints_to_path(path_id):
+    """Add waypoints with explicit coordinates to an existing path."""
+    if not _waypoint_memory:
+        return jsonify({'error': 'Waypoint memory not initialized'}), 503
+    data = request.get_json(silent=True) or {}
+    wps = data.get('waypoints', [])
+    if not wps:
+        return jsonify({'error': 'No waypoints provided'}), 400
+    result = _waypoint_memory.add_waypoints(path_id, wps)
+    return jsonify(result)
+
+
 @waypoint_bp.route('/status', methods=['GET'])
 def waypoint_status():
     """Get recording/replay status."""
@@ -947,69 +960,69 @@ def ml_train_status():
 
 @ml_bp.route('/sim/state', methods=['GET'])
 def ml_sim_state():
-    """Get BackendSimulation physics state (position, obstacles, sensors)."""
+    """Get SimulationEngine physics state (position, obstacles, sensors)."""
     try:
-        from ml.backend_sim import get_backend_sim
-        sim = get_backend_sim()
+        from simulation_engine import get_engine
+        sim = get_engine()
         state = sim.get_state()
         sensors = sim.get_sensors()
         return jsonify({'state': state, 'sensors': sensors})
     except ImportError:
-        return jsonify({'error': 'BackendSimulation not available'}), 503
+        return jsonify({'error': 'SimulationEngine not available'}), 503
 
 
 @ml_bp.route('/sim/reset', methods=['POST'])
 def ml_sim_reset():
-    """Reset BackendSimulation to initial state."""
+    """Reset SimulationEngine to initial state."""
     data = request.get_json(silent=True) or {}
     try:
-        from ml.backend_sim import reset_backend_sim
-        reset_backend_sim(data.get('obstacles'))
+        from simulation_engine import reset_engine
+        reset_engine(data.get('obstacles'))
         return jsonify({'success': True})
     except ImportError:
-        return jsonify({'error': 'BackendSimulation not available'}), 503
+        return jsonify({'error': 'SimulationEngine not available'}), 503
 
 
 @ml_bp.route('/sim/step', methods=['POST'])
 def ml_sim_step():
-    """Run a single command step through BackendSimulation."""
+    """Run a single command step through SimulationEngine."""
     data = request.get_json(silent=True) or {}
     cmd = data.get('command', 's')
     dt = data.get('dt', 1.0/30.0)
     try:
-        from ml.backend_sim import get_backend_sim
-        sim = get_backend_sim()
+        from simulation_engine import get_engine
+        sim = get_engine()
         sim.step(cmd, dt)
         sensors = sim.get_sensors()
         return jsonify({'sensors': sensors, 'state': sim.get_state()})
     except ImportError:
-        return jsonify({'error': 'BackendSimulation not available'}), 503
+        return jsonify({'error': 'SimulationEngine not available'}), 503
 
 
 @ml_bp.route('/sim/obstacles', methods=['POST'])
 def ml_sim_obstacles():
-    """Set obstacles for BackendSimulation (synced from map)."""
+    """Set obstacles for SimulationEngine (synced from map)."""
     data = request.get_json(silent=True) or {}
     obstacles = data.get('obstacles', [])
     try:
-        from ml.backend_sim import get_backend_sim
-        sim = get_backend_sim()
+        from simulation_engine import get_engine
+        sim = get_engine()
         sim.set_obstacles(obstacles)
         return jsonify({'success': True, 'count': len(obstacles)})
     except ImportError:
-        return jsonify({'error': 'BackendSimulation not available'}), 503
+        return jsonify({'error': 'SimulationEngine not available'}), 503
 
 
 @ml_bp.route('/sim/calibrate', methods=['POST'])
 def ml_sim_calibrate():
-    """Calibrate BackendSim heading (zero current heading)."""
+    """Calibrate SimulationEngine heading (zero current heading)."""
     try:
-        from ml.backend_sim import get_backend_sim
-        sim = get_backend_sim()
+        from simulation_engine import get_engine
+        sim = get_engine()
         sim.calibrate_heading()
         return jsonify({'success': True})
     except ImportError:
-        return jsonify({'error': 'BackendSimulation not available'}), 503
+        return jsonify({'error': 'SimulationEngine not available'}), 503
 
 
 # --- Navigation Goal ---
@@ -1034,8 +1047,8 @@ def ml_nav_set_goal():
         'label': data.get('label', ''),
     }
     try:
-        from ml.backend_sim import get_backend_sim
-        sim = get_backend_sim()
+        from simulation_engine import get_engine
+        sim = get_engine()
         state = sim.get_state()
         dx = float(x) - state['x']
         dy = float(y) - state['y']
@@ -1056,8 +1069,8 @@ def ml_nav_get_goal():
     if not _nav_goal:
         return jsonify({'goal': None})
     try:
-        from ml.backend_sim import get_backend_sim
-        sim = get_backend_sim()
+        from simulation_engine import get_engine
+        sim = get_engine()
         state = sim.get_state()
         dx = _nav_goal['x'] - state['x']
         dy = _nav_goal['y'] - state['y']

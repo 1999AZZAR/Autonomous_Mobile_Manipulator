@@ -211,21 +211,21 @@ class FlaskApp:
         def sim_obstacles():
             if request.method == 'GET':
                 try:
-                    from ml.backend_sim import get_backend_sim
-                    sim = get_backend_sim()
-                    obstacles = sim.get_state().get('obstacles', [])
+                    from simulation_engine import get_engine
+                    sim = get_engine()
+                    obstacles = sim.get_obstacles()
                     return jsonify({'success': True, 'obstacles': obstacles})
                 except ImportError:
-                    return jsonify({'error': 'BackendSim not available'}), 503
+                    return jsonify({'error': 'SimulationEngine not available'}), 503
             data = request.get_json(silent=True) or {}
             obstacles = data.get('obstacles', [])
             try:
-                from ml.backend_sim import get_backend_sim
-                sim = get_backend_sim()
+                from simulation_engine import get_engine
+                sim = get_engine()
                 sim.set_obstacles(obstacles)
                 return jsonify({'success': True, 'count': len(obstacles)})
             except ImportError:
-                return jsonify({'error': 'BackendSim not available'}), 503
+                return jsonify({'error': 'SimulationEngine not available'}), 503
 
         # Path Planning
         @self.app.route('/api/robot/sequences/execute', methods=['POST'])
@@ -294,11 +294,10 @@ class FlaskApp:
             if self.sensors:
                 data = self.sensors.read_all_sensors()
 
-                # In sim mode, overlay BackendSim sensor data
                 if self.simulation_mode:
                     try:
-                        from ml.backend_sim import get_backend_sim
-                        sim = get_backend_sim()
+                        from simulation_engine import get_engine
+                        sim = get_engine()
                         s = sim.get_sensors()
                         data.update({
                             'laser_left_front': int(s.get('laser_left_front', data.get('laser_left_front', 1500))),
@@ -1433,11 +1432,11 @@ class FlaskApp:
             }), 500
 
     def _get_current_position(self):
-        """Get current robot position — BackendSim in sim mode, IMU in real."""
+        """Get current robot position — SimulationEngine in sim mode, IMU in real."""
         if self.simulation_mode:
             try:
-                from ml.backend_sim import get_backend_sim
-                sim = get_backend_sim()
+                from simulation_engine import get_engine
+                sim = get_engine()
                 state = sim.get_state()
                 sensors = sim.get_sensors()
                 return jsonify({
@@ -1683,8 +1682,8 @@ class FlaskApp:
                 break
             if self.simulation_mode:
                 if sim is None:
-                    from ml.backend_sim import get_backend_sim
-                    sim = get_backend_sim()
+                    from simulation_engine import get_engine
+                    sim = get_engine()
                 sim.step(cmd, 1.0 / 30.0)
             elif self.mega:
                 self.mega.send_command_to_mega(cmd)

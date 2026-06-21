@@ -1,13 +1,17 @@
 // Control panel — joint sliders, gripper toggle, mode selector, emergency stop
 
 import { getTwinState, updateTwinState } from '../state/twin-state';
-import { sendMovementCommand, fetchPaths } from '../api';
-import { loadWaypointPath, clearWaypointPath, startSimulation, stopSimulation, getSimulationMode, getSimulationPresets, commandSimulation, stopSimulationRobot, startRecording, stopRecording, isRecording, getRecordingFrameCount, loadPlayback, startPlayback, pausePlayback, resumePlayback, stopPlayback, setPlaybackSpeed, getPlaybackProgress, getPlaybackState, seekPlaybackPercent } from './digital-twin';
+import { sendMovementCommand, fetchPaths, createPath, addWaypointsToPath, recordWaypoint as apiRecordWaypoint, stopRecording as apiStopRecording } from '../api';
+import { EXAMPLE_PATHS } from '../engine/scenario';
+import { loadWaypointPath, clearWaypointPath, startSimulation, stopSimulation, getSimulationMode, getSimulationPresets, commandSimulation, stopSimulationRobot, startRecording, stopRecording, isRecording, getRecordingFrameCount, loadPlayback, startPlayback, pausePlayback, resumePlayback, stopPlayback, setPlaybackSpeed, getPlaybackProgress, getPlaybackState, seekPlaybackPercent, startPathFollowing, stopPathFollowing, getFollowStatus, getRRTResult } from './digital-twin';
+import { renderMap, destroyMap } from './map-view';
 import { loadAllRecordings, type Recording } from '../engine/recording';
 
 let containerEl: HTMLElement | null = null;
 let activeMovementCmd: string | null = null;
 let recFrameInterval: ReturnType<typeof setInterval> | null = null;
+let wpRecording = false;
+let wpRecInterval: ReturnType<typeof setInterval> | null = null;
 
 export function initTwinControls(parent: HTMLElement) {
 
@@ -35,9 +39,21 @@ export function initTwinControls(parent: HTMLElement) {
     </div>
     <div class="twin-control-section">
       <h4>Waypoint Path</h4>
-      <select id="path-selector" class="input input--sm" style="width:100%;margin-bottom:8px">
+      <select id="path-selector" class="input input--sm" style="width:100%;margin-bottom:6px">
         <option value="">No path loaded</option>
       </select>
+      <div style="display:flex;gap:4px;margin-bottom:6px">
+        <button class="twin-btn" id="wp-record-btn" style="flex:1">Record Path</button>
+        <button class="twin-btn" id="wp-stop-btn" style="flex:1" disabled>Stop</button>
+      </div>
+      <div id="wp-status" style="font-size:11px;color:var(--cds-text-placeholder);text-align:center;margin-bottom:6px">
+        WP: <span id="wp-count">0</span>
+      </div>
+      <div style="display:flex;gap:4px;margin-bottom:4px">
+        <button class="twin-btn twin-btn--go" id="follow-path-btn" style="flex:1" disabled>Follow Path</button>
+        <button class="twin-btn" id="stop-follow-btn" style="flex:1" disabled>Stop</button>
+      </div>
+      <button class="twin-btn" id="load-example-paths" style="width:100%;margin-bottom:4px">Load Example Paths</button>
       <button class="twin-btn" id="clear-path" style="width:100%">Clear Path</button>
     </div>
     <div class="twin-control-section">
@@ -52,6 +68,10 @@ export function initTwinControls(parent: HTMLElement) {
       <div id="sim-status" style="font-size:11px;color:var(--cds-text-placeholder);text-align:center">
         Mode: <span id="sim-mode-label">REAL</span>
       </div>
+      <div id="rrt-status" style="font-size:11px;color:var(--cds-text-placeholder);text-align:center;margin-top:6px;display:none">
+        RRT: <span id="rrt-info">—</span>
+      </div>
+      <button class="twin-btn" id="toggle-map-btn" style="width:100%;margin-top:8px">Show 2D Map</button>
     </div>
     <div class="twin-control-section">
       <h4>Recording</h4>
@@ -142,23 +162,93 @@ export function initTwinControls(parent: HTMLElement) {
   });
   updateLifterLimits(parseInt(lifterSlider.value));
 
-  // Path selector
+  // --- Waypoint recording ---
   const pathSelector = containerEl.querySelector('#path-selector') as HTMLSelectElement;
   const clearPathBtn = containerEl.querySelector('#clear-path') as HTMLButtonElement;
+  const loadExamplesBtn = containerEl.querySelector('#load-example-paths') as HTMLButtonElement;
+  const wpRecordBtn = containerEl.querySelector('#wp-record-btn') as HTMLButtonElement;
+  const wpStopBtn = containerEl.querySelector('#wp-stop-btn') as HTMLButtonElement;
+  const wpCountEl = containerEl.querySelector('#wp-count') as HTMLElement;
 
-  // Load available paths
-  fetchPaths()
-    .then((data) => {
-      if (data.paths) {
-        data.paths.forEach((path) => {
-          const option = document.createElement('option');
-          option.value = String(path.id);
-          option.textContent = `${path.name} (${path.waypoint_count} pts)`;
-          pathSelector.appendChild(option);
-        });
-      }
-    })
-    .catch(() => {});
+  let wpRecCount = 0;
+
+  function refreshPathList() {
+    fetchPaths().then((data) => {
+      if (!data.paths) return;
+      const currentVal = pathSelector.value;
+      pathSelector.innerHTML = '';
+      const d = document.createElement('option'); d.value = ''; d.textContent = 'Select path to display';
+      pathSelector.appendChild(d);
+      data.paths.forEach((path) => {
+        const option = document.createElement('option');
+        option.value = String(path.id);
+        option.textContent = `${path.name} (${path.waypoint_count} pts)`;
+        pathSelector.appendChild(option);
+      });
+      if (currentVal) pathSelector.value = currentVal;
+    }).catch(() => {});
+  }
+
+  async function loadExamplePaths() {
+    let count = 0;
+    for (const example of EXAMPLE_PATHS) {
+      try {
+        const res = await createPath(example.name, 'Example path for ' + example.scenarioName);
+        if (res.success) {
+          await addWaypointsToPath(res.path_id, example.waypoints);
+          count++;
+        }
+      } catch { /* skip duplicates */ }
+    }
+    refreshPathList();
+    alert(`Loaded ${count} example path(s)`);
+  }
+
+  loadExamplesBtn.addEventListener('click', loadExamplePaths);
+
+  refreshPathList();
+
+  wpRecordBtn.addEventListener('click', async () => {
+    if (wpRecording) return;
+    const name = prompt('Path name:', `Path ${Date.now() % 100000}`);
+    if (!name) return;
+    try {
+      const res = await createPath(name, 'Recorded from twin controls');
+      if (!res.success) throw new Error('Failed to create path');
+      wpRecording = true;
+      wpRecCount = 0;
+      wpRecordBtn.disabled = true;
+      wpStopBtn.disabled = false;
+      wpCountEl.textContent = '0';
+      // Auto-record waypoints every 500ms
+      wpRecInterval = setInterval(async () => {
+        if (!wpRecording) return;
+        try {
+          const r = await apiRecordWaypoint();
+          if (r.success) {
+            wpRecCount++;
+            wpCountEl.textContent = String(wpRecCount);
+          }
+        } catch {}
+      }, 500);
+    } catch (e) {
+      alert('Failed: ' + (e instanceof Error ? e.message : String(e)));
+    }
+  });
+
+  wpStopBtn.addEventListener('click', async () => {
+    if (!wpRecording) return;
+    wpRecording = false;
+    if (wpRecInterval) { clearInterval(wpRecInterval); wpRecInterval = null; }
+    try {
+      const res = await apiStopRecording();
+      wpRecordBtn.disabled = false;
+      wpStopBtn.disabled = true;
+      wpCountEl.textContent = '0';
+      refreshPathList();
+      if (res.success) alert(`Path saved — ${res.waypoint_count} waypoints`);
+    } catch {}
+  });
 
   pathSelector.addEventListener('change', () => {
     const pathId = parseInt(pathSelector.value);
@@ -171,6 +261,35 @@ export function initTwinControls(parent: HTMLElement) {
     pathSelector.value = '';
     clearWaypointPath();
   });
+
+  // Follow path
+  const followBtn = containerEl.querySelector('#follow-path-btn') as HTMLButtonElement;
+  const stopFollowBtn = containerEl.querySelector('#stop-follow-btn') as HTMLButtonElement;
+
+  followBtn.addEventListener('click', async () => {
+    const pathId = parseInt(pathSelector.value);
+    if (isNaN(pathId)) return;
+    if (getSimulationMode() !== 'simulation') {
+      alert('Start simulation first');
+      return;
+    }
+    followBtn.disabled = true;
+    stopFollowBtn.disabled = false;
+    await startPathFollowing(pathId);
+  });
+
+  stopFollowBtn.addEventListener('click', () => {
+    stopPathFollowing();
+    followBtn.disabled = false;
+    stopFollowBtn.disabled = true;
+  });
+
+  // Enable follow button when a path is selected during simulation
+  setInterval(() => {
+    const mode = getSimulationMode();
+    const hasPath = pathSelector.value !== '';
+    followBtn.disabled = !(mode === 'simulation' && hasPath);
+  }, 500);
 
   // Simulation controls
   const simPreset = containerEl.querySelector('#sim-preset') as HTMLSelectElement;
@@ -187,17 +306,73 @@ export function initTwinControls(parent: HTMLElement) {
     simPreset.appendChild(option);
   });
 
-  simStartBtn.addEventListener('click', () => {
+  simStartBtn.addEventListener('click', async () => {
     const presetName = simPreset.value || undefined;
     startSimulation(presetName);
     simModeLabel.textContent = 'SIMULATION';
     simModeLabel.style.color = 'var(--cds-support-warning)';
+
+    // Seed a matching example waypoint path if available
+    if (presetName) {
+      const example = EXAMPLE_PATHS.find((p) => p.scenarioName === presetName);
+      if (example) {
+        try {
+          const res = await createPath(example.name, 'Example path for ' + presetName);
+          if (res.success) {
+            await addWaypointsToPath(res.path_id, example.waypoints);
+            refreshPathList();
+            pathSelector.value = String(res.path_id);
+            loadWaypointPath(res.path_id);
+          }
+        } catch (e) {
+          console.warn('Failed to seed example path:', e);
+        }
+      }
+    }
   });
 
   simStopBtn.addEventListener('click', () => {
     stopSimulation();
     simModeLabel.textContent = 'REAL';
     simModeLabel.style.color = 'var(--cds-text-placeholder)';
+    rrtStatusEl.style.display = 'none';
+  });
+
+  // RRT status display
+  const rrtStatusEl = containerEl.querySelector('#rrt-status') as HTMLElement;
+  const rrtInfoEl = containerEl.querySelector('#rrt-info') as HTMLElement;
+
+  setInterval(() => {
+    if (getSimulationMode() !== 'simulation') {
+      rrtStatusEl.style.display = 'none';
+      return;
+    }
+    rrtStatusEl.style.display = '';
+    const result = getRRTResult();
+    if (result) {
+      const follow = getFollowStatus();
+      rrtInfoEl.textContent = `${result.path.length} wp | tree ${result.tree.length} | ${result.reached ? 'reached' : 'partial'} | following ${follow.index}/${follow.total}`;
+    } else {
+      rrtInfoEl.textContent = 'Click 3D scene to set goal';
+    }
+  }, 500);
+
+  // ── Map toggle ──
+  let mapVisible = false;
+  const toggleMapBtn = containerEl.querySelector('#toggle-map-btn') as HTMLButtonElement;
+  toggleMapBtn.addEventListener('click', () => {
+    mapVisible = !mapVisible;
+    const mapPanel = document.getElementById('twin-map-panel');
+    if (!mapPanel) return;
+    if (mapVisible) {
+      mapPanel.style.display = '';
+      renderMap(mapPanel);
+      toggleMapBtn.textContent = 'Hide 2D Map';
+    } else {
+      mapPanel.style.display = 'none';
+      destroyMap();
+      toggleMapBtn.textContent = 'Show 2D Map';
+    }
   });
 
   // Recording controls
@@ -411,6 +586,11 @@ export function destroyTwinControls() {
     clearInterval(recFrameInterval);
     recFrameInterval = null;
   }
+  if (wpRecInterval) {
+    clearInterval(wpRecInterval);
+    wpRecInterval = null;
+  }
+  wpRecording = false;
   activeMovementCmd = null;
   if (containerEl) {
     containerEl.remove();

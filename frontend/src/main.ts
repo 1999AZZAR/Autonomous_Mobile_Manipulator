@@ -15,14 +15,13 @@ import { emergencyStop } from './api';
 
 const socket = new SensorSocket();
 
-const TABS = ['dashboard', 'movement', 'manipulator', 'map', 'twin', 'automations', 'ai', 'system'] as const;
+const TABS = ['dashboard', 'movement', 'manipulator', 'twin', 'automations', 'ai', 'system'] as const;
 type Tab = (typeof TABS)[number];
 
 const initFns: Record<Tab, (el: HTMLElement) => void> = {
   dashboard: initDashboard,
   movement: initMovement,
   manipulator: initManipulator,
-  map: renderMap,
   twin: initTwinTab,
   automations: initAutomations,
   ai: renderAiControl,
@@ -33,7 +32,6 @@ const destroyFns: Record<Tab, () => void> = {
   dashboard: destroyDashboard,
   movement: destroyMovement,
   manipulator: destroyManipulator,
-  map: destroyMap,
   twin: destroyTwinTab,
   automations: destroyAutomations,
   ai: destroyAiControl,
@@ -48,6 +46,7 @@ function initTwinTab(el: HTMLElement) {
       <div class="twin-viewport" id="twin-viewport"></div>
       <div class="twin-sidebar" id="twin-sidebar"></div>
     </div>
+    <div class="twin-map-panel" id="twin-map-panel" style="display:none"></div>
   `;
   const viewport = document.getElementById('twin-viewport');
   const sidebar = document.getElementById('twin-sidebar');
@@ -62,6 +61,7 @@ function destroyTwinTab() {
   destroyDigitalTwin();
   destroyTwinHud();
   destroyTwinControls();
+  destroyMap();
 }
 
 function switchTab(tab: Tab) {

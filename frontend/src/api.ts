@@ -187,6 +187,13 @@ export function stopReplay(): Promise<{ success: boolean }> {
   return request('/waypoints/replay/stop', { method: 'POST' });
 }
 
+export function addWaypointsToPath(pathId: number, waypoints: Array<{ x: number; y: number; heading: number; actions?: Record<string, unknown> }>): Promise<{ success: boolean; count: number }> {
+  return request(`/waypoints/paths/${pathId}/waypoints`, {
+    method: 'POST',
+    body: JSON.stringify({ waypoints }),
+  });
+}
+
 export function fetchWaypointStatus(): Promise<WaypointStatus> {
   return request('/waypoints/status');
 }
